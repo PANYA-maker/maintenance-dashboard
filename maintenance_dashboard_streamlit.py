@@ -264,4 +264,3 @@ st.dataframe(
     ],
     use_container_width=True
 )
-Fix syntax error (remove stray text)
