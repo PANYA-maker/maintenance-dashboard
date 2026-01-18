@@ -3,25 +3,25 @@ import pandas as pd
 import plotly.express as px
 from urllib.parse import quote
 
-# =========================
+# =========================================================
 # Page Config
-# =========================
+# =========================================================
 st.set_page_config(
     page_title="Maintenance Executive Dashboard",
     page_icon="🛠️",
     layout="wide"
 )
 
-# =========================
+# =========================================================
 # Google Sheets Config
-# =========================
+# =========================================================
 SHEET_ID = "1tWy2VQSaDTqVB04w8KEKlK7RTIVPLdgnCmysPabFS0g"
 SHEET_NAME = "รายงาน ประจำวัน"
 
-# =========================
+# =========================================================
 # Load Data
-# =========================
-@st.cache_data(ttl=60)
+# =========================================================
+@st.cache_data(ttl=300)
 def load_data():
     sheet_name_encoded = quote(SHEET_NAME)
     url = (
@@ -34,101 +34,94 @@ def load_data():
     df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
 
     df["เวลาหยุดเครื่อง Actual"] = pd.to_numeric(
-        df["เวลาหยุดเครื่อง Actual"], errors="coerce"
+        df.get("เวลาหยุดเครื่อง Actual", 0), errors="coerce"
     ).fillna(0)
 
     df["จำนวนครั้งที่หยุด Actual"] = pd.to_numeric(
-        df["จำนวนครั้งที่หยุด Actual"], errors="coerce"
+        df.get("จำนวนครั้งที่หยุด Actual", 0), errors="coerce"
     ).fillna(0)
 
     return df
 
-
 df = load_data()
 
-# =========================
-# Sidebar Filters
-# =========================
-st.sidebar.header("🔎 ตัวกรองข้อมูล")
+# =========================================================
+# Sidebar Filters (Executive Control)
+# =========================================================
+st.sidebar.header("🔎 ตัวกรองข้อมูล (Executive Control)")
 
 start_date, end_date = st.sidebar.date_input(
-    "📅 เลือกวันที่",
+    "📅 ช่วงวันที่",
     [df["วันที่"].min(), df["วันที่"].max()]
 )
 
-machine = st.sidebar.multiselect(
-    "🏭 เครื่องจักร",
-    sorted(df["เครื่องจักร"].dropna().unique())
-)
-
-station = st.sidebar.multiselect(
+station_filter = st.sidebar.multiselect(
     "🧩 Station",
     sorted(df["Station"].dropna().unique())
 )
 
-technician = st.sidebar.multiselect(
-    "👷 ประเภทช่าง",
-    sorted(df["ประเภทช่าง"].dropna().unique())
-)
-
-job_type = st.sidebar.multiselect(
+job_filter = st.sidebar.multiselect(
     "🛠️ ประเภทงาน",
     sorted(df["ประเภทงาน"].dropna().unique())
 )
 
-# =========================
+# =========================================================
 # Apply Filters
-# =========================
+# =========================================================
 fdf = df[
     (df["วันที่"] >= pd.to_datetime(start_date)) &
     (df["วันที่"] <= pd.to_datetime(end_date))
 ]
 
-if machine:
-    fdf = fdf[fdf["เครื่องจักร"].isin(machine)]
-if station:
-    fdf = fdf[fdf["Station"].isin(station)]
-if technician:
-    fdf = fdf[fdf["ประเภทช่าง"].isin(technician)]
-if job_type:
-    fdf = fdf[fdf["ประเภทงาน"].isin(job_type)]
+if station_filter:
+    fdf = fdf[fdf["Station"].isin(station_filter)]
 
-# =========================
-# Executive Summary
-# =========================
-st.markdown("# 📌 Executive Summary")
+if job_filter:
+    fdf = fdf[fdf["ประเภทงาน"].isin(job_filter)]
 
-col1, col2, col3 = st.columns(3)
+# =========================================================
+# ① Executive KPI
+# =========================================================
+st.markdown("# 📌 Executive Maintenance Dashboard")
 
-with col1:
+k1, k2, k3, k4 = st.columns(4)
+
+with k1:
     st.metric(
-        "⏱️ เวลาหยุดเครื่องรวม (นาที)",
+        "⏱️ Downtime รวม (นาที)",
         f"{fdf['เวลาหยุดเครื่อง Actual'].sum():,.0f}"
     )
 
-with col2:
+with k2:
     st.metric(
-        "🔴 จำนวนครั้งหยุดเครื่อง",
+        "🔴 จำนวนครั้งหยุด",
         f"{fdf['จำนวนครั้งที่หยุด Actual'].sum():,.0f}"
     )
 
-station_summary_all = (
+station_sum = (
     fdf.groupby("Station")["เวลาหยุดเครื่อง Actual"]
     .sum()
     .sort_values(ascending=False)
 )
 
-top_station = station_summary_all.index[0] if len(station_summary_all) else "-"
+with k3:
+    st.metric(
+        "⚠️ Station ปัญหาหลัก",
+        station_sum.index[0] if len(station_sum) > 0 else "-"
+    )
 
-with col3:
-    st.metric("⚠️ Station ปัญหาหลัก", top_station)
+with k4:
+    st.metric(
+        "📅 ช่วงข้อมูล",
+        f"{start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}"
+    )
 
-# =========================
-# Pareto Chart
-# =========================
-st.markdown("## 📊 Pareto เวลาสูญเสีย (แยกตาม Station)")
+# =========================================================
+# ② Pareto – Key Loss Driver
+# =========================================================
+st.markdown("## 📊 Key Loss Driver : Pareto ตาม Station")
 
-station_summary = (
+pareto_df = (
     fdf.groupby("Station")
     .agg(
         downtime_minutes=("เวลาหยุดเครื่อง Actual", "sum"),
@@ -136,25 +129,25 @@ station_summary = (
     )
     .reset_index()
     .sort_values("downtime_minutes", ascending=False)
+    .head(10)
 )
 
-station_top10 = station_summary.head(10).copy()
-station_top10["rank"] = range(1, len(station_top10) + 1)
-station_top10["group"] = station_top10["rank"].apply(
+pareto_df["rank"] = range(1, len(pareto_df) + 1)
+pareto_df["group"] = pareto_df["rank"].apply(
     lambda x: "Top 3" if x <= 3 else "Others"
 )
 
-station_top10["label"] = (
-    station_top10["downtime_minutes"].astype(int).astype(str)
+pareto_df["label"] = (
+    pareto_df["downtime_minutes"].astype(int).astype(str)
     + " นาที ("
-    + station_top10["downtime_count"].astype(int).astype(str)
+    + pareto_df["downtime_count"].astype(int).astype(str)
     + " ครั้ง)"
 )
 
-station_top10 = station_top10.iloc[::-1]
+pareto_df = pareto_df.iloc[::-1]
 
 fig_pareto = px.bar(
-    station_top10,
+    pareto_df,
     x="downtime_minutes",
     y="Station",
     orientation="h",
@@ -166,22 +159,24 @@ fig_pareto = px.bar(
     }
 )
 
-fig_pareto.update_traces(textposition="inside")
+fig_pareto.update_traces(textposition="inside", insidetextanchor="end")
 fig_pareto.update_layout(
     xaxis_title="เวลาหยุดเครื่อง (นาที)",
     yaxis_title="Station",
-    legend_title="กลุ่ม Station"
+    legend_title_text="กลุ่ม Station"
 )
 
 st.plotly_chart(fig_pareto, use_container_width=True)
 
-# =========================
-# Trend Analysis
-# =========================
-st.markdown("## 📈 แนวโน้มเวลาสูญเสีย และจำนวนครั้งหยุดเครื่อง")
+st.caption("🔍 *โฟกัส Station สีแดงก่อน จะลด Downtime ได้เร็วที่สุด*")
+
+# =========================================================
+# ③ Trend – Time Based Decision
+# =========================================================
+st.markdown("## 📈 แนวโน้ม Downtime & จำนวนครั้งหยุด")
 
 period = st.selectbox(
-    "เลือกรูปแบบการดูแนวโน้ม",
+    "เลือกรูปแบบแนวโน้ม",
     ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"]
 )
 
@@ -206,8 +201,8 @@ fig_trend = px.bar(
     trend_df,
     x="วันที่",
     y="downtime_minutes",
-    labels={"downtime_minutes": "เวลาหยุดเครื่อง (นาที)"},
-    text_auto=True
+    text_auto=True,
+    labels={"downtime_minutes": "Downtime (นาที)"}
 )
 
 fig_trend.add_scatter(
@@ -220,7 +215,7 @@ fig_trend.add_scatter(
 )
 
 fig_trend.update_layout(
-    yaxis=dict(title="เวลาหยุดเครื่อง (นาที)"),
+    yaxis=dict(title="Downtime (นาที)"),
     yaxis2=dict(
         title="จำนวนครั้งหยุด",
         overlaying="y",
@@ -231,36 +226,25 @@ fig_trend.update_layout(
 
 st.plotly_chart(fig_trend, use_container_width=True)
 
-# =========================
-# Detail Table (Date only)
-# =========================
-st.markdown("## 📋 รายละเอียดงานซ่อมบำรุง")
+# =========================================================
+# ④ Recent Critical Jobs (Executive Table)
+# =========================================================
+st.markdown("## 📋 งานซ่อมบำรุงที่กระทบล่าสุด")
 
 display_df = fdf.copy()
-
-# เรียงวันที่ล่าสุดอยู่บนสุด
 display_df = display_df.sort_values("วันที่", ascending=False)
-
-# แปลงรูปแบบวันที่ (วัน/เดือน/ปี)
 display_df["วันที่"] = display_df["วันที่"].dt.strftime("%d/%m/%Y")
-
 
 st.dataframe(
     display_df[
         [
             "วันที่",
-            "เครื่องจักร",
             "Station",
-            "ประเภทช่าง",
             "ประเภทงาน",
             "ปัญหา ความขัดข้องที่เกิด",
-            "สาเหตุที่ตรวจพบ",
-            "การแก้ไข และป้องกัน",
             "เวลาหยุดเครื่อง Actual",
             "จำนวนครั้งที่หยุด Actual",
-            "รายการอะไหล่ที่เปลี่ยน",
-            "จำนวน",
         ]
-    ],
+    ].head(10),
     use_container_width=True
 )
