@@ -76,6 +76,11 @@ job_type = st.sidebar.multiselect(
     sorted(df["ประเภทงาน"].dropna().unique())
 )
 
+status = st.sidebar.multiselect(
+    "📌 สถานะ",
+    sorted(df["สถานะ"].dropna().unique())
+)
+
 # =========================
 # Apply Filters
 # =========================
