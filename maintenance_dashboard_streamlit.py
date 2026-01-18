@@ -264,4 +264,4 @@ st.dataframe(
     ],
     use_container_width=True
 )
-Fix date format and sort latest first
+Fix syntax error (remove stray text)
