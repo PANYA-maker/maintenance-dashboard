@@ -109,6 +109,8 @@ if technician:
     fdf = fdf[fdf["ประเภทช่าง"].isin(technician)]
 if job_type:
     fdf = fdf[fdf["ประเภทงาน"].isin(job_type)]
+if status:
+    fdf = fdf[fdf["สถานะ"].isin(status)]
 
 # =========================
 # Executive Summary
