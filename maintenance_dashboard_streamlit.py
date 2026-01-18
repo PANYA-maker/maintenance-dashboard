@@ -40,7 +40,14 @@ def load_data():
     df["จำนวนครั้งที่หยุด Actual"] = pd.to_numeric(
         df["จำนวนครั้งที่หยุด Actual"], errors="coerce"
     ).fillna(0)
-
+    
+    df["สถานะ"] = (
+    df["สถานะ"]
+    .astype(str)
+    .str.strip()
+    .replace("None", "")
+    )
+    
     return df
 
 
