@@ -41,8 +41,9 @@ df = load_data()
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
 if st.sidebar.button("🔄 RESET FILTER"):
-    st.session_state.clear()
-    st.experimental_rerun()
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
 
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
