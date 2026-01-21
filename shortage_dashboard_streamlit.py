@@ -1,5 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
+# Executive Version (UI + Chart + Reset)
 # =====================================
 
 import streamlit as st
@@ -13,11 +14,32 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- Google Sheet Config ----------------
-# Spreadsheet เดียวกับที่คุณใช้
-SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
+# ---------------- Executive CSS (STEP 1) ----------------
+st.markdown("""
+<style>
+.kpi-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    text-align: center;
+}
+.kpi-title {
+    font-size: 14px;
+    color: #666;
+}
+.kpi-value {
+    font-size: 38px;
+    font-weight: bold;
+}
+.green { color: #2e7d32; }
+.red { color: #c62828; }
+.blue { color: #1565c0; }
+</style>
+""", unsafe_allow_html=True)
 
-# gid ของชีท DATA CHECK
+# ---------------- Google Sheet Config ----------------
+SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
 
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
@@ -27,22 +49,25 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&
 def load_data():
     df = pd.read_csv(csv_url)
 
-    # ตัดช่องว่างแฝงในชื่อคอลัมน์
+    # ป้องกัน space แฝงในชื่อคอลัมน์
     df.columns = df.columns.str.strip()
 
-    # แปลงวันที่ (รูปแบบไทย day/month/year)
+    # แปลงวันที่ (ข้อมูลไทย)
     df['วันที่'] = pd.to_datetime(
         df['วันที่'],
         dayfirst=True,
         errors='coerce'
     )
-
     return df
 
 df = load_data()
 
-# ---------------- Sidebar Filters ----------------
+# ---------------- Sidebar Filters + RESET (STEP 3) ----------------
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
+
+if st.sidebar.button("🔄 RESET FILTER"):
+    st.session_state.clear()
+    st.experimental_rerun()
 
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
@@ -50,23 +75,19 @@ date_range = st.sidebar.date_input(
 )
 
 mc_filter = st.sidebar.multiselect(
-    "MC",
-    sorted(df['MC'].dropna().unique())
+    "MC", sorted(df['MC'].dropna().unique())
 )
 
 shift_filter = st.sidebar.multiselect(
-    "กะ",
-    sorted(df['กะ'].dropna().unique())
+    "กะ", sorted(df['กะ'].dropna().unique())
 )
 
 status_filter = st.sidebar.multiselect(
-    "สถานะผลิต",
-    sorted(df['สถานะผลิต'].dropna().unique())
+    "สถานะผลิต", sorted(df['สถานะผลิต'].dropna().unique())
 )
 
 customer_filter = st.sidebar.multiselect(
-    "ชื่อลูกค้า",
-    sorted(df['ชื่อลูกค้า'].dropna().unique())
+    "ชื่อลูกค้า", sorted(df['ชื่อลูกค้า'].dropna().unique())
 )
 
 # ---------------- Apply Filters ----------------
@@ -87,29 +108,43 @@ if status_filter:
 if customer_filter:
     fdf = fdf[fdf['ชื่อลูกค้า'].isin(customer_filter)]
 
-# ---------------- KPI Cards ----------------
-k1, k2, k3 = st.columns(3)
+# ---------------- KPI Cards (STEP 1) ----------------
+c1, c2, c3 = st.columns(3)
 
-k1.metric(
-    "ORDER TOTAL",
-    f"{len(fdf):,}"
-)
+with c1:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">ORDER TOTAL</div>
+        <div class="kpi-value blue">{len(fdf):,}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-k2.metric(
-    "ครบจำนวน",
-    f"{(fdf['สถานะผลิต'] == 'ครบจำนวน').sum():,}"
-)
+with c2:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">ครบจำนวน</div>
+        <div class="kpi-value green">
+            {(fdf['สถานะผลิต']=='ครบจำนวน').sum():,}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-k3.metric(
-    "ขาดจำนวน",
-    f"{(fdf['สถานะผลิต'] == 'ขาดจำนวน').sum():,}"
-)
+with c3:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">ขาดจำนวน</div>
+        <div class="kpi-value red">
+            {(fdf['สถานะผลิต']=='ขาดจำนวน').sum():,}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
-# ---------------- Charts ----------------
+# ---------------- Charts (STEP 2) ----------------
 left, right = st.columns([2, 1])
 
+# ---- TOP 10 สาเหตุขาดจำนวน ----
 with left:
     top10 = (
         fdf[fdf['สถานะผลิต'] == 'ขาดจำนวน']
@@ -132,6 +167,7 @@ with left:
 
     st.plotly_chart(fig_top10, use_container_width=True)
 
+# ---- Donut สถานะผลิต ----
 with right:
     status_df = (
         fdf['สถานะผลิต']
@@ -162,7 +198,7 @@ st.subheader("📋 รายละเอียด Order (DATA CHECK)")
 st.dataframe(
     fdf.sort_values('วันที่', ascending=False),
     use_container_width=True,
-    height=500
+    height=520
 )
 
-st.caption("Shortage Dashboard | DATA CHECK")
+st.caption("Shortage Dashboard | DATA CHECK (Executive Version)")
