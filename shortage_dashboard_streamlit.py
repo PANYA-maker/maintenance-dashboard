@@ -127,7 +127,7 @@ with left:
         title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
         color="จำนวน",
         color_continuous_scale="Reds",
-        text="label"
+        text="inside"
     )
 
     fig_top10.update_traces(textposition="outside")
