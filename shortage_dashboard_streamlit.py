@@ -180,7 +180,7 @@ fig_top10.update_layout(
     uniformtext_mode='hide'
 )
 
-    st.plotly_chart(fig_top10, use_container_width=True)
+st.plotly_chart(fig_top10, use_container_width=True)
 
 # ---- Donut สถานะผลิต ----
 with right:
