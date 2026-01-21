@@ -131,22 +131,13 @@ with left:
     )
 
     fig_top10.update_traces(
-    textposition="inside",      # ✅ อยู่ในแท่ง
-    insidetextanchor="end",     # ✅ ชิดปลายแท่งด้านขวา
+    textposition="inside",
+    insidetextanchor="end",
     textfont=dict(
         color="white",
         size=13
     )
 )
-
-fig_top10.update_layout(
-    yaxis=dict(categoryorder="total ascending"),
-    xaxis_title="จำนวน",
-    uniformtext_minsize=10,
-    uniformtext_mode="hide"
-)
-
-st.plotly_chart(fig_top10, use_container_width=True)
 
     fig_top10.update_layout(
         yaxis=dict(categoryorder="total ascending"),
