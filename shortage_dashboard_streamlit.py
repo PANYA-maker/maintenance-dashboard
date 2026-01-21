@@ -144,26 +144,41 @@ st.divider()
 # ---------------- Charts (STEP 2) ----------------
 left, right = st.columns([2, 1])
 
-# ---- TOP 10 สาเหตุขาดจำนวน ----
-with left:
-    top10 = (
-        fdf[fdf['สถานะผลิต'] == 'ขาดจำนวน']
-        .groupby('Detail')
-        .size()
-        .sort_values(ascending=False)
-        .head(10)
-        .reset_index(name='จำนวน')
-    )
+top10 = (
+    fdf[fdf['สถานะผลิต'] == 'ขาดจำนวน']
+    .groupby('Detail')
+    .size()
+    .sort_values(ascending=True)
+    .tail(10)
+    .reset_index(name='จำนวน')
+)
 
-    fig_top10 = px.bar(
-        top10,
-        x='จำนวน',
-        y='Detail',
-        orientation='h',
-        title="TOP 10 สาเหตุขาดจำนวน",
-        color='จำนวน',
-        color_continuous_scale='Reds'
-    )
+# คำนวณ %
+top10['เปอร์เซ็นต์'] = (top10['จำนวน'] / order_total * 100).round(1)
+
+# ข้อความที่จะแสดงบนแท่ง
+top10['label'] = top10['จำนวน'].astype(str) + " (" + top10['เปอร์เซ็นต์'].astype(str) + "%)"
+
+fig_top10 = px.bar(
+    top10,
+    x='จำนวน',
+    y='Detail',
+    orientation='h',
+    title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
+    color='จำนวน',
+    color_continuous_scale='Reds',
+    text='label'   # ✅ แสดง จำนวน + %
+)
+
+fig_top10.update_traces(
+    textposition='outside'
+)
+
+fig_top10.update_layout(
+    yaxis=dict(categoryorder='total ascending'),
+    uniformtext_minsize=10,
+    uniformtext_mode='hide'
+)
 
     st.plotly_chart(fig_top10, use_container_width=True)
 
