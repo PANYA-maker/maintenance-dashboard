@@ -132,31 +132,29 @@ with left:
 
     threshold = top10["จำนวน"].median()
 
-   fig_top10.update_traces(
-    textposition="inside",
-    insidetextanchor="end",
-    textfont=dict(
-        size=13
+    fig_top10.update_traces(
+        textposition="inside",
+        insidetextanchor="end",
+        textfont=dict(size=13)
     )
-)
 
     fig_top10.for_each_trace(
-    lambda t: t.update(
-        textfont_color=[
-            "black" if v < threshold else "white"
-            for v in t.x
-        ]
+        lambda t: t.update(
+            textfont_color=[
+                "black" if v < threshold else "white"
+                for v in t.x
+            ]
+        )
     )
-)
 
     fig_top10.update_layout(
         yaxis=dict(categoryorder="total ascending"),
+        xaxis_title="จำนวน",
         uniformtext_minsize=10,
         uniformtext_mode="hide"
     )
 
     st.plotly_chart(fig_top10, use_container_width=True)
-
 # ===== Donut สถานะผลิต =====
 with right:
     status_df = (
