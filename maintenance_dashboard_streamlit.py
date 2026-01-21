@@ -221,16 +221,37 @@ trend_df = (
     .reset_index()
 )
 
+# 🔹 สร้าง label สำหรับแกน X ตามช่วงเวลา
+if period == "รายวัน":
+    trend_df["period_label"] = trend_df["วันที่"].dt.strftime("%d/%m/%Y")
+
+elif period == "รายสัปดาห์":
+    trend_df["period_label"] = (
+        "W" + trend_df["วันที่"].dt.isocalendar().week.astype(str)
+        + " / " + trend_df["วันที่"].dt.year.astype(str)
+    )
+
+elif period == "รายเดือน":
+    trend_df["period_label"] = trend_df["วันที่"].dt.strftime("%m/%Y")
+
+else:  # รายปี
+    trend_df["period_label"] = trend_df["วันที่"].dt.strftime("%Y")
+
+# --- Bar: เวลาหยุด ---
 fig_trend = px.bar(
     trend_df,
-    x="วันที่",
+    x="period_label",
     y="downtime_minutes",
-    labels={"downtime_minutes": "เวลาหยุดเครื่อง (นาที)"},
+    labels={
+        "period_label": "ช่วงเวลา",
+        "downtime_minutes": "เวลาหยุดเครื่อง (นาที)"
+    },
     text_auto=True
 )
 
+# --- Line: จำนวนครั้ง ---
 fig_trend.add_scatter(
-    x=trend_df["วันที่"],
+    x=trend_df["period_label"],
     y=trend_df["downtime_count"],
     mode="lines+markers",
     name="จำนวนครั้งหยุด",
@@ -245,7 +266,8 @@ fig_trend.update_layout(
         overlaying="y",
         side="right"
     ),
-    legend=dict(orientation="h", y=1.02)
+    legend=dict(orientation="h", y=1.02),
+    xaxis_tickangle=-45
 )
 
 st.plotly_chart(fig_trend, use_container_width=True)
