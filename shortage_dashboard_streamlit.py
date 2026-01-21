@@ -1,6 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# Executive Version (UI + Chart + Reset)
+# Executive Version (Stable / Clean)
 # =====================================
 
 import streamlit as st
@@ -14,55 +14,30 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- Executive CSS (STEP 1) ----------------
-st.markdown("""
-<style>
-.kpi-card {
-    background-color: #ffffff;
-    border-radius: 14px;
-    padding: 22px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    text-align: center;
-}
-.kpi-title {
-    font-size: 14px;
-    color: #666;
-}
-.kpi-value {
-    font-size: 38px;
-    font-weight: bold;
-}
-.green { color: #2e7d32; }
-.red { color: #c62828; }
-.blue { color: #1565c0; }
-</style>
-""", unsafe_allow_html=True)
-
 # ---------------- Google Sheet Config ----------------
 SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
-
-csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
 # ---------------- Load Data ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv(csv_url)
+    df = pd.read_csv(CSV_URL)
 
-    # ป้องกัน space แฝงในชื่อคอลัมน์
+    # ล้างช่องว่างชื่อคอลัมน์
     df.columns = df.columns.str.strip()
 
-    # แปลงวันที่ (ข้อมูลไทย)
-    df['วันที่'] = pd.to_datetime(
-        df['วันที่'],
+    # แปลงวันที่ (รูปแบบไทย)
+    df["วันที่"] = pd.to_datetime(
+        df["วันที่"],
         dayfirst=True,
-        errors='coerce'
+        errors="coerce"
     )
     return df
 
 df = load_data()
 
-# ---------------- Sidebar Filters + RESET (STEP 3) ----------------
+# ---------------- Sidebar Filters ----------------
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
 if st.sidebar.button("🔄 RESET FILTER"):
@@ -71,136 +46,117 @@ if st.sidebar.button("🔄 RESET FILTER"):
 
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
-    [df['วันที่'].min(), df['วันที่'].max()]
+    [df["วันที่"].min(), df["วันที่"].max()]
 )
 
 mc_filter = st.sidebar.multiselect(
-    "MC", sorted(df['MC'].dropna().unique())
+    "MC", sorted(df["MC"].dropna().unique())
 )
 
 shift_filter = st.sidebar.multiselect(
-    "กะ", sorted(df['กะ'].dropna().unique())
+    "กะ", sorted(df["กะ"].dropna().unique())
 )
 
 status_filter = st.sidebar.multiselect(
-    "สถานะผลิต", sorted(df['สถานะผลิต'].dropna().unique())
+    "สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique())
 )
 
 customer_filter = st.sidebar.multiselect(
-    "ชื่อลูกค้า", sorted(df['ชื่อลูกค้า'].dropna().unique())
+    "ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique())
 )
 
 # ---------------- Apply Filters ----------------
 fdf = df[
-    (df['วันที่'] >= pd.to_datetime(date_range[0])) &
-    (df['วันที่'] <= pd.to_datetime(date_range[1]))
+    (df["วันที่"] >= pd.to_datetime(date_range[0])) &
+    (df["วันที่"] <= pd.to_datetime(date_range[1]))
 ]
 
 if mc_filter:
-    fdf = fdf[fdf['MC'].isin(mc_filter)]
+    fdf = fdf[fdf["MC"].isin(mc_filter)]
 
 if shift_filter:
-    fdf = fdf[fdf['กะ'].isin(shift_filter)]
+    fdf = fdf[fdf["กะ"].isin(shift_filter)]
 
 if status_filter:
-    fdf = fdf[fdf['สถานะผลิต'].isin(status_filter)]
+    fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
 
 if customer_filter:
-    fdf = fdf[fdf['ชื่อลูกค้า'].isin(customer_filter)]
+    fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 
-# ---------------- KPI Cards (STEP 1) ----------------
-c1, c2, c3 = st.columns(3)
+# ---------------- KPI ----------------
+k1, k2, k3 = st.columns(3)
 
-with c1:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-title">ORDER TOTAL</div>
-        <div class="kpi-value blue">{len(fdf):,}</div>
-    </div>
-    """, unsafe_allow_html=True)
+order_total = len(fdf)
+complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
+short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
 
-with c2:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-title">ครบจำนวน</div>
-        <div class="kpi-value green">
-            {(fdf['สถานะผลิต']=='ครบจำนวน').sum():,}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-title">ขาดจำนวน</div>
-        <div class="kpi-value red">
-            {(fdf['สถานะผลิต']=='ขาดจำนวน').sum():,}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+k1.metric("ORDER TOTAL", f"{order_total:,}")
+k2.metric("ครบจำนวน", f"{complete_qty:,}")
+k3.metric("ขาดจำนวน", f"{short_qty:,}")
 
 st.divider()
 
-# ---------------- Charts (STEP 2) ----------------
+# ---------------- Charts ----------------
 left, right = st.columns([2, 1])
 
-top10 = (
-    fdf[fdf['สถานะผลิต'] == 'ขาดจำนวน']
-    .groupby('Detail')
-    .size()
-    .sort_values(ascending=True)
-    .tail(10)
-    .reset_index(name='จำนวน')
-)
+# ===== TOP 10 สาเหตุขาดจำนวน =====
+with left:
+    top10 = (
+        fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
+        .groupby("Detail")
+        .size()
+        .sort_values(ascending=True)
+        .tail(10)
+        .reset_index(name="จำนวน")
+    )
 
-# คำนวณ %
-top10['เปอร์เซ็นต์'] = (top10['จำนวน'] / order_total * 100).round(1)
+    top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
+    top10["label"] = (
+        top10["จำนวน"].astype(str)
+        + " ("
+        + top10["เปอร์เซ็นต์"].astype(str)
+        + "%)"
+    )
 
-# ข้อความที่จะแสดงบนแท่ง
-top10['label'] = top10['จำนวน'].astype(str) + " (" + top10['เปอร์เซ็นต์'].astype(str) + "%)"
+    fig_top10 = px.bar(
+        top10,
+        x="จำนวน",
+        y="Detail",
+        orientation="h",
+        title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
+        color="จำนวน",
+        color_continuous_scale="Reds",
+        text="label"
+    )
 
-fig_top10 = px.bar(
-    top10,
-    x='จำนวน',
-    y='Detail',
-    orientation='h',
-    title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
-    color='จำนวน',
-    color_continuous_scale='Reds',
-    text='label'   # ✅ แสดง จำนวน + %
-)
+    fig_top10.update_traces(textposition="outside")
+    fig_top10.update_layout(
+        yaxis=dict(categoryorder="total ascending"),
+        uniformtext_minsize=10,
+        uniformtext_mode="hide"
+    )
 
-fig_top10.update_traces(
-    textposition='outside'
-)
+    st.plotly_chart(fig_top10, use_container_width=True)
 
-fig_top10.update_layout(
-    yaxis=dict(categoryorder='total ascending'),
-    uniformtext_minsize=10,
-    uniformtext_mode='hide'
-)
-
-st.plotly_chart(fig_top10, use_container_width=True)
-
-# ---- Donut สถานะผลิต ----
+# ===== Donut สถานะผลิต =====
 with right:
     status_df = (
-        fdf['สถานะผลิต']
+        fdf["สถานะผลิต"]
         .value_counts()
         .reset_index()
     )
-    status_df.columns = ['สถานะ', 'จำนวน']
+    status_df.columns = ["สถานะ", "จำนวน"]
 
     fig_status = px.pie(
         status_df,
-        names='สถานะ',
-        values='จำนวน',
+        names="สถานะ",
+        values="จำนวน",
         hole=0.6,
         title="สัดส่วนสถานะผลิต",
-        color='สถานะ',
+        color="สถานะ",
         color_discrete_map={
-            'ครบจำนวน': '#2e7d32',
-            'ขาดจำนวน': '#c62828'
+            "ครบจำนวน": "#2e7d32",
+            "ขาดจำนวน": "#c62828"
         }
     )
 
@@ -211,7 +167,7 @@ st.divider()
 st.subheader("📋 รายละเอียด Order (DATA CHECK)")
 
 st.dataframe(
-    fdf.sort_values('วันที่', ascending=False),
+    fdf.sort_values("วันที่", ascending=False),
     use_container_width=True,
     height=520
 )
