@@ -132,7 +132,7 @@ with left:
 
     threshold = top10["จำนวน"].median()
 
-fig_top10.update_traces(
+   fig_top10.update_traces(
     textposition="inside",
     insidetextanchor="end",
     textfont=dict(
@@ -140,7 +140,7 @@ fig_top10.update_traces(
     )
 )
 
-fig_top10.for_each_trace(
+    fig_top10.for_each_trace(
     lambda t: t.update(
         textfont_color=[
             "black" if v < threshold else "white"
