@@ -175,12 +175,32 @@ if period == "รายวัน":
     trend["ช่วง"] = trend["วันที่"].dt.date
 
 elif period == "รายสัปดาห์":
-    iso = trend["วันที่"].dt.isocalendar()
+    # หา Sunday ของสัปดาห์
+    week_start = (
+        trend["วันที่"]
+        - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit="D")
+    )
+
+    # ปีของ Sunday
+    week_year = week_start.dt.year
+
+    # Sunday แรกของปีนั้น
+    first_sunday = (
+        pd.to_datetime(week_year.astype(str) + "-01-01")
+        - pd.to_timedelta(
+            (pd.to_datetime(week_year.astype(str) + "-01-01").dt.weekday + 1) % 7,
+            unit="D"
+        )
+    )
+
+    # คำนวณเลข Week (เริ่มที่ 1)
+    week_no = ((week_start - first_sunday).dt.days // 7) + 1
+
     trend["ช่วง"] = (
         "Week "
-        + iso.week.astype(str)
+        + week_no.astype(str)
         + " / "
-        + iso.year.astype(str)
+        + week_year.astype(str)
     )
 
 elif period == "รายเดือน":
