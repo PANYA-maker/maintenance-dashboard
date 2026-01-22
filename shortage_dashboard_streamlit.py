@@ -1,7 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
 # FINAL PROD VERSION
-# (Auto Refresh + Manual Refresh)
 # =====================================
 
 import streamlit as st
@@ -20,8 +19,8 @@ SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# ---------------- Load Data (AUTO REFRESH) ----------------
-@st.cache_data(ttl=300)  # 🔄 อัปเดตอัตโนมัติทุก 5 นาที
+# ---------------- Load Data (Auto Refresh) ----------------
+@st.cache_data(ttl=300)  # 🔄 refresh ทุก 5 นาที
 def load_data():
     df = pd.read_csv(CSV_URL)
     df.columns = df.columns.str.strip()
@@ -43,15 +42,15 @@ if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจ�
     st.cache_data.clear()
     st.rerun()
 
-# ===== Date Filter (DEFAULT = LAST 7 DAYS) =====
-max_date = df["วันที่"].max()
-min_default_date = max_date - pd.Timedelta(days=7)
+# ===== Default Date = Last 7 Days =====
+today = df["วันที่"].max()
+default_start = today - pd.Timedelta(days=7)
 
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
-    value=[min_default_date, max_date],
-    min_value=df["วันที่"].min(),
-    max_value=max_date
+    value=[default_start.date(), today.date()],
+    min_value=df["วันที่"].min().date(),
+    max_value=today.date()
 )
 
 mc_filter = st.sidebar.multiselect(
@@ -123,7 +122,12 @@ with left:
 
     if not top10.empty:
         top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-        top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
+        top10["label"] = (
+            top10["จำนวน"].astype(str)
+            + " ("
+            + top10["เปอร์เซ็นต์"].astype(str)
+            + "%)"
+        )
 
         fig_top10 = px.bar(
             top10,
@@ -180,14 +184,13 @@ with right:
     else:
         st.info("ไม่มีข้อมูล")
 
-# ---------------- STACKED BAR : % + Qty ----------------
+# ---------------- STACKED BAR (Percent + Qty) ----------------
 st.divider()
-st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน (Stacked)")
+st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
 
 trend = fdf.copy()
 
 if not trend.empty:
-    # ===== Period Mapping =====
     if period == "รายวัน":
         trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
 
@@ -214,7 +217,6 @@ if not trend.empty:
     elif period == "รายปี":
         trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
 
-    # ===== Summary =====
     summary = (
         trend
         .groupby(["ช่วง", "สถานะผลิต"])
@@ -224,8 +226,8 @@ if not trend.empty:
 
     total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
     summary = summary.merge(total, on="ช่วง")
-    summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
 
+    summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
     summary["label"] = (
         summary["จำนวน"].astype(int).astype(str)
         + " ("
@@ -246,9 +248,6 @@ if not trend.empty:
         color="สถานะผลิต",
         text="label",
         barmode="stack",
-        category_orders={
-            "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน"]
-        },
         color_discrete_map={
             "ครบจำนวน": "#2e7d32",
             "ขาดจำนวน": "#c62828"
@@ -258,25 +257,34 @@ if not trend.empty:
     fig_stack.update_layout(
         yaxis_range=[0, 100],
         yaxis_title="เปอร์เซ็นต์ (%)",
-        xaxis_title="ช่วงเวลา",
-        legend_title_text="สถานะผลิต"
+        xaxis_title="ช่วงเวลา"
     )
 
-    fig_stack.update_traces(
-        textposition="inside",
-        textfont_size=13
-    )
+    fig_stack.update_traces(textposition="inside", textfont_size=13)
 
     st.plotly_chart(fig_stack, use_container_width=True)
 else:
-    st.info("ไม่มีข้อมูลสำหรับแสดงแนวโน้ม")
+    st.info("ไม่มีข้อมูลแนวโน้ม")
 
-# ---------------- Table ----------------
+# ---------------- Table (Clean Columns) ----------------
 st.divider()
 st.subheader("📋 รายละเอียด Order")
 
+fdf_display = fdf.copy()
+fdf_display["วันที่"] = fdf_display["วันที่"].dt.strftime("%d/%m/%Y")
+
+display_columns = [
+    "วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า",
+    "M1", "M3", "M5", "ลอน",
+    "ความยาว ORDER", "ความยาวแม่", "Speed",
+    "Group สาเหตุ", "จำนวนที่ต้องการ",
+    "ขาดจำนวน", "สถานะผลิต", "Detail"
+]
+
+display_columns = [c for c in display_columns if c in fdf_display.columns]
+
 st.dataframe(
-    fdf.sort_values("วันที่", ascending=False),
+    fdf_display[display_columns].sort_values("วันที่", ascending=False),
     use_container_width=True,
     height=520
 )
