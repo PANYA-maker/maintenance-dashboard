@@ -109,6 +109,7 @@ st.divider()
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
 
+# ===== TOP 10 Shortage (SMART LABEL) =====
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
@@ -121,7 +122,14 @@ with left:
 
     if not top10.empty:
         top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-        top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
+        top10["label"] = (
+            top10["จำนวน"].astype(str)
+            + " ("
+            + top10["เปอร์เซ็นต์"].astype(str)
+            + "%)"
+        )
+
+        threshold = top10["จำนวน"].median()
 
         fig_top10 = px.bar(
             top10,
@@ -134,27 +142,34 @@ with left:
             text="label"
         )
 
-        threshold = top10["จำนวน"].median()
-
         fig_top10.update_traces(
-            textposition="inside",
-            insidetextanchor="end",
-            textfont_size=13,
-            textfont_color=[
-                "black" if v < threshold else "white"
-                for v in top10["จำนวน"]
-            ]
+            cliponaxis=False,
+            textfont_size=13
+        )
+
+        fig_top10.for_each_trace(
+            lambda t: t.update(
+                textposition=[
+                    "inside" if v >= threshold else "outside"
+                    for v in t.x
+                ],
+                textfont_color=[
+                    "white" if v >= threshold else "black"
+                    for v in t.x
+                ]
+            )
         )
 
         fig_top10.update_layout(
             yaxis=dict(categoryorder="total ascending"),
-            xaxis_title="จำนวน"
+            xaxis_title="จำนวน",
+            margin=dict(r=90)
         )
 
         st.plotly_chart(fig_top10, use_container_width=True)
     else:
         st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
-
+        
 with right:
     if not fdf.empty:
         status_df = fdf["สถานะผลิต"].value_counts().reset_index()
