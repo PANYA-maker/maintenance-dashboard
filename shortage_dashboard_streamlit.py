@@ -23,16 +23,8 @@ CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&
 @st.cache_data
 def load_data():
     df = pd.read_csv(CSV_URL)
-
-    # ล้างช่องว่างชื่อคอลัมน์
     df.columns = df.columns.str.strip()
-
-    # แปลงวันที่ (รูปแบบไทย)
-    df["วันที่"] = pd.to_datetime(
-        df["วันที่"],
-        dayfirst=True,
-        errors="coerce"
-    )
+    df["วันที่"] = pd.to_datetime(df["วันที่"], dayfirst=True, errors="coerce")
     return df
 
 df = load_data()
@@ -41,8 +33,7 @@ df = load_data()
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
 if st.sidebar.button("🔄 RESET FILTER"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    st.session_state.clear()
     st.rerun()
 
 date_range = st.sidebar.date_input(
@@ -50,20 +41,15 @@ date_range = st.sidebar.date_input(
     [df["วันที่"].min(), df["วันที่"].max()]
 )
 
-mc_filter = st.sidebar.multiselect(
-    "MC", sorted(df["MC"].dropna().unique())
-)
+mc_filter = st.sidebar.multiselect("MC", sorted(df["MC"].dropna().unique()))
+shift_filter = st.sidebar.multiselect("กะ", sorted(df["กะ"].dropna().unique()))
+status_filter = st.sidebar.multiselect("สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique()))
+customer_filter = st.sidebar.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
 
-shift_filter = st.sidebar.multiselect(
-    "กะ", sorted(df["กะ"].dropna().unique())
-)
-
-status_filter = st.sidebar.multiselect(
-    "สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique())
-)
-
-customer_filter = st.sidebar.multiselect(
-    "ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique())
+st.sidebar.subheader("📈 แนวโน้มตามช่วงเวลา")
+period = st.sidebar.selectbox(
+    "เลือกช่วงเวลา",
+    ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"]
 )
 
 # ---------------- Apply Filters ----------------
@@ -74,26 +60,82 @@ fdf = df[
 
 if mc_filter:
     fdf = fdf[fdf["MC"].isin(mc_filter)]
-
 if shift_filter:
     fdf = fdf[fdf["กะ"].isin(shift_filter)]
-
 if status_filter:
     fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
-
 if customer_filter:
     fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 
 # ---------------- KPI ----------------
-k1, k2, k3 = st.columns(3)
-
 order_total = len(fdf)
 complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
 short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
 
+k1, k2, k3 = st.columns(3)
 k1.metric("ORDER TOTAL", f"{order_total:,}")
 k2.metric("ครบจำนวน", f"{complete_qty:,}")
 k3.metric("ขาดจำนวน", f"{short_qty:,}")
+
+st.divider()
+
+# ---------------- Trend (% ครบ / ขาด) ----------------
+trend_df = fdf.copy()
+
+if period == "รายวัน":
+    trend_df["period"] = trend_df["วันที่"]
+
+elif period == "รายสัปดาห์":
+    # สัปดาห์เริ่มวันอาทิตย์
+    trend_df["period"] = trend_df["วันที่"] - pd.to_timedelta(
+        (trend_df["วันที่"].dt.weekday + 1) % 7,
+        unit="D"
+    )
+
+elif period == "รายเดือน":
+    trend_df["period"] = trend_df["วันที่"].dt.to_period("M").dt.to_timestamp()
+
+elif period == "รายปี":
+    trend_df["period"] = trend_df["วันที่"].dt.to_period("Y").dt.to_timestamp()
+
+summary = (
+    trend_df
+    .groupby(["period", "สถานะผลิต"])
+    .size()
+    .reset_index(name="จำนวน")
+)
+
+total_period = (
+    summary
+    .groupby("period")["จำนวน"]
+    .sum()
+    .reset_index(name="รวมทั้งหมด")
+)
+
+summary = summary.merge(total_period, on="period")
+summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวมทั้งหมด"] * 100).round(1)
+
+st.subheader("📈 แนวโน้มเปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
+
+fig_trend = px.line(
+    summary,
+    x="period",
+    y="เปอร์เซ็นต์",
+    color="สถานะผลิต",
+    markers=True,
+    color_discrete_map={
+        "ครบจำนวน": "#2e7d32",
+        "ขาดจำนวน": "#c62828"
+    }
+)
+
+fig_trend.update_layout(
+    xaxis_title="ช่วงเวลา",
+    yaxis_title="เปอร์เซ็นต์ (%)",
+    yaxis_range=[0, 100]
+)
+
+st.plotly_chart(fig_trend, use_container_width=True)
 
 st.divider()
 
@@ -112,12 +154,7 @@ with left:
     )
 
     top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-    top10["label"] = (
-        top10["จำนวน"].astype(str)
-        + " ("
-        + top10["เปอร์เซ็นต์"].astype(str)
-        + "%)"
-    )
+    top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
 
     fig_top10 = px.bar(
         top10,
@@ -140,28 +177,20 @@ with left:
 
     fig_top10.for_each_trace(
         lambda t: t.update(
-            textfont_color=[
-                "black" if v < threshold else "white"
-                for v in t.x
-            ]
+            textfont_color=["black" if v < threshold else "white" for v in t.x]
         )
     )
 
     fig_top10.update_layout(
         yaxis=dict(categoryorder="total ascending"),
-        xaxis_title="จำนวน",
-        uniformtext_minsize=10,
-        uniformtext_mode="hide"
+        xaxis_title="จำนวน"
     )
 
     st.plotly_chart(fig_top10, use_container_width=True)
+
 # ===== Donut สถานะผลิต =====
 with right:
-    status_df = (
-        fdf["สถานะผลิต"]
-        .value_counts()
-        .reset_index()
-    )
+    status_df = fdf["สถานะผลิต"].value_counts().reset_index()
     status_df.columns = ["สถานะ", "จำนวน"]
 
     fig_status = px.pie(
