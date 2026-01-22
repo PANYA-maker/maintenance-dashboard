@@ -144,7 +144,7 @@ with left:
             textposition="inside",          # 👉 อยู่ในแท่ง
             insidetextanchor="end",         # 👉 ชิดปลายแท่ง
             textfont=dict(
-                color="gold",               # 👉 สีทอง
+                color="blue",               # 👉 สีน้ำเงิน
                 size=13,
                 family="Arial Black"
             )
