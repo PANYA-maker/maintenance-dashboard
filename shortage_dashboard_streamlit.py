@@ -43,10 +43,15 @@ if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจ�
     st.cache_data.clear()
     st.rerun()
 
-# ===== Date Filter =====
+# ===== Date Filter (DEFAULT = LAST 7 DAYS) =====
+max_date = df["วันที่"].max()
+min_default_date = max_date - pd.Timedelta(days=7)
+
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
-    [df["วันที่"].min(), df["วันที่"].max()]
+    value=[min_default_date, max_date],
+    min_value=df["วันที่"].min(),
+    max_value=max_date
 )
 
 mc_filter = st.sidebar.multiselect(
