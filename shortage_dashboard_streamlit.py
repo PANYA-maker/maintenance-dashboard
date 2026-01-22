@@ -276,9 +276,9 @@ fdf_display["วันที่"] = fdf_display["วันที่"].dt.strftim
 display_columns = [
     "วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า",
     "M1", "M3", "M5", "ลอน",
-    "ความยาว ORDER", "ความยาวแม่", "Speed",
-    "Group สาเหตุ", "จำนวนที่ต้องการ",
-    "ขาดจำนวน", "สถานะผลิต", "Detail"
+    "ความยาวทั้งหมด(เมตร)", "ความยาว/แผ่น(มม)", "T",
+    "AVG_Speed (M/min)", "Group ขาดจำนวน",
+    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน", "Detail"
 ]
 
 display_columns = [c for c in display_columns if c in fdf_display.columns]
