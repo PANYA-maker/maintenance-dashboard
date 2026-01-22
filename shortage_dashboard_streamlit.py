@@ -109,7 +109,6 @@ st.divider()
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
 
-# ===== TOP 10 Shortage (SMART LABEL - REAL WORKING) =====
 # ===== TOP 10 Shortage (ALL INSIDE / ALWAYS VISIBLE) =====
 with left:
     top10 = (
@@ -123,15 +122,11 @@ with left:
 
     if not top10.empty:
         top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-
-        # ใช้ HTML-like text ใส่ outline
         top10["label"] = (
-            "<b>"
-            + top10["จำนวน"].astype(str)
+            top10["จำนวน"].astype(str)
             + " ("
             + top10["เปอร์เซ็นต์"].astype(str)
             + "%)"
-            + "</b>"
         )
 
         fig_top10 = px.bar(
@@ -146,12 +141,12 @@ with left:
         )
 
         fig_top10.update_traces(
-            textposition="inside",
+            textposition="outside",        # 👉 ปลายแท่ง
             textfont=dict(
-                color="white",
-                size=13
-            ),
-            insidetextanchor="middle"
+                color="yellow",            # 👉 สีเหลือง
+                size=13,
+                family="Arial Black"
+            )
         )
 
         fig_top10.update_layout(
