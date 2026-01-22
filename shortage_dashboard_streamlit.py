@@ -1,6 +1,7 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# Executive Version (FULL FILE)
+# FINAL PROD VERSION
+# (Auto Refresh + Manual Refresh)
 # =====================================
 
 import streamlit as st
@@ -19,8 +20,8 @@ SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# ---------------- Load Data ----------------
-@st.cache_data
+# ---------------- Load Data (AUTO REFRESH) ----------------
+@st.cache_data(ttl=300)  # 🔄 อัปเดตอัตโนมัติทุก 5 นาที
 def load_data():
     df = pd.read_csv(CSV_URL)
     df.columns = df.columns.str.strip()
@@ -37,10 +38,12 @@ df = load_data()
 # ---------------- Sidebar ----------------
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
-if st.sidebar.button("🔄 RESET FILTER"):
-    st.session_state.clear()
+# ===== Manual Refresh =====
+if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจาก Google Sheet"):
+    st.cache_data.clear()
     st.rerun()
 
+# ===== Date Filter =====
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
     [df["วันที่"].min(), df["วันที่"].max()]
@@ -102,6 +105,7 @@ st.divider()
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
 
+# ===== TOP 10 Shortage =====
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
@@ -112,160 +116,155 @@ with left:
         .reset_index(name="จำนวน")
     )
 
-    top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-    top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
+    if not top10.empty:
+        top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
+        top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
 
-    fig_top10 = px.bar(
-        top10,
-        x="จำนวน",
-        y="Detail",
-        orientation="h",
-        title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
-        color="จำนวน",
-        color_continuous_scale="Reds",
-        text="label"
-    )
+        fig_top10 = px.bar(
+            top10,
+            x="จำนวน",
+            y="Detail",
+            orientation="h",
+            title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
+            color="จำนวน",
+            color_continuous_scale="Reds",
+            text="label"
+        )
 
-    threshold = top10["จำนวน"].median()
+        threshold = top10["จำนวน"].median()
 
-    fig_top10.update_traces(
-        textposition="inside",
-        insidetextanchor="end",
-        textfont_size=13,
-        textfont_color=[
-            "black" if v < threshold else "white"
-            for v in top10["จำนวน"]
-        ]
-    )
+        fig_top10.update_traces(
+            textposition="inside",
+            insidetextanchor="end",
+            textfont_size=13,
+            textfont_color=[
+                "black" if v < threshold else "white"
+                for v in top10["จำนวน"]
+            ]
+        )
 
-    fig_top10.update_layout(
-        yaxis=dict(categoryorder="total ascending"),
-        xaxis_title="จำนวน"
-    )
+        fig_top10.update_layout(
+            yaxis=dict(categoryorder="total ascending"),
+            xaxis_title="จำนวน"
+        )
 
-    st.plotly_chart(fig_top10, use_container_width=True)
+        st.plotly_chart(fig_top10, use_container_width=True)
+    else:
+        st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
 
+# ===== Donut Status =====
 with right:
-    status_df = fdf["สถานะผลิต"].value_counts().reset_index()
-    status_df.columns = ["สถานะ", "จำนวน"]
+    if not fdf.empty:
+        status_df = fdf["สถานะผลิต"].value_counts().reset_index()
+        status_df.columns = ["สถานะ", "จำนวน"]
 
-    fig_status = px.pie(
-        status_df,
-        names="สถานะ",
-        values="จำนวน",
-        hole=0.6,
-        title="สัดส่วนสถานะผลิต",
-        color="สถานะ",
+        fig_status = px.pie(
+            status_df,
+            names="สถานะ",
+            values="จำนวน",
+            hole=0.6,
+            title="สัดส่วนสถานะผลิต",
+            color="สถานะ",
+            color_discrete_map={
+                "ครบจำนวน": "#2e7d32",
+                "ขาดจำนวน": "#c62828"
+            }
+        )
+
+        st.plotly_chart(fig_status, use_container_width=True)
+    else:
+        st.info("ไม่มีข้อมูล")
+
+# ---------------- STACKED BAR : % + Qty ----------------
+st.divider()
+st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน (Stacked)")
+
+trend = fdf.copy()
+
+if not trend.empty:
+    # ===== Period Mapping =====
+    if period == "รายวัน":
+        trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
+
+    elif period == "รายสัปดาห์":
+        week_start = trend["วันที่"] - pd.to_timedelta(
+            (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
+        )
+        year = week_start.dt.year
+
+        first_sunday = (
+            pd.to_datetime(year.astype(str) + "-01-01")
+            - pd.to_timedelta(
+                (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
+                unit="D"
+            )
+        )
+
+        week_no = ((week_start - first_sunday).dt.days // 7) + 1
+        trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
+
+    elif period == "รายเดือน":
+        trend["ช่วง"] = trend["วันที่"].dt.to_period("M").astype(str)
+
+    elif period == "รายปี":
+        trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
+
+    # ===== Summary =====
+    summary = (
+        trend
+        .groupby(["ช่วง", "สถานะผลิต"])
+        .size()
+        .reset_index(name="จำนวน")
+    )
+
+    total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
+    summary = summary.merge(total, on="ช่วง")
+    summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
+
+    summary["label"] = (
+        summary["จำนวน"].astype(int).astype(str)
+        + " ("
+        + summary["เปอร์เซ็นต์"].astype(str)
+        + "%)"
+    )
+
+    summary["สถานะผลิต"] = pd.Categorical(
+        summary["สถานะผลิต"],
+        categories=["ครบจำนวน", "ขาดจำนวน"],
+        ordered=True
+    )
+
+    fig_stack = px.bar(
+        summary,
+        x="ช่วง",
+        y="เปอร์เซ็นต์",
+        color="สถานะผลิต",
+        text="label",
+        barmode="stack",
+        category_orders={
+            "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน"]
+        },
         color_discrete_map={
             "ครบจำนวน": "#2e7d32",
             "ขาดจำนวน": "#c62828"
         }
     )
 
-    st.plotly_chart(fig_status, use_container_width=True)
-
-# ---------------- STACKED BAR : จำนวน + % ----------------
-st.divider()
-st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน (Stacked)")
-
-trend = fdf.copy()
-
-# ===== เลือกช่วงเวลา =====
-if period == "รายวัน":
-    trend["ช่วง"] = trend["วันที่"].dt.date
-
-elif period == "รายสัปดาห์":
-    # หา Sunday ของสัปดาห์
-    week_start = (
-        trend["วันที่"]
-        - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit="D")
+    fig_stack.update_layout(
+        yaxis_range=[0, 100],
+        yaxis_title="เปอร์เซ็นต์ (%)",
+        xaxis_title="ช่วงเวลา",
+        legend_title_text="สถานะผลิต"
     )
 
-    # ปีของ Sunday
-    week_year = week_start.dt.year
-
-    # Sunday แรกของปีนั้น
-    first_sunday = (
-        pd.to_datetime(week_year.astype(str) + "-01-01")
-        - pd.to_timedelta(
-            (pd.to_datetime(week_year.astype(str) + "-01-01").dt.weekday + 1) % 7,
-            unit="D"
-        )
+    fig_stack.update_traces(
+        textposition="inside",
+        textfont_size=13
     )
 
-    # คำนวณเลข Week (เริ่มที่ 1)
-    week_no = ((week_start - first_sunday).dt.days // 7) + 1
-
-    trend["ช่วง"] = (
-        "Week "
-        + week_no.astype(str)
-        + " / "
-        + week_year.astype(str)
-    )
-
-elif period == "รายเดือน":
-    trend["ช่วง"] = trend["วันที่"].dt.to_period("M").astype(str)
-
-elif period == "รายปี":
-    trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
-
-# ===== สรุปจำนวน =====
-summary = (
-    trend
-    .groupby(["ช่วง", "สถานะผลิต"])
-    .size()
-    .reset_index(name="จำนวน")
-)
-
-total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
-summary = summary.merge(total, on="ช่วง")
-
-summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
-
-summary["label"] = (
-    summary["จำนวน"].astype(int).astype(str)
-    + " ("
-    + summary["เปอร์เซ็นต์"].astype(str)
-    + "%)"
-)
-
-# ===== บังคับลำดับให้ ครบ อยู่ล่าง / ขาด อยู่บน =====
-summary["สถานะผลิต"] = pd.Categorical(
-    summary["สถานะผลิต"],
-    categories=["ครบจำนวน", "ขาดจำนวน"],
-    ordered=True
-)
-
-# ===== สร้างกราฟ =====
-fig_stack = px.bar(
-    summary,
-    x="ช่วง",
-    y="เปอร์เซ็นต์",
-    color="สถานะผลิต",
-    text="label",
-    barmode="stack",
-    category_orders={
-        "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน"]
-    },
-    color_discrete_map={
-        "ครบจำนวน": "#2e7d32",
-        "ขาดจำนวน": "#c62828"
-    }
-)
-
-fig_stack.update_layout(
-    yaxis_range=[0, 100],
-    yaxis_title="เปอร์เซ็นต์ (%)",
-    xaxis_title="ช่วงเวลา",
-    legend_title_text="สถานะผลิต"
-)
-
-fig_stack.update_traces(
-    textposition="inside",
-    textfont_size=13
-)
-
-st.plotly_chart(fig_stack, use_container_width=True)
+    st.plotly_chart(fig_stack, use_container_width=True)
+else:
+    st.info("ไม่มีข้อมูลสำหรับแสดงแนวโน้ม")
 
 # ---------------- Table ----------------
 st.divider()
@@ -277,4 +276,4 @@ st.dataframe(
     height=520
 )
 
-st.caption("Shortage Dashboard | Executive Version")
+st.caption("Shortage Dashboard | FINAL PROD VERSION")
