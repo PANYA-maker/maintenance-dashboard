@@ -141,9 +141,10 @@ with left:
         )
 
         fig_top10.update_traces(
-            textposition="outside",        # 👉 ปลายแท่ง
+            textposition="inside",          # 👉 อยู่ในแท่ง
+            insidetextanchor="end",         # 👉 ชิดปลายแท่ง
             textfont=dict(
-                color="yellow",            # 👉 สีเหลือง
+                color="gold",               # 👉 สีทอง
                 size=13,
                 family="Arial Black"
             )
@@ -159,7 +160,7 @@ with left:
         st.plotly_chart(fig_top10, use_container_width=True)
     else:
         st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
-        
+
 with right:
     if not fdf.empty:
         status_df = fdf["สถานะผลิต"].value_counts().reset_index()
