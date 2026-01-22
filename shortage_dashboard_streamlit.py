@@ -43,14 +43,14 @@ if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจ�
     st.rerun()
 
 # ===== Default Date = Last 7 Days =====
-today = df["วันที่"].max()
-default_start = today - pd.Timedelta(days=7)
+max_date = df["วันที่"].max()
+default_start = max_date - pd.Timedelta(days=7)
 
 date_range = st.sidebar.date_input(
     "เลือกช่วงวันที่",
-    value=[default_start.date(), today.date()],
+    value=[default_start.date(), max_date.date()],
     min_value=df["วันที่"].min().date(),
-    max_value=today.date()
+    max_value=max_date.date()
 )
 
 mc_filter = st.sidebar.multiselect(
@@ -109,7 +109,6 @@ st.divider()
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
 
-# ===== TOP 10 Shortage =====
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
@@ -122,12 +121,7 @@ with left:
 
     if not top10.empty:
         top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-        top10["label"] = (
-            top10["จำนวน"].astype(str)
-            + " ("
-            + top10["เปอร์เซ็นต์"].astype(str)
-            + "%)"
-        )
+        top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
 
         fig_top10 = px.bar(
             top10,
@@ -161,7 +155,6 @@ with left:
     else:
         st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
 
-# ===== Donut Status =====
 with right:
     if not fdf.empty:
         status_df = fdf["สถานะผลิต"].value_counts().reset_index()
@@ -181,10 +174,8 @@ with right:
         )
 
         st.plotly_chart(fig_status, use_container_width=True)
-    else:
-        st.info("ไม่มีข้อมูล")
 
-# ---------------- STACKED BAR (Percent + Qty) ----------------
+# ---------------- STACKED BAR ----------------
 st.divider()
 st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
 
@@ -228,13 +219,9 @@ if not trend.empty:
     summary = summary.merge(total, on="ช่วง")
 
     summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
-    summary["label"] = (
-        summary["จำนวน"].astype(int).astype(str)
-        + " ("
-        + summary["เปอร์เซ็นต์"].astype(str)
-        + "%)"
-    )
+    summary["label"] = summary["จำนวน"].astype(str) + " (" + summary["เปอร์เซ็นต์"].astype(str) + "%)"
 
+    # ⭐ สำคัญ: ล็อกให้ ครบ อยู่ล่าง / ขาด อยู่บน
     summary["สถานะผลิต"] = pd.Categorical(
         summary["สถานะผลิต"],
         categories=["ครบจำนวน", "ขาดจำนวน"],
@@ -248,6 +235,9 @@ if not trend.empty:
         color="สถานะผลิต",
         text="label",
         barmode="stack",
+        category_orders={
+            "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน"]
+        },
         color_discrete_map={
             "ครบจำนวน": "#2e7d32",
             "ขาดจำนวน": "#c62828"
@@ -263,10 +253,8 @@ if not trend.empty:
     fig_stack.update_traces(textposition="inside", textfont_size=13)
 
     st.plotly_chart(fig_stack, use_container_width=True)
-else:
-    st.info("ไม่มีข้อมูลแนวโน้ม")
 
-# ---------------- Table (Clean Columns) ----------------
+# ---------------- Table ----------------
 st.divider()
 st.subheader("📋 รายละเอียด Order")
 
