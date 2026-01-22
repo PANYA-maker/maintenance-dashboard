@@ -109,7 +109,7 @@ st.divider()
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
 
-# ===== TOP 10 Shortage (SMART LABEL) =====
+# ===== TOP 10 Shortage (SMART LABEL - REAL WORKING) =====
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
@@ -131,39 +131,46 @@ with left:
 
         threshold = top10["จำนวน"].median()
 
+        # แยกแท่งยาว / สั้น
+        long_bar = top10[top10["จำนวน"] >= threshold]
+        short_bar = top10[top10["จำนวน"] < threshold]
+
         fig_top10 = px.bar(
-            top10,
+            long_bar,
             x="จำนวน",
             y="Detail",
             orientation="h",
-            title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
             color="จำนวน",
             color_continuous_scale="Reds",
             text="label"
         )
 
+        # แท่งยาว → ตัวเลขในแท่ง สีขาว
         fig_top10.update_traces(
-            cliponaxis=False,
-            textfont_size=13
+            textposition="inside",
+            textfont_color="white",
+            textfont_size=13,
+            selector=dict(type="bar")
         )
 
-        fig_top10.for_each_trace(
-            lambda t: t.update(
-                textposition=[
-                    "inside" if v >= threshold else "outside"
-                    for v in t.x
-                ],
-                textfont_color=[
-                    "white" if v >= threshold else "black"
-                    for v in t.x
-                ]
-            )
+        # เพิ่ม trace สำหรับแท่งสั้น
+        fig_top10.add_bar(
+            x=short_bar["จำนวน"],
+            y=short_bar["Detail"],
+            orientation="h",
+            marker=dict(color=short_bar["จำนวน"], colorscale="Reds"),
+            text=short_bar["label"],
+            textposition="outside",
+            textfont=dict(color="black", size=13),
+            showlegend=False
         )
 
         fig_top10.update_layout(
+            title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
             yaxis=dict(categoryorder="total ascending"),
             xaxis_title="จำนวน",
-            margin=dict(r=90)
+            margin=dict(r=100),
+            coloraxis_showscale=True
         )
 
         st.plotly_chart(fig_top10, use_container_width=True)
