@@ -110,6 +110,7 @@ st.divider()
 left, right = st.columns([2, 1])
 
 # ===== TOP 10 Shortage (SMART LABEL - REAL WORKING) =====
+# ===== TOP 10 Shortage (ALL INSIDE / ALWAYS VISIBLE) =====
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
@@ -122,55 +123,42 @@ with left:
 
     if not top10.empty:
         top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
+
+        # ใช้ HTML-like text ใส่ outline
         top10["label"] = (
-            top10["จำนวน"].astype(str)
+            "<b>"
+            + top10["จำนวน"].astype(str)
             + " ("
             + top10["เปอร์เซ็นต์"].astype(str)
             + "%)"
+            + "</b>"
         )
 
-        threshold = top10["จำนวน"].median()
-
-        # แยกแท่งยาว / สั้น
-        long_bar = top10[top10["จำนวน"] >= threshold]
-        short_bar = top10[top10["จำนวน"] < threshold]
-
         fig_top10 = px.bar(
-            long_bar,
+            top10,
             x="จำนวน",
             y="Detail",
             orientation="h",
+            title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
             color="จำนวน",
             color_continuous_scale="Reds",
             text="label"
         )
 
-        # แท่งยาว → ตัวเลขในแท่ง สีขาว
         fig_top10.update_traces(
             textposition="inside",
-            textfont_color="white",
-            textfont_size=13,
-            selector=dict(type="bar")
-        )
-
-        # เพิ่ม trace สำหรับแท่งสั้น
-        fig_top10.add_bar(
-            x=short_bar["จำนวน"],
-            y=short_bar["Detail"],
-            orientation="h",
-            marker=dict(color=short_bar["จำนวน"], colorscale="Reds"),
-            text=short_bar["label"],
-            textposition="outside",
-            textfont=dict(color="black", size=13),
-            showlegend=False
+            textfont=dict(
+                color="white",
+                size=13
+            ),
+            insidetextanchor="middle"
         )
 
         fig_top10.update_layout(
-            title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
             yaxis=dict(categoryorder="total ascending"),
             xaxis_title="จำนวน",
-            margin=dict(r=100),
-            coloraxis_showscale=True
+            uniformtext_minsize=10,
+            uniformtext_mode="show"
         )
 
         st.plotly_chart(fig_top10, use_container_width=True)
