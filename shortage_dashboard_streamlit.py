@@ -327,7 +327,7 @@ display_columns = [
     "M1", "M3", "M5", "ลอน",
     "ความยาวทั้งหมด(เมตร)", "ความยาว/แผ่น(มม)", "T",
     "AVG_Speed (M/min)", "Group ขาดจำนวน",
-    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน", "Detail"
+    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป"
 ]
 
 display_columns = [c for c in display_columns if c in fdf_display.columns]
