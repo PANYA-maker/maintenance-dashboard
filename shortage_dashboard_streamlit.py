@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+
 # ---------------- Page Config ----------------
 st.set_page_config(
     page_title="Shortage Dashboard",
@@ -14,10 +15,12 @@ st.set_page_config(
     layout="wide"
 )
 
+
 # ---------------- Google Sheet Config ----------------
 SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
+
 
 # ---------------- Load Data (Auto Refresh) ----------------
 @st.cache_data(ttl=300)  # 🔄 refresh ทุก 5 นาที
@@ -32,17 +35,21 @@ def load_data():
     )
     return df
 
+
 df = load_data()
 
-# ---------------- Sidebar ----------------
+
+# =========================
+# Sidebar
+# =========================
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
-# ===== Manual Refresh =====
+# ----- Manual Refresh -----
 if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจาก Google Sheet"):
     st.cache_data.clear()
     st.rerun()
 
-# ===== Default Date = Last 7 Days =====
+# ----- Default Date : Last 7 Days -----
 max_date = df["วันที่"].max()
 default_start = max_date - pd.Timedelta(days=7)
 
@@ -75,7 +82,10 @@ period = st.sidebar.selectbox(
     ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"]
 )
 
-# ---------------- Apply Filters ----------------
+
+# =========================
+# Apply Filters
+# =========================
 fdf = df[
     (df["วันที่"] >= pd.to_datetime(date_range[0])) &
     (df["วันที่"] <= pd.to_datetime(date_range[1]))
@@ -93,7 +103,10 @@ if status_filter:
 if customer_filter:
     fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 
-# ---------------- KPI ----------------
+
+# =========================
+# KPI
+# =========================
 k1, k2, k3 = st.columns(3)
 
 order_total = len(fdf)
@@ -106,10 +119,13 @@ k3.metric("ขาดจำนวน", f"{short_qty:,}")
 
 st.divider()
 
-# ---------------- TOP 10 + Donut ----------------
+
+# =========================
+# TOP 10 + Donut
+# =========================
 left, right = st.columns([2, 1])
 
-# ===== TOP 10 Shortage (ALL INSIDE / ALWAYS VISIBLE) =====
+# ----- TOP 10 Shortage -----
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
@@ -122,12 +138,7 @@ with left:
 
     if not top10.empty:
         top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-        top10["label"] = (
-            top10["จำนวน"].astype(str)
-            + " ("
-            + top10["เปอร์เซ็นต์"].astype(str)
-            + "%)"
-        )
+        top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
 
         fig_top10 = px.bar(
             top10,
@@ -141,10 +152,10 @@ with left:
         )
 
         fig_top10.update_traces(
-            textposition="inside",          # 👉 อยู่ในแท่ง
-            insidetextanchor="end",         # 👉 ชิดปลายแท่ง
+            textposition="inside",
+            insidetextanchor="end",
             textfont=dict(
-                color="blue",               # 👉 สีน้ำเงิน
+                color="blue",
                 size=13,
                 family="Arial Black"
             )
@@ -161,6 +172,8 @@ with left:
     else:
         st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
 
+
+# ----- Donut Status -----
 with right:
     if not fdf.empty:
         status_df = fdf["สถานะผลิต"].value_counts().reset_index()
@@ -181,7 +194,10 @@ with right:
 
         st.plotly_chart(fig_status, use_container_width=True)
 
-# ---------------- STACKED BAR ----------------
+
+# =========================
+# STACKED BAR : Percent
+# =========================
 st.divider()
 st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
 
@@ -196,15 +212,9 @@ if not trend.empty:
             (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
         )
         year = week_start.dt.year
-
-        first_sunday = (
-            pd.to_datetime(year.astype(str) + "-01-01")
-            - pd.to_timedelta(
-                (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
-                unit="D"
-            )
+        first_sunday = pd.to_datetime(year.astype(str) + "-01-01") - pd.to_timedelta(
+            (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7, unit="D"
         )
-
         week_no = ((week_start - first_sunday).dt.days // 7) + 1
         trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
 
@@ -215,8 +225,7 @@ if not trend.empty:
         trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
 
     summary = (
-        trend
-        .groupby(["ช่วง", "สถานะผลิต"])
+        trend.groupby(["ช่วง", "สถานะผลิต"])
         .size()
         .reset_index(name="จำนวน")
     )
@@ -227,7 +236,6 @@ if not trend.empty:
     summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
     summary["label"] = summary["จำนวน"].astype(str) + " (" + summary["เปอร์เซ็นต์"].astype(str) + "%)"
 
-    # ⭐ สำคัญ: ล็อกให้ ครบ อยู่ล่าง / ขาด อยู่บน
     summary["สถานะผลิต"] = pd.Categorical(
         summary["สถานะผลิต"],
         categories=["ครบจำนวน", "ขาดจำนวน"],
@@ -241,9 +249,6 @@ if not trend.empty:
         color="สถานะผลิต",
         text="label",
         barmode="stack",
-        category_orders={
-            "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน"]
-        },
         color_discrete_map={
             "ครบจำนวน": "#2e7d32",
             "ขาดจำนวน": "#c62828"
@@ -257,48 +262,36 @@ if not trend.empty:
     )
 
     fig_stack.update_traces(textposition="inside", textfont_size=13)
-
     st.plotly_chart(fig_stack, use_container_width=True)
-    
-  # ---------------- SHORTAGE ISSUE SUMMARY ----------------
+
+
+# =========================
+# SHORTAGE ISSUE SUMMARY
+# =========================
 st.divider()
 st.subheader("🛠️ สรุปปัญหาสถานะซ่อม (เฉพาะงานขาดจำนวน)")
 
-# ตรวจว่ามีคอลัมน์จริงไหม
-required_cols = {"สถานะผลิต", "สถานะซ่อมสรุป"}
-if required_cols.issubset(fdf.columns):
-
-    # 🔴 เอาเฉพาะงานที่ ขาดจำนวน
+if "สถานะซ่อมสรุป" in fdf.columns:
     issue_base = fdf[
         (fdf["สถานะผลิต"] == "ขาดจำนวน") &
         (fdf["สถานะซ่อมสรุป"].notna())
     ]
 
     if not issue_base.empty:
-
-        # ✅ สรุปจำนวน (แก้ KeyError แน่นอน)
         issue_summary = (
             issue_base["สถานะซ่อมสรุป"]
             .value_counts()
+            .rename("จำนวน")
             .reset_index()
+            .rename(columns={"index": "สถานะซ่อมสรุป"})
         )
-        issue_summary.columns = ["สถานะซ่อมสรุป", "จำนวน"]
-
-        # เรียงจากมาก → น้อย
-        issue_summary = issue_summary.sort_values("จำนวน", ascending=False)
 
         c1, c2 = st.columns([1, 1])
 
-        # ===== ตาราง =====
         with c1:
             st.markdown("### 📋 ตารางสรุปปัญหา")
-            st.dataframe(
-                issue_summary,
-                use_container_width=True,
-                height=350
-            )
+            st.dataframe(issue_summary, use_container_width=True, height=350)
 
-        # ===== Donut =====
         with c2:
             fig_issue = px.pie(
                 issue_summary,
@@ -307,26 +300,21 @@ if required_cols.issubset(fdf.columns):
                 hole=0.5,
                 title="สัดส่วนปัญหาสถานะซ่อม"
             )
-
             fig_issue.update_traces(
                 textinfo="percent+label",
                 textposition="inside",
                 textfont_size=13
             )
-
-            fig_issue.update_layout(
-                legend_title_text="สถานะซ่อมสรุป"
-            )
-
             st.plotly_chart(fig_issue, use_container_width=True)
-
     else:
-        st.info("ไม่มีข้อมูลขาดจำนวนที่มีสถานะซ่อมสรุป")
-
+        st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวน")
 else:
-    st.warning("ไม่พบคอลัมน์ 'สถานะผลิต' หรือ 'สถานะซ่อมสรุป' ในข้อมูล")
+    st.warning("ไม่พบคอลัมน์ 'สถานะซ่อมสรุป'")
 
-# ---------------- Table ----------------
+
+# =========================
+# Table
+# =========================
 st.divider()
 st.subheader("📋 รายละเอียด Order")
 
@@ -338,7 +326,8 @@ display_columns = [
     "M1", "M3", "M5", "ลอน",
     "ความยาวทั้งหมด(เมตร)", "ความยาว/แผ่น(มม)", "T",
     "AVG_Speed (M/min)", "Group ขาดจำนวน",
-    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป"
+    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน",
+    "Detail", "สถานะซ่อมสรุป"
 ]
 
 display_columns = [c for c in display_columns if c in fdf_display.columns]
