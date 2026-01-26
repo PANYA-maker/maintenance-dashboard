@@ -1,12 +1,11 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# FINAL PROD VERSION (SAFE)
+# STABLE VERSION (ROLLBACK)
 # =====================================
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
 
 # ---------------- Page Config ----------------
 st.set_page_config(
@@ -15,40 +14,28 @@ st.set_page_config(
     layout="wide"
 )
 
-
 # ---------------- Google Sheet Config ----------------
 SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-
-# ---------------- Load Data (Auto Refresh) ----------------
-@st.cache_data(ttl=300)  # refresh ทุก 5 นาที
+# ---------------- Load Data ----------------
+@st.cache_data(ttl=300)
 def load_data():
     df = pd.read_csv(CSV_URL)
     df.columns = df.columns.str.strip()
-
-    df["วันที่"] = pd.to_datetime(
-        df["วันที่"],
-        dayfirst=True,
-        errors="coerce"
-    )
+    df["วันที่"] = pd.to_datetime(df["วันที่"], dayfirst=True, errors="coerce")
     return df
-
 
 df = load_data()
 
-
-# =========================
-# Sidebar
-# =========================
+# ================= Sidebar =================
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
 if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจาก Google Sheet"):
     st.cache_data.clear()
     st.rerun()
 
-# Default = ย้อนหลัง 7 วัน
 max_date = df["วันที่"].max()
 default_start = max_date - pd.Timedelta(days=7)
 
@@ -65,15 +52,9 @@ status_filter = st.sidebar.multiselect("สถานะผลิต", sorted(df[
 customer_filter = st.sidebar.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
 
 st.sidebar.subheader("📊 แนวโน้มตามช่วงเวลา")
-period = st.sidebar.selectbox(
-    "เลือกช่วงเวลา",
-    ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"]
-)
+period = st.sidebar.selectbox("เลือกช่วงเวลา", ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"])
 
-
-# =========================
-# Apply Filters
-# =========================
+# ================= Apply Filters =================
 fdf = df[
     (df["วันที่"] >= pd.to_datetime(date_range[0])) &
     (df["วันที่"] <= pd.to_datetime(date_range[1]))
@@ -88,12 +69,8 @@ if status_filter:
 if customer_filter:
     fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 
-
-# =========================
-# KPI
-# =========================
+# ================= KPI =================
 k1, k2, k3 = st.columns(3)
-
 order_total = len(fdf)
 complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
 short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
@@ -104,21 +81,17 @@ k3.metric("ขาดจำนวน", f"{short_qty:,}")
 
 st.divider()
 
-
-# =========================
-# TOP 10 + DONUT
-# =========================
+# ================= TOP 10 + Donut =================
 left, right = st.columns([2, 1])
 
-# ----- TOP 10 Shortage -----
 with left:
     top10 = (
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
         .groupby("Detail")
         .size()
-        .reset_index(name="จำนวน")
-        .sort_values("จำนวน")
+        .sort_values()
         .tail(10)
+        .reset_index(name="จำนวน")
     )
 
     if not top10.empty:
@@ -139,7 +112,7 @@ with left:
         fig_top10.update_traces(
             textposition="inside",
             insidetextanchor="end",
-            textfont=dict(color="blue", size=13, family="Arial Black")
+            textfont=dict(color="gold", size=13)
         )
 
         fig_top10.update_layout(
@@ -151,10 +124,9 @@ with left:
     else:
         st.info("ไม่มีข้อมูลขาดจำนวน")
 
-# ----- Donut -----
 with right:
     if not fdf.empty:
-        status_df = fdf["สถานะผลิต"].value_counts().rename("จำนวน").reset_index()
+        status_df = fdf["สถานะผลิต"].value_counts().reset_index()
         status_df.columns = ["สถานะ", "จำนวน"]
 
         fig_status = px.pie(
@@ -172,40 +144,24 @@ with right:
 
         st.plotly_chart(fig_status, use_container_width=True)
 
-
-# =========================
-# STACKED BAR (PERCENT)
-# =========================
+# ================= STACKED BAR =================
 st.divider()
 st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
 
 trend = fdf.copy()
 
 if not trend.empty:
-
     if period == "รายวัน":
         trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
-
     elif period == "รายสัปดาห์":
-        week_start = trend["วันที่"] - pd.to_timedelta(
-            (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
-        )
-        year = week_start.dt.year
-        week_no = ((week_start - pd.to_datetime(year.astype(str) + "-01-01")).dt.days // 7) + 1
-        trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
-
+        week_start = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit="D")
+        trend["ช่วง"] = week_start.dt.strftime("Week %U / %Y")
     elif period == "รายเดือน":
         trend["ช่วง"] = trend["วันที่"].dt.to_period("M").astype(str)
-
-    elif period == "รายปี":
+    else:
         trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
 
-    summary = (
-        trend.groupby(["ช่วง", "สถานะผลิต"])
-        .size()
-        .reset_index(name="จำนวน")
-    )
-
+    summary = trend.groupby(["ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
     total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
     summary = summary.merge(total, on="ช่วง")
 
@@ -233,90 +189,24 @@ if not trend.empty:
 
     fig_stack.update_layout(
         yaxis_range=[0, 100],
-        yaxis_title="เปอร์เซ็นต์ (%)"
+        yaxis_title="เปอร์เซ็นต์ (%)",
+        xaxis_title="ช่วงเวลา"
     )
 
     fig_stack.update_traces(textposition="inside", textfont_size=13)
     st.plotly_chart(fig_stack, use_container_width=True)
 
-# ---------------- SHORTAGE ISSUE SUMMARY ----------------
-st.divider()
-st.subheader("🛠️ สรุปปัญหาสถานะซ่อม (เฉพาะงานขาดจำนวน)")
-
-# ใช้เฉพาะงานขาดจำนวน และต้องมีคอลัมน์ สถานะซ่อมสรุป
-if "สถานะซ่อมสรุป" in fdf.columns:
-    issue_df = (
-        fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
-        .dropna(subset=["สถานะซ่อมสรุป"])
-        .groupby("สถานะซ่อมสรุป")
-        .size()
-        .reset_index(name="จำนวน")
-        .sort_values("จำนวน", ascending=False)
-    )
-
-    if not issue_df.empty:
-        c1, c2 = st.columns([1, 1])
-
-        # ===== ตารางสรุป =====
-        with c1:
-            st.markdown("### 📋 ตารางสรุปปัญหา")
-            st.dataframe(
-                issue_df,
-                use_container_width=True,
-                height=350
-            )
-
-        # ===== กราฟสัดส่วน =====
-        with c2:
-            fig_issue = px.pie(
-                issue_df,
-                names="สถานะซ่อมสรุป",
-                values="จำนวน",
-                hole=0.5,
-                title="สัดส่วนปัญหาสถานะซ่อม",
-            )
-
-            fig_issue.update_traces(
-                textposition="inside",
-                textinfo="percent+label",
-                textfont_size=13
-            )
-
-            fig_issue.update_layout(
-                legend_title_text="สถานะซ่อมสรุป"
-            )
-
-            st.plotly_chart(fig_issue, use_container_width=True)
-
-    else:
-        st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวนในช่วงที่เลือก")
-else:
-    st.warning("ไม่พบคอลัมน์ 'สถานะซ่อมสรุป' ในข้อมูล")
-
-# =========================
-# TABLE
-# =========================
+# ================= Table =================
 st.divider()
 st.subheader("📋 รายละเอียด Order")
 
 fdf_display = fdf.copy()
 fdf_display["วันที่"] = fdf_display["วันที่"].dt.strftime("%d/%m/%Y")
 
-display_columns = [
-    "วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า",
-    "M1", "M3", "M5", "ลอน",
-    "ความยาวทั้งหมด(เมตร)", "ความยาว/แผ่น(มม)", "T",
-    "AVG_Speed (M/min)", "Group ขาดจำนวน",
-    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน",
-    "Detail", "สถานะซ่อมสรุป"
-]
-
-display_columns = [c for c in display_columns if c in fdf_display.columns]
-
 st.dataframe(
-    fdf_display[display_columns].sort_values("วันที่", ascending=False),
+    fdf_display.sort_values("วันที่", ascending=False),
     use_container_width=True,
     height=520
 )
 
-st.caption("Shortage Dashboard | FINAL PROD VERSION")
+st.caption("Shortage Dashboard | STABLE VERSION")
