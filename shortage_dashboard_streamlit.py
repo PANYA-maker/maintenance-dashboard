@@ -1,5 +1,3 @@
-st.cache_data.clear()
-
 # =====================================
 # Shortage Dashboard : DATA CHECK
 # STABLE VERSION (ROLLBACK)
