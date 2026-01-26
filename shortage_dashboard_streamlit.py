@@ -273,6 +273,7 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         .size()
         .reset_index(name="จำนวน")
         .sort_values("จำนวน", ascending=False)
+        .reset_index(drop=True)   # 👈 เพิ่มบรรทัดนี้
     )
 
     if not issue_df.empty:
