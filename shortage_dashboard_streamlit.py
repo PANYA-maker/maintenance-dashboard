@@ -265,35 +265,37 @@ st.divider()
 st.subheader("🛠️ สรุปปัญหาสถานะซ่อม (เฉพาะงานขาดจำนวน)")
 
 # =========================
-# SUMMARY : ขาดจำนวน + PDW
+# SUMMARY : ขาดจำนวน + PDW (ROW)
 # =========================
+c1, c2 = st.columns(2)
 
 # ---- ขาดจำนวน ----
-short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
-
-st.markdown("### ❌ ขาดจำนวน")
-st.metric(label="", value=f"{short_qty:,}")
+with c1:
+    short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
+    st.markdown("### ❌ ขาดจำนวน")
+    st.metric(label="", value=f"{short_qty:,}")
 
 # ---- น้ำหนักของเหลือ PDW ----
-pdw_col = "น้ำหนักของเหลือ PDW"
-pdw_total = 0.0
+with c2:
+    pdw_col = "น้ำหนักของเหลือ PDW"
+    pdw_total = 0.0
 
-if pdw_col in fdf.columns:
-    pdw_df = fdf[
-        (fdf["สถานะผลิต"] == "ขาดจำนวน") &
-        (fdf[pdw_col].notna())
-    ].copy()
+    if pdw_col in fdf.columns:
+        pdw_df = fdf[
+            (fdf["สถานะผลิต"] == "ขาดจำนวน") &
+            (fdf[pdw_col].notna())
+        ].copy()
 
-    pdw_df[pdw_col] = pd.to_numeric(
-        pdw_df[pdw_col],
-        errors="coerce"
-    ).fillna(0)
+        pdw_df[pdw_col] = pd.to_numeric(
+            pdw_df[pdw_col],
+            errors="coerce"
+        ).fillna(0)
 
-    pdw_total = pdw_df[pdw_col].sum()
+        pdw_total = pdw_df[pdw_col].sum()
 
-st.markdown("### ⚖️ น้ำหนักของเหลือ PDW (รวม)")
-st.caption("รวมทั้งหมด (เฉพาะงานขาดจำนวน)")
-st.metric(label="", value=f"{pdw_total:,.2f}")
+    st.markdown("### ⚖️ น้ำหนักของเหลือ PDW (รวม)")
+    st.caption("รวมทั้งหมด (เฉพาะงานขาดจำนวน)")
+    st.metric(label="", value=f"{pdw_total:,.2f}")
 
 # =========================
 # ISSUE SUMMARY TABLE + PIE
@@ -312,6 +314,29 @@ if "สถานะซ่อมสรุป" in fdf.columns:
 
     if not issue_df.empty:
         c1, c2 = st.columns([1, 1])
+
+        with c1:
+            st.markdown("### 📋 ตารางสรุปปัญหา")
+            st.dataframe(issue_df, use_container_width=True, height=350)
+
+        with c2:
+            fig_issue = px.pie(
+                issue_df,
+                names="สถานะซ่อมสรุป",
+                values="จำนวน",
+                hole=0.5,
+                title="สัดส่วนปัญหาสถานะซ่อม"
+            )
+            fig_issue.update_traces(
+                textinfo="percent+label",
+                textposition="inside",
+                textfont_size=13
+            )
+            st.plotly_chart(fig_issue, use_container_width=True)
+    else:
+        st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวนในช่วงที่เลือก")
+else:
+    st.warning("ไม่พบคอลัมน์ 'สถานะซ่อมสรุป'")
 
 # ---------------- Table ----------------
 st.divider()
