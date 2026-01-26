@@ -210,4 +210,3 @@ st.dataframe(
 )
 
 st.caption("Shortage Dashboard | STABLE VERSION")
-
