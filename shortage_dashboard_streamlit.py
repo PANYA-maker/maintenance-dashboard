@@ -273,7 +273,7 @@ c1, c2 = st.columns(2)
 with c1:
     short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
     st.markdown("### ❌ ขาดจำนวน")
-    st.metric(label="", value=f"{short_qty:,}")
+    st.metric(label="", value=f"{short_qty:,} ORDER")
 
 # ---- น้ำหนักของเหลือ PDW ----
 with c2:
@@ -294,8 +294,7 @@ with c2:
         pdw_total = pdw_df[pdw_col].sum()
 
     st.markdown("### ⚖️ น้ำหนักของเหลือ PDW (รวม)")
-    st.caption("รวมทั้งหมด (เฉพาะงานขาดจำนวน)")
-    st.metric(label="", value=f"{pdw_total:,.2f}")
+    st.metric(label="", value=f"{pdw_total:,.2f} KG")
 
 # =========================
 # ISSUE SUMMARY TABLE + PIE
