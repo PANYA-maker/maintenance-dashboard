@@ -1,6 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# FINAL PROD VERSION
+# FINAL PROD VERSION (SAFE)
 # =====================================
 
 import streamlit as st
@@ -23,7 +23,7 @@ CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&
 
 
 # ---------------- Load Data (Auto Refresh) ----------------
-@st.cache_data(ttl=300)  # 🔄 refresh ทุก 5 นาที
+@st.cache_data(ttl=300)  # refresh ทุก 5 นาที
 def load_data():
     df = pd.read_csv(CSV_URL)
     df.columns = df.columns.str.strip()
@@ -44,12 +44,11 @@ df = load_data()
 # =========================
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
-# ----- Manual Refresh -----
 if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจาก Google Sheet"):
     st.cache_data.clear()
     st.rerun()
 
-# ----- Default Date : Last 7 Days -----
+# Default = ย้อนหลัง 7 วัน
 max_date = df["วันที่"].max()
 default_start = max_date - pd.Timedelta(days=7)
 
@@ -60,21 +59,10 @@ date_range = st.sidebar.date_input(
     max_value=max_date.date()
 )
 
-mc_filter = st.sidebar.multiselect(
-    "MC", sorted(df["MC"].dropna().unique())
-)
-
-shift_filter = st.sidebar.multiselect(
-    "กะ", sorted(df["กะ"].dropna().unique())
-)
-
-status_filter = st.sidebar.multiselect(
-    "สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique())
-)
-
-customer_filter = st.sidebar.multiselect(
-    "ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique())
-)
+mc_filter = st.sidebar.multiselect("MC", sorted(df["MC"].dropna().unique()))
+shift_filter = st.sidebar.multiselect("กะ", sorted(df["กะ"].dropna().unique()))
+status_filter = st.sidebar.multiselect("สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique()))
+customer_filter = st.sidebar.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
 
 st.sidebar.subheader("📊 แนวโน้มตามช่วงเวลา")
 period = st.sidebar.selectbox(
@@ -93,13 +81,10 @@ fdf = df[
 
 if mc_filter:
     fdf = fdf[fdf["MC"].isin(mc_filter)]
-
 if shift_filter:
     fdf = fdf[fdf["กะ"].isin(shift_filter)]
-
 if status_filter:
     fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
-
 if customer_filter:
     fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 
@@ -121,7 +106,7 @@ st.divider()
 
 
 # =========================
-# TOP 10 + Donut
+# TOP 10 + DONUT
 # =========================
 left, right = st.columns([2, 1])
 
@@ -131,9 +116,9 @@ with left:
         fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
         .groupby("Detail")
         .size()
-        .sort_values()
-        .tail(10)
         .reset_index(name="จำนวน")
+        .sort_values("จำนวน")
+        .tail(10)
     )
 
     if not top10.empty:
@@ -154,29 +139,22 @@ with left:
         fig_top10.update_traces(
             textposition="inside",
             insidetextanchor="end",
-            textfont=dict(
-                color="blue",
-                size=13,
-                family="Arial Black"
-            )
+            textfont=dict(color="blue", size=13, family="Arial Black")
         )
 
         fig_top10.update_layout(
             yaxis=dict(categoryorder="total ascending"),
-            xaxis_title="จำนวน",
-            uniformtext_minsize=10,
-            uniformtext_mode="show"
+            xaxis_title="จำนวน"
         )
 
         st.plotly_chart(fig_top10, use_container_width=True)
     else:
-        st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
+        st.info("ไม่มีข้อมูลขาดจำนวน")
 
-
-# ----- Donut Status -----
+# ----- Donut -----
 with right:
     if not fdf.empty:
-        status_df = fdf["สถานะผลิต"].value_counts().reset_index()
+        status_df = fdf["สถานะผลิต"].value_counts().rename("จำนวน").reset_index()
         status_df.columns = ["สถานะ", "จำนวน"]
 
         fig_status = px.pie(
@@ -196,7 +174,7 @@ with right:
 
 
 # =========================
-# STACKED BAR : Percent
+# STACKED BAR (PERCENT)
 # =========================
 st.divider()
 st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
@@ -204,6 +182,7 @@ st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / 
 trend = fdf.copy()
 
 if not trend.empty:
+
     if period == "รายวัน":
         trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
 
@@ -212,10 +191,7 @@ if not trend.empty:
             (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
         )
         year = week_start.dt.year
-        first_sunday = pd.to_datetime(year.astype(str) + "-01-01") - pd.to_timedelta(
-            (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7, unit="D"
-        )
-        week_no = ((week_start - first_sunday).dt.days // 7) + 1
+        week_no = ((week_start - pd.to_datetime(year.astype(str) + "-01-01")).dt.days // 7) + 1
         trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
 
     elif period == "รายเดือน":
@@ -257,8 +233,7 @@ if not trend.empty:
 
     fig_stack.update_layout(
         yaxis_range=[0, 100],
-        yaxis_title="เปอร์เซ็นต์ (%)",
-        xaxis_title="ช่วงเวลา"
+        yaxis_title="เปอร์เซ็นต์ (%)"
     )
 
     fig_stack.update_traces(textposition="inside", textfont_size=13)
@@ -266,18 +241,20 @@ if not trend.empty:
 
 
 # =========================
-# SHORTAGE ISSUE SUMMARY
+# SHORTAGE ISSUE SUMMARY (SAFE)
 # =========================
 st.divider()
 st.subheader("🛠️ สรุปปัญหาสถานะซ่อม (เฉพาะงานขาดจำนวน)")
 
 if "สถานะซ่อมสรุป" in fdf.columns:
+
     issue_base = fdf[
         (fdf["สถานะผลิต"] == "ขาดจำนวน") &
         (fdf["สถานะซ่อมสรุป"].notna())
     ]
 
     if not issue_base.empty:
+
         issue_summary = (
             issue_base["สถานะซ่อมสรุป"]
             .value_counts()
@@ -286,10 +263,9 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             .rename(columns={"index": "สถานะซ่อมสรุป"})
         )
 
-        c1, c2 = st.columns([1, 1])
+        c1, c2 = st.columns(2)
 
         with c1:
-            st.markdown("### 📋 ตารางสรุปปัญหา")
             st.dataframe(issue_summary, use_container_width=True, height=350)
 
         with c2:
@@ -300,20 +276,18 @@ if "สถานะซ่อมสรุป" in fdf.columns:
                 hole=0.5,
                 title="สัดส่วนปัญหาสถานะซ่อม"
             )
-            fig_issue.update_traces(
-                textinfo="percent+label",
-                textposition="inside",
-                textfont_size=13
-            )
+            fig_issue.update_traces(textinfo="percent+label", textposition="inside")
             st.plotly_chart(fig_issue, use_container_width=True)
+
     else:
         st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวน")
+
 else:
     st.warning("ไม่พบคอลัมน์ 'สถานะซ่อมสรุป'")
 
 
 # =========================
-# Table
+# TABLE
 # =========================
 st.divider()
 st.subheader("📋 รายละเอียด Order")
