@@ -172,7 +172,7 @@ diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
 with col_diff:
     st.markdown(
         kpi_card(
-            "DIFF (ACTUAL - PLAN)",
+            "DIFF",
             diff_color,
             diff_order,
             int(diff_minute),
