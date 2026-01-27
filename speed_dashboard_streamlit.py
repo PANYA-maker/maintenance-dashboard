@@ -189,8 +189,9 @@ st.divider()
 colA, colB = st.columns(2)
 
 with colA:
-    st.subheader("📊 สัดส่วนลักษณะ Order ความยาว แยกตามเครื่องจักร")
+    st.subheader("📊 สัดส่วนลักษณะ Order ความยาว (100%) แยกตามเครื่องจักร")
 
+    # นับจำนวน Order
     bar_df = (
         filtered_df
         .groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"])
@@ -198,26 +199,38 @@ with colA:
         .reset_index(name="Order Count")
     )
 
+    # คำนวณ % ต่อเครื่อง
+    bar_df["Percent"] = (
+        bar_df
+        .groupby("เครื่องจักร")["Order Count"]
+        .transform(lambda x: x / x.sum() * 100)
+    )
+
     fig_bar = px.bar(
         bar_df,
-        x="Order Count",
+        x="Percent",
         y="เครื่องจักร",
         color="ลักษณะ Order ความยาว",
         orientation="h",
-        title="ลักษณะ Order ความยาว (Stacked by Machine)",
-        text_auto=True
+        text=bar_df["Percent"].round(1).astype(str) + "%",
+        title="100% Stacked: ลักษณะ Order ความยาว แยกตามเครื่องจักร"
     )
 
     fig_bar.update_layout(
         barmode="stack",
-        legend_title_text="ลักษณะ Order ความยาว",
+        xaxis_title="สัดส่วน (%)",
         yaxis_title="เครื่องจักร",
-        xaxis_title="จำนวน Order",
-        height=420
+        legend_title_text="ลักษณะ Order ความยาว",
+        height=420,
+        xaxis=dict(range=[0, 100])
+    )
+
+    fig_bar.update_traces(
+        textposition="inside",
+        insidetextanchor="middle"
     )
 
     st.plotly_chart(fig_bar, use_container_width=True)
-
 
 with colB:
     stop_sum = (
