@@ -7,7 +7,7 @@ from urllib.parse import quote
 # Page Config
 # ======================================
 st.set_page_config(
-    page_title="Speed Shortage Dashboard",
+    page_title="Speed & งานขาดจำนวน – Interactive Dashboard",
     page_icon="📉",
     layout="wide"
 )
@@ -44,20 +44,25 @@ df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
 df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
 
 # ======================================
+# Default Date = 7 days latest with data
+# ======================================
+max_date = df["วันที่"].max()
+min_7days = max_date - pd.Timedelta(days=6)
+
+# ======================================
 # Sidebar Filters
 # ======================================
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
 date_range = st.sidebar.date_input(
     "📅 เลือกช่วงวันที่",
-    [df["วันที่"].min(), df["วันที่"].max()]
+    [min_7days, max_date]
 )
 
 def multi_filter(label, col):
     return st.sidebar.multiselect(
         label,
-        sorted(df[col].dropna().unique()),
-        default=sorted(df[col].dropna().unique())
+        sorted(df[col].dropna().unique())
     )
 
 machines = multi_filter("🏭 เครื่องจักร", "เครื่องจักร")
@@ -67,17 +72,38 @@ stop_types = multi_filter("🛑 ลักษณะเวลาหยุดเค
 order_lengths = multi_filter("📦 ลักษณะ Order ความยาว", "ลักษณะ Order ความยาว")
 
 # ======================================
-# Apply Filters
+# Apply Filters (ว่าง = ไม่ filter)
 # ======================================
 filtered_df = df[
     (df["วันที่"] >= pd.to_datetime(date_range[0])) &
-    (df["วันที่"] <= pd.to_datetime(date_range[1])) &
-    (df["เครื่องจักร"].isin(machines)) &
-    (df["กะ"].isin(shifts)) &
-    (df["Speed เทียบแผน"].isin(speed_status)) &
-    (df["ลักษณะ เวลาหยุดเครื่อง"].isin(stop_types)) &
-    (df["ลักษณะ Order ความยาว"].isin(order_lengths))
+    (df["วันที่"] <= pd.to_datetime(date_range[1]))
 ]
+
+if machines:
+    filtered_df = filtered_df[filtered_df["เครื่องจักร"].isin(machines)]
+
+if shifts:
+    filtered_df = filtered_df[filtered_df["กะ"].isin(shifts)]
+
+if speed_status:
+    filtered_df = filtered_df[filtered_df["Speed เทียบแผน"].isin(speed_status)]
+
+if stop_types:
+    filtered_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"].isin(stop_types)]
+
+if order_lengths:
+    filtered_df = filtered_df[filtered_df["ลักษณะ Order ความยาว"].isin(order_lengths)]
+
+# ======================================
+# Helper functions
+# ======================================
+def safe_mean(series):
+    return series.mean() if len(series) > 0 else 0
+
+def safe_percent_under(df):
+    if len(df) == 0:
+        return 0
+    return (df["Actual Speed"] < df["Speed Plan"]).mean() * 100
 
 # ======================================
 # KPI Section
@@ -87,12 +113,9 @@ st.title("📉 Speed & งานขาดจำนวน – Interactive Dashboa
 c1, c2, c3, c4 = st.columns(4)
 
 c1.metric("จำนวน Order", f"{len(filtered_df):,}")
-c2.metric("Speed Actual เฉลี่ย", f"{filtered_df['Actual Speed'].mean():.2f}")
-c3.metric("Speed Plan เฉลี่ย", f"{filtered_df['Speed Plan'].mean():.2f}")
-c4.metric(
-    "% ต่ำกว่าแผน",
-    f"{(filtered_df['Actual Speed'] < filtered_df['Speed Plan']).mean()*100:.1f}%"
-)
+c2.metric("Speed Actual เฉลี่ย", f"{safe_mean(filtered_df['Actual Speed']):.2f}")
+c3.metric("Speed Plan เฉลี่ย", f"{safe_mean(filtered_df['Speed Plan']):.2f}")
+c4.metric("% ต่ำกว่าแผน", f"{safe_percent_under(filtered_df):.1f}%")
 
 st.divider()
 
