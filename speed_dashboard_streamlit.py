@@ -72,7 +72,7 @@ stop_types = multi_filter("🛑 ลักษณะเวลาหยุดเค
 order_lengths = multi_filter("📦 ลักษณะ Order ความยาว", "ลักษณะ Order ความยาว")
 
 # ======================================
-# Apply Filters (ว่าง = ไม่ filter)
+# Apply Filters
 # ======================================
 filtered_df = df[
     (df["วันที่"] >= pd.to_datetime(date_range[0])) &
@@ -81,41 +81,82 @@ filtered_df = df[
 
 if machines:
     filtered_df = filtered_df[filtered_df["เครื่องจักร"].isin(machines)]
-
 if shifts:
     filtered_df = filtered_df[filtered_df["กะ"].isin(shifts)]
-
 if speed_status:
     filtered_df = filtered_df[filtered_df["Speed เทียบแผน"].isin(speed_status)]
-
 if stop_types:
     filtered_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"].isin(stop_types)]
-
 if order_lengths:
     filtered_df = filtered_df[filtered_df["ลักษณะ Order ความยาว"].isin(order_lengths)]
 
 # ======================================
-# Helper functions
+# KPI CALCULATION (PLAN / ACTUAL / DIFF)
 # ======================================
-def safe_mean(series):
-    return series.mean() if len(series) > 0 else 0
+plan_order = filtered_df["Speed Plan"].notna().sum()
+actual_order = filtered_df["Actual Speed"].notna().sum()
 
-def safe_percent_under(df):
-    if len(df) == 0:
-        return 0
-    return (df["Actual Speed"] < df["Speed Plan"]).mean() * 100
+plan_minute = filtered_df["เวลา Plan"].sum() * 60 if "เวลา Plan" in filtered_df else 0
+actual_minute = filtered_df["เวลา Actual"].sum() * 60 if "เวลา Actual" in filtered_df else 0
+
+plan_speed = filtered_df["Speed Plan"].mean() if plan_order > 0 else 0
+actual_speed = filtered_df["Actual Speed"].mean() if actual_order > 0 else 0
+
+diff_order = plan_order - actual_order
+diff_minute = plan_minute - actual_minute
+diff_speed = plan_speed - actual_speed
 
 # ======================================
-# KPI Section
+# KPI DISPLAY
 # ======================================
 st.title("📉 Speed & งานขาดจำนวน – Interactive Dashboard")
 
-c1, c2, c3, c4 = st.columns(4)
+col_plan, col_actual, col_diff = st.columns(3)
 
-c1.metric("จำนวน Order", f"{len(filtered_df):,}")
-c2.metric("Speed Actual เฉลี่ย", f"{safe_mean(filtered_df['Actual Speed']):.2f}")
-c3.metric("Speed Plan เฉลี่ย", f"{safe_mean(filtered_df['Speed Plan']):.2f}")
-c4.metric("% ต่ำกว่าแผน", f"{safe_percent_under(filtered_df):.1f}%")
+with col_plan:
+    st.markdown(
+        f"""
+        <div style="background:#25c6c6;padding:16px;border-radius:14px">
+        <h3 style="text-align:center;">PLAN</h3>
+        <div style="display:flex;justify-content:space-around;font-size:18px">
+            <div><b>Order</b><br>{plan_order:,}</div>
+            <div><b>Minute</b><br>{int(plan_minute):,}</div>
+            <div><b>Speed</b><br>{plan_speed:.0f}</div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with col_actual:
+    st.markdown(
+        f"""
+        <div style="background:#9ad17d;padding:16px;border-radius:14px">
+        <h3 style="text-align:center;">ACTUAL</h3>
+        <div style="display:flex;justify-content:space-around;font-size:18px">
+            <div><b>Order</b><br>{actual_order:,}</div>
+            <div><b>Minute</b><br>{int(actual_minute):,}</div>
+            <div><b>Speed</b><br>{actual_speed:.0f}</div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with col_diff:
+    st.markdown(
+        f"""
+        <div style="background:#ff3b30;padding:16px;border-radius:14px;color:white">
+        <h3 style="text-align:center;">DIFF</h3>
+        <div style="display:flex;justify-content:space-around;font-size:18px">
+            <div><b>Order</b><br>{diff_order:+,}</div>
+            <div><b>Minute</b><br>{int(diff_minute):+,}</div>
+            <div><b>Speed</b><br>{diff_speed:+.0f}</div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 st.divider()
 
