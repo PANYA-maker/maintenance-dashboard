@@ -206,13 +206,21 @@ with colA:
         .transform(lambda x: x / x.sum() * 100)
     )
 
+    # สร้าง label = จำนวน + %
+    bar_df["Label"] = (
+        bar_df["Order Count"].astype(str)
+        + "<br>("
+        + bar_df["Percent"].round(1).astype(str)
+        + "%)"
+    )
+
     fig_bar = px.bar(
         bar_df,
         x="Percent",
         y="เครื่องจักร",
         color="ลักษณะ Order ความยาว",
         orientation="h",
-        text=bar_df["Percent"].round(1).astype(str) + "%",
+        text="Label",
         title="100% Stacked: ลักษณะ Order ความยาว แยกตามเครื่องจักร"
     )
 
@@ -227,7 +235,8 @@ with colA:
 
     fig_bar.update_traces(
         textposition="inside",
-        insidetextanchor="middle"
+        insidetextanchor="middle",
+        textfont_size=14
     )
 
     st.plotly_chart(fig_bar, use_container_width=True)
