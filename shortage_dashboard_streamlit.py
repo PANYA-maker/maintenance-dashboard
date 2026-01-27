@@ -126,7 +126,6 @@ st.markdown(
 )
 
 # ---------------- KPI : SHORTAGE PERFORMANCE ----------------
-st.markdown("## 📊 SHORTAGE PERFORMANCE")
 
 k1, k2, k3, k4 = st.columns(4)
 
@@ -147,7 +146,7 @@ k2.metric(
 )
 
 k3.metric(
-    "❌ ขาดจำนวน",
+    "ขาดจำนวน",
     f"{short_qty:,}"
 )
 
