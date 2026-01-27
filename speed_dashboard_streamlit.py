@@ -7,7 +7,7 @@ from urllib.parse import quote
 # Page Config
 # ======================================
 st.set_page_config(
-    page_title="Speed & งานขาดจำนวน – Interactive Dashboard",
+    page_title="Speed – Interactive Dashboard",
     page_icon="📉",
     layout="wide"
 )
