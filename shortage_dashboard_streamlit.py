@@ -157,7 +157,6 @@ st.markdown(
 # =========================
 # KPI : SHORTAGE PERFORMANCE (Power BI Style)
 # =========================
-st.markdown("## 📊 SHORTAGE PERFORMANCE")
 
 order_total = len(fdf)
 complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
@@ -187,7 +186,7 @@ with c2:
 with c3:
     st.markdown(f"""
     <div class="kpi-card">
-        <div class="kpi-title">❌ ขาดจำนวน</div>
+        <div class="kpi-title">ขาดจำนวน</div>
         <div class="kpi-value">{short_qty:,}</div>
         <div class="kpi-sub">Order ที่ผลิตไม่ครบ</div>
     </div>
