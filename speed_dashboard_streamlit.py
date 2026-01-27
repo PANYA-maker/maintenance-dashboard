@@ -96,15 +96,11 @@ if order_lengths:
 plan_order = filtered_df["Speed Plan"].notna().sum()
 actual_order = filtered_df["Actual Speed"].notna().sum()
 
-plan_minute = filtered_df["เวลา Plan"].sum() * 60 if "เวลา Plan" in filtered_df else 0
-actual_minute = filtered_df["เวลา Actual"].sum() * 60 if "เวลา Actual" in filtered_df else 0
+plan_minute = filtered_df["เวลา Plan"].sum() / 60 if "เวลา Plan" in filtered_df else 0
+actual_minute = filtered_df["เวลา Actual"].sum() / 60 if "เวลา Actual" in filtered_df else 0
 
-plan_speed = filtered_df["Speed Plan"].mean() if plan_order > 0 else 0
-actual_speed = filtered_df["Actual Speed"].mean() if actual_order > 0 else 0
-
-diff_order = plan_order - actual_order
-diff_minute = plan_minute - actual_minute
-diff_speed = plan_speed - actual_speed
+diff_order = actual_order - plan_order
+diff_minute = actual_minute - plan_minute
 
 # ======================================
 # KPI DISPLAY
