@@ -105,7 +105,7 @@ diff_minute = actual_minute - plan_minute
 # ======================================
 # KPI DISPLAY
 # ======================================
-st.title("📉 Speed & งานขาดจำนวน – Interactive Dashboard")
+st.title("📉 Speed – Interactive Dashboard")
 
 col_plan, col_actual, col_diff = st.columns(3)
 
