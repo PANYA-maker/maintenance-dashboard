@@ -96,8 +96,8 @@ if order_lengths:
 plan_order = filtered_df["Speed Plan"].notna().sum()
 actual_order = filtered_df["Actual Speed"].notna().sum()
 
-plan_minute = filtered_df["เวลา Plan"].sum() / 60 if "เวลา Plan" in filtered_df else 0
-actual_minute = filtered_df["เวลา Actual"].sum() / 60 if "เวลา Actual" in filtered_df else 0
+plan_minute = int(filtered_df["เวลา Plan"].sum() / 60) if "เวลา Plan" in filtered_df else 0
+actual_minute = int(filtered_df["เวลา Actual"].sum() / 60) if "เวลา Actual" in filtered_df else 0
 
 diff_order = actual_order - plan_order
 diff_minute = actual_minute - plan_minute
@@ -109,6 +109,7 @@ st.title("📉 Speed & งานขาดจำนวน – Interactive Dashboa
 
 col_plan, col_actual, col_diff = st.columns(3)
 
+# ================= PLAN =================
 with col_plan:
     st.markdown(
         f"""
@@ -117,13 +118,13 @@ with col_plan:
         <div style="display:flex;justify-content:space-around;font-size:18px">
             <div><b>Order</b><br>{plan_order:,}</div>
             <div><b>Minute</b><br>{int(plan_minute):,}</div>
-            <div><b>Speed</b><br>{plan_speed:.0f}</div>
         </div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
+# ================= ACTUAL =================
 with col_actual:
     st.markdown(
         f"""
@@ -132,13 +133,13 @@ with col_actual:
         <div style="display:flex;justify-content:space-around;font-size:18px">
             <div><b>Order</b><br>{actual_order:,}</div>
             <div><b>Minute</b><br>{int(actual_minute):,}</div>
-            <div><b>Speed</b><br>{actual_speed:.0f}</div>
         </div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
+# ================= DIFF =================
 with col_diff:
     st.markdown(
         f"""
@@ -147,7 +148,6 @@ with col_diff:
         <div style="display:flex;justify-content:space-around;font-size:18px">
             <div><b>Order</b><br>{diff_order:+,}</div>
             <div><b>Minute</b><br>{int(diff_minute):+,}</div>
-            <div><b>Speed</b><br>{diff_speed:+.0f}</div>
         </div>
         </div>
         """,
