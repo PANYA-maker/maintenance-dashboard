@@ -19,103 +19,79 @@ SHEET_ID = "1Dd1PkTf2gW8tGSXVlr6WXgA974wcvySZTnVgv2G-7QU"
 SHEET_NAME = "DATA-SPEED"
 
 # ======================================
-# Load Data from Google Sheet
+# Load Data
 # ======================================
 @st.cache_data(ttl=300)
 def load_data():
-    sheet_name_encoded = quote(SHEET_NAME)
     url = (
         f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq"
-        f"?tqx=out:csv&sheet={sheet_name_encoded}"
+        f"?tqx=out:csv&sheet={quote(SHEET_NAME)}"
     )
-    df = pd.read_csv(url)
-    return df
+    return pd.read_csv(url)
 
 df = load_data()
 
 # ======================================
-# Preprocess
+# Clean column names
 # ======================================
-df["Date"] = pd.to_datetime(df["Date"])
+df.columns = df.columns.str.strip()
+
+# ======================================
+# Convert Date / Time
+# ======================================
+df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
+df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
+df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
 
 # ======================================
 # Sidebar Filters
 # ======================================
-st.sidebar.header("🔎 Filters")
+st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
 date_range = st.sidebar.date_input(
-    "เลือกช่วงวันที่",
-    [df["Date"].min(), df["Date"].max()]
+    "📅 เลือกช่วงวันที่",
+    [df["วันที่"].min(), df["วันที่"].max()]
 )
 
-machines = st.sidebar.multiselect(
-    "เลือกเครื่องจักร",
-    sorted(df["Machine"].dropna().unique()),
-    default=sorted(df["Machine"].dropna().unique())
-)
+def multi_filter(label, col):
+    return st.sidebar.multiselect(
+        label,
+        sorted(df[col].dropna().unique()),
+        default=sorted(df[col].dropna().unique())
+    )
 
-shifts = st.sidebar.multiselect(
-    "เลือกกะ",
-    sorted(df["Shift"].dropna().unique()),
-    default=sorted(df["Shift"].dropna().unique())
-)
-
-speed_status = st.sidebar.multiselect(
-    "Speed เทียบแผน",
-    sorted(df["Speed_vs_Plan"].dropna().unique()),
-    default=sorted(df["Speed_vs_Plan"].dropna().unique())
-)
-
-stop_types = st.sidebar.multiselect(
-    "ลักษณะเวลาหยุดเครื่อง",
-    sorted(df["Stop_Type"].dropna().unique()),
-    default=sorted(df["Stop_Type"].dropna().unique())
-)
-
-order_lengths = st.sidebar.multiselect(
-    "ลักษณะ Order ความยาว",
-    sorted(df["Order_Length"].dropna().unique()),
-    default=sorted(df["Order_Length"].dropna().unique())
-)
+machines = multi_filter("🏭 เครื่องจักร", "เครื่องจักร")
+shifts = multi_filter("⏱ กะ", "กะ")
+speed_status = multi_filter("📊 Speed เทียบแผน", "Speed เทียบแผน")
+stop_types = multi_filter("🛑 ลักษณะเวลาหยุดเครื่อง", "ลักษณะ เวลาหยุดเครื่อง")
+order_lengths = multi_filter("📦 ลักษณะ Order ความยาว", "ลักษณะ Order ความยาว")
 
 # ======================================
 # Apply Filters
 # ======================================
 filtered_df = df[
-    (df["Date"] >= pd.to_datetime(date_range[0])) &
-    (df["Date"] <= pd.to_datetime(date_range[1])) &
-    (df["Machine"].isin(machines)) &
-    (df["Shift"].isin(shifts)) &
-    (df["Speed_vs_Plan"].isin(speed_status)) &
-    (df["Stop_Type"].isin(stop_types)) &
-    (df["Order_Length"].isin(order_lengths))
+    (df["วันที่"] >= pd.to_datetime(date_range[0])) &
+    (df["วันที่"] <= pd.to_datetime(date_range[1])) &
+    (df["เครื่องจักร"].isin(machines)) &
+    (df["กะ"].isin(shifts)) &
+    (df["Speed เทียบแผน"].isin(speed_status)) &
+    (df["ลักษณะ เวลาหยุดเครื่อง"].isin(stop_types)) &
+    (df["ลักษณะ Order ความยาว"].isin(order_lengths))
 ]
 
 # ======================================
 # KPI Section
 # ======================================
-st.title("📉 Speed & Shortage Interactive Dashboard")
+st.title("📉 Speed & งานขาดจำนวน – Interactive Dashboard")
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-col1.metric(
-    "จำนวน Order",
-    f"{len(filtered_df):,}"
-)
-
-col2.metric(
-    "Speed Actual เฉลี่ย",
-    f"{filtered_df['Speed_Actual'].mean():.2f}"
-)
-
-col3.metric(
-    "Speed Plan เฉลี่ย",
-    f"{filtered_df['Speed_Plan'].mean():.2f}"
-)
-
-col4.metric(
+c1.metric("จำนวน Order", f"{len(filtered_df):,}")
+c2.metric("Speed Actual เฉลี่ย", f"{filtered_df['Actual Speed'].mean():.2f}")
+c3.metric("Speed Plan เฉลี่ย", f"{filtered_df['Speed Plan'].mean():.2f}")
+c4.metric(
     "% ต่ำกว่าแผน",
-    f"{(filtered_df['Speed_Actual'] < filtered_df['Speed_Plan']).mean()*100:.1f}%"
+    f"{(filtered_df['Actual Speed'] < filtered_df['Speed Plan']).mean()*100:.1f}%"
 )
 
 st.divider()
@@ -126,38 +102,38 @@ st.divider()
 colA, colB = st.columns(2)
 
 with colA:
-    speed_trend = (
+    trend = (
         filtered_df
-        .groupby("Date", as_index=False)
+        .groupby("วันที่", as_index=False)
         .agg(
-            Speed_Actual=("Speed_Actual", "mean"),
-            Speed_Plan=("Speed_Plan", "mean")
+            Speed_Actual=("Actual Speed", "mean"),
+            Speed_Plan=("Speed Plan", "mean")
         )
     )
 
     fig_line = px.line(
-        speed_trend,
-        x="Date",
+        trend,
+        x="วันที่",
         y=["Speed_Actual", "Speed_Plan"],
-        title="📈 Speed Actual vs Plan",
-        markers=True
+        markers=True,
+        title="📈 Speed Actual vs Plan"
     )
     st.plotly_chart(fig_line, use_container_width=True)
 
 with colB:
-    stop_summary = (
+    stop_sum = (
         filtered_df
-        .groupby("Stop_Type", as_index=False)
+        .groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False)
         .size()
-        .rename(columns={"size": "Count"})
+        .rename(columns={"size": "จำนวนครั้ง"})
     )
 
     fig_pie = px.pie(
-        stop_summary,
-        names="Stop_Type",
-        values="Count",
-        title="🛑 สัดส่วนเวลาหยุดเครื่อง",
-        hole=0.45
+        stop_sum,
+        names="ลักษณะ เวลาหยุดเครื่อง",
+        values="จำนวนครั้ง",
+        hole=0.45,
+        title="🛑 สัดส่วนลักษณะเวลาหยุดเครื่อง"
     )
     st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -166,8 +142,22 @@ with colB:
 # ======================================
 st.subheader("📋 รายละเอียด Order")
 
+show_cols = [
+    "วันที่",
+    "เครื่องจักร",
+    "กะ",
+    "Speed Plan",
+    "Actual Speed",
+    "Speed เทียบแผน",
+    "ลักษณะ Order ความยาว",
+    "ลักษณะ เวลาหยุดเครื่อง",
+    "รายละเอียด",
+    "Start Time",
+    "Stop Time"
+]
+
 st.dataframe(
-    filtered_df.sort_values("Date", ascending=False),
+    filtered_df[show_cols].sort_values("วันที่", ascending=False),
     use_container_width=True,
-    height=500
+    height=520
 )
