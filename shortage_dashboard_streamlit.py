@@ -215,7 +215,7 @@ if not fdf.empty and order_total > 0:
     shortage_pct = (short_qty / order_total) * 100
 
     # --- Insight ระดับความรุนแรง ---
-    if shortage_pct >= 25:
+    if shortage_pct >= 20:
         status_msg = "🔴 อยู่ในระดับวิกฤต"
     elif shortage_pct >= 15:
         status_msg = "🟡 ต้องเฝ้าระวัง"
