@@ -189,23 +189,35 @@ st.divider()
 colA, colB = st.columns(2)
 
 with colA:
-    trend = (
+    st.subheader("📊 สัดส่วนลักษณะ Order ความยาว แยกตามเครื่องจักร")
+
+    bar_df = (
         filtered_df
-        .groupby("วันที่", as_index=False)
-        .agg(
-            Speed_Actual=("Actual Speed", "mean"),
-            Speed_Plan=("Speed Plan", "mean")
-        )
+        .groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"])
+        .size()
+        .reset_index(name="Order Count")
     )
 
-    fig_line = px.line(
-        trend,
-        x="วันที่",
-        y=["Speed_Actual", "Speed_Plan"],
-        markers=True,
-        title="📈 Speed Actual vs Plan"
+    fig_bar = px.bar(
+        bar_df,
+        x="Order Count",
+        y="เครื่องจักร",
+        color="ลักษณะ Order ความยาว",
+        orientation="h",
+        title="ลักษณะ Order ความยาว (Stacked by Machine)",
+        text_auto=True
     )
-    st.plotly_chart(fig_line, use_container_width=True)
+
+    fig_bar.update_layout(
+        barmode="stack",
+        legend_title_text="ลักษณะ Order ความยาว",
+        yaxis_title="เครื่องจักร",
+        xaxis_title="จำนวน Order",
+        height=420
+    )
+
+    st.plotly_chart(fig_bar, use_container_width=True)
+
 
 with colB:
     stop_sum = (
