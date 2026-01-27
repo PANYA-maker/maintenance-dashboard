@@ -6,6 +6,35 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+st.markdown("""
+<style>
+.kpi-card {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+    color: white;
+    height: 140px;
+}
+
+.kpi-title {
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.kpi-value {
+    font-size: 34px;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+.kpi-sub {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------- Page Config ----------------
 st.set_page_config(
@@ -125,38 +154,55 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ---------------- KPI : SHORTAGE PERFORMANCE ----------------
-
-k1, k2, k3, k4 = st.columns(4)
+# =========================
+# KPI : SHORTAGE PERFORMANCE (Power BI Style)
+# =========================
+st.markdown("## 📊 SHORTAGE PERFORMANCE")
 
 order_total = len(fdf)
 complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
 short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
-
 short_pct = (short_qty / order_total * 100) if order_total > 0 else 0
 
-k1.metric(
-    "ORDER TOTAL",
-    f"{order_total:,}"
-)
+c1, c2, c3, c4 = st.columns(4)
 
-k2.metric(
-    "ครบจำนวน",
-    f"{complete_qty:,}"
-)
+with c1:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">ORDER TOTAL</div>
+        <div class="kpi-value">{order_total:,}</div>
+        <div class="kpi-sub">จำนวน Order ทั้งหมด</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-k3.metric(
-    "ขาดจำนวน",
-    f"{short_qty:,}"
-)
+with c2:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">ครบจำนวน</div>
+        <div class="kpi-value">{complete_qty:,}</div>
+        <div class="kpi-sub">ผลิตครบตามแผน</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-k4.metric(
-    "% ขาดจำนวน",
-    f"{short_pct:.1f}%"
-)
+with c3:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">❌ ขาดจำนวน</div>
+        <div class="kpi-value">{short_qty:,}</div>
+        <div class="kpi-sub">Order ที่ผลิตไม่ครบ</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c4:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-title">% ขาดจำนวน</div>
+        <div class="kpi-value">{short_pct:.1f}%</div>
+        <div class="kpi-sub">เทียบ ORDER TOTAL</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
-
 
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
