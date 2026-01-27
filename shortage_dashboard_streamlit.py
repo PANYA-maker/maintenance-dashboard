@@ -93,6 +93,38 @@ if status_filter:
 if customer_filter:
     fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 
+# =========================
+# SHORTAGE PERFORMANCE
+# =========================
+st.markdown(
+    """
+    <div style="
+        padding: 14px 18px;
+        border-radius: 14px;
+        background: linear-gradient(90deg, #0f172a, #020617);
+        margin: 12px 0 20px 0;
+        border-left: 6px solid #ef4444;
+    ">
+        <h2 style="
+            color: #f8fafc;
+            margin: 0;
+            font-weight: 700;
+            letter-spacing: 1px;
+        ">
+            📊 SHORTAGE PERFORMANCE
+        </h2>
+        <p style="
+            margin: 6px 0 0 0;
+            color: #cbd5f5;
+            font-size: 14px;
+        ">
+            ภาพรวมผลการผลิต (Order / ครบจำนวน / ขาดจำนวน)
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 # ---------------- KPI ----------------
 k1, k2, k3 = st.columns(3)
 
