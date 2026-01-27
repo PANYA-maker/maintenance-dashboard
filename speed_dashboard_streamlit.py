@@ -105,52 +105,79 @@ diff_minute = actual_minute - plan_minute
 # ======================================
 # KPI DISPLAY
 # ======================================
-st.title("📉 Speed – Interactive Dashboard")
+st.markdown("## 📊 Speed – Interactive Dashboard")
+
+def kpi_card(title, bg_color, order, minute, text_color="#000"):
+    return f"""
+    <div style="
+        background:{bg_color};
+        padding:20px;
+        border-radius:18px;
+        color:{text_color};
+        box-shadow:0 6px 18px rgba(0,0,0,0.15);
+    ">
+        <h2 style="text-align:center;margin-bottom:16px">{title}</h2>
+        <div style="display:flex;gap:14px;justify-content:center">
+            <div style="
+                background:rgba(255,255,255,0.35);
+                padding:12px 18px;
+                border-radius:12px;
+                min-width:120px;
+                text-align:center;
+            ">
+                <div style="font-size:14px;opacity:0.8">Order</div>
+                <div style="font-size:26px;font-weight:700">{order:,}</div>
+            </div>
+            <div style="
+                background:rgba(255,255,255,0.35);
+                padding:12px 18px;
+                border-radius:12px;
+                min-width:120px;
+                text-align:center;
+            ">
+                <div style="font-size:14px;opacity:0.8">Minute</div>
+                <div style="font-size:26px;font-weight:700">{minute:+,}</div>
+            </div>
+        </div>
+    </div>
+    """
 
 col_plan, col_actual, col_diff = st.columns(3)
 
-# ================= PLAN =================
 with col_plan:
     st.markdown(
-        f"""
-        <div style="background:#25c6c6;padding:16px;border-radius:14px">
-        <h3 style="text-align:center;">PLAN</h3>
-        <div style="display:flex;justify-content:space-around;font-size:18px">
-            <div><b>Order</b><br>{plan_order:,}</div>
-            <div><b>Minute</b><br>{int(plan_minute):,}</div>
-        </div>
-        </div>
-        """,
+        kpi_card(
+            "PLAN",
+            "#2ec4c6",
+            plan_order,
+            int(plan_minute)
+        ),
         unsafe_allow_html=True
     )
 
-# ================= ACTUAL =================
 with col_actual:
     st.markdown(
-        f"""
-        <div style="background:#9ad17d;padding:16px;border-radius:14px">
-        <h3 style="text-align:center;">ACTUAL</h3>
-        <div style="display:flex;justify-content:space-around;font-size:18px">
-            <div><b>Order</b><br>{actual_order:,}</div>
-            <div><b>Minute</b><br>{int(actual_minute):,}</div>
-        </div>
-        </div>
-        """,
+        kpi_card(
+            "ACTUAL",
+            "#a3d977",
+            actual_order,
+            int(actual_minute)
+        ),
         unsafe_allow_html=True
     )
 
-# ================= DIFF =================
+# สี DIFF ตามค่า
+diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
+
 with col_diff:
     st.markdown(
-        f"""
-        <div style="background:#ff3b30;padding:16px;border-radius:14px;color:white">
-        <h3 style="text-align:center;">DIFF</h3>
-        <div style="display:flex;justify-content:space-around;font-size:18px">
-            <div><b>Order</b><br>{diff_order:+,}</div>
-            <div><b>Minute</b><br>{int(diff_minute):+,}</div>
-        </div>
-        </div>
-        """,
+        kpi_card(
+            "DIFF (ACTUAL - PLAN)",
+            diff_color,
+            diff_order,
+            int(diff_minute),
+            text_color="white"
+        ),
         unsafe_allow_html=True
     )
 
