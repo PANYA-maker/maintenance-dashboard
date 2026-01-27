@@ -125,18 +125,39 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ---------------- KPI ----------------
-k1, k2, k3 = st.columns(3)
+# ---------------- KPI : SHORTAGE PERFORMANCE ----------------
+st.markdown("## 📊 SHORTAGE PERFORMANCE")
+
+k1, k2, k3, k4 = st.columns(4)
 
 order_total = len(fdf)
 complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
 short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
 
-k1.metric("ORDER TOTAL", f"{order_total:,}")
-k2.metric("ครบจำนวน", f"{complete_qty:,}")
-k3.metric("ขาดจำนวน", f"{short_qty:,}")
+short_pct = (short_qty / order_total * 100) if order_total > 0 else 0
+
+k1.metric(
+    "ORDER TOTAL",
+    f"{order_total:,}"
+)
+
+k2.metric(
+    "ครบจำนวน",
+    f"{complete_qty:,}"
+)
+
+k3.metric(
+    "❌ ขาดจำนวน",
+    f"{short_qty:,}"
+)
+
+k4.metric(
+    "% ขาดจำนวน",
+    f"{short_pct:.1f}%"
+)
 
 st.divider()
+
 
 # ---------------- TOP 10 + Donut ----------------
 left, right = st.columns([2, 1])
