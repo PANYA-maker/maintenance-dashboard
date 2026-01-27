@@ -1,286 +1,104 @@
-# =====================================
-# Shortage Dashboard : DATA CHECK
-# FINAL PROD VERSION
-# =====================================
+// React + Tailwind + Recharts Interactive Dashboard
+// NOTE: Replace SHEET_ID and ensure the Google Sheet is shared as Anyone with link → Viewer
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
-# ---------------- Page Config ----------------
-st.set_page_config(
-    page_title="Shortage Dashboard",
-    page_icon="📊",
-    layout="wide"
-)
+const SHEET_ID = "1Dd1PkTf2gW8tGSXVlr6WXgA974wcvySZTnVgv2G-7QU";
+const SHEET_NAME = "DATA-SPEED";
 
-# ---------------- Google Sheet Config ----------------
-SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
-GID = "1799697899"
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
+function fetchSheet() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  return fetch(url)
+    .then(r => r.text())
+    .then(text => JSON.parse(text.substring(47).slice(0, -2)))
+    .then(json => {
+      const cols = json.table.cols.map(c => c.label);
+      return json.table.rows.map(r => Object.fromEntries(r.c.map((v, i) => [cols[i], v ? v.v : null])));
+    });
+}
 
-# ---------------- Load Data (Auto Refresh) ----------------
-@st.cache_data(ttl=300)  # 🔄 refresh ทุก 5 นาที
-def load_data():
-    df = pd.read_csv(CSV_URL)
-    df.columns = df.columns.str.strip()
+export default function Dashboard() {
+  const [data, setData] = useState([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [machine, setMachine] = useState("all");
+  const [shift, setShift] = useState("all");
+  const [speedFlag, setSpeedFlag] = useState("all");
+  const [stopType, setStopType] = useState("all");
+  const [orderLen, setOrderLen] = useState("all");
 
-    df["วันที่"] = pd.to_datetime(
-        df["วันที่"],
-        dayfirst=True,
-        errors="coerce"
-    )
-    return df
+  useEffect(() => {
+    fetchSheet().then(setData);
+  }, []);
 
-df = load_data()
+  const filtered = useMemo(() => {
+    return data.filter(d => {
+      const dt = d.Date ? new Date(d.Date) : null;
+      if (dateFrom && dt < new Date(dateFrom)) return false;
+      if (dateTo && dt > new Date(dateTo)) return false;
+      if (machine !== "all" && d.Machine !== machine) return false;
+      if (shift !== "all" && d.Shift !== shift) return false;
+      if (speedFlag !== "all" && d.Speed_vs_Plan !== speedFlag) return false;
+      if (stopType !== "all" && d.Stop_Type !== stopType) return false;
+      if (orderLen !== "all" && d.Order_Length !== orderLen) return false;
+      return true;
+    });
+  }, [data, dateFrom, dateTo, machine, shift, speedFlag, stopType, orderLen]);
 
-# ---------------- Sidebar ----------------
-st.sidebar.header("🔎 ตัวกรองข้อมูล")
+  const byDate = useMemo(() => {
+    const m = {};
+    filtered.forEach(d => {
+      const k = d.Date;
+      m[k] = m[k] || { Date: k, Actual: 0, Plan: 0 };
+      m[k].Actual += Number(d.Speed_Actual || 0);
+      m[k].Plan += Number(d.Speed_Plan || 0);
+    });
+    return Object.values(m);
+  }, [filtered]);
 
-# ===== Manual Refresh =====
-if st.sidebar.button("🔄 โหลดข้อมูลล่าสุดจาก Google Sheet"):
-    st.cache_data.clear()
-    st.rerun()
+  const stopPie = useMemo(() => {
+    const m = {};
+    filtered.forEach(d => { m[d.Stop_Type] = (m[d.Stop_Type] || 0) + 1; });
+    return Object.entries(m).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
 
-# ===== Default Date = Last 7 Days =====
-max_date = df["วันที่"].max()
-default_start = max_date - pd.Timedelta(days=7)
+  const machines = ["all", ...new Set(data.map(d => d.Machine))].filter(Boolean);
+  const shifts = ["all", ...new Set(data.map(d => d.Shift))].filter(Boolean);
+  const speedFlags = ["all", ...new Set(data.map(d => d.Speed_vs_Plan))].filter(Boolean);
+  const stopTypes = ["all", ...new Set(data.map(d => d.Stop_Type))].filter(Boolean);
+  const orderLens = ["all", ...new Set(data.map(d => d.Order_Length))].filter(Boolean);
 
-date_range = st.sidebar.date_input(
-    "เลือกช่วงวันที่",
-    value=[default_start.date(), max_date.date()],
-    min_value=df["วันที่"].min().date(),
-    max_value=max_date.date()
-)
+  return (
+    <div className="p-6 grid gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <Input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+        <Input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+        <Select value={machine} onValueChange={setMachine}><SelectTrigger><SelectValue placeholder="Machine"/></SelectTrigger><SelectContent>{machines.map(m=>(<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent></Select>
+        <Select value={shift} onValueChange={setShift}><SelectTrigger><SelectValue placeholder="Shift"/></SelectTrigger><SelectContent>{shifts.map(s=>(<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent></Select>
+        <Select value={speedFlag} onValueChange={setSpeedFlag}><SelectTrigger><SelectValue placeholder="Speed vs Plan"/></SelectTrigger><SelectContent>{speedFlags.map(s=>(<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent></Select>
+        <Select value={stopType} onValueChange={setStopType}><SelectTrigger><SelectValue placeholder="Stop Type"/></SelectTrigger><SelectContent>{stopTypes.map(s=>(<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent></Select>
+      </div>
 
-mc_filter = st.sidebar.multiselect(
-    "MC", sorted(df["MC"].dropna().unique())
-)
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card><CardContent className="h-72"><ResponsiveContainer><LineChart data={byDate}><XAxis dataKey="Date"/><YAxis/><Tooltip/><Legend/><Line dataKey="Actual"/><Line dataKey="Plan"/></LineChart></ResponsiveContainer></CardContent></Card>
+        <Card><CardContent className="h-72"><ResponsiveContainer><PieChart><Pie data={stopPie} dataKey="value" nameKey="name" outerRadius={100}><Cell/><Cell/><Cell/><Cell/></Pie><Tooltip/></PieChart></ResponsiveContainer></CardContent></Card>
+      </div>
 
-shift_filter = st.sidebar.multiselect(
-    "กะ", sorted(df["กะ"].dropna().unique())
-)
-
-status_filter = st.sidebar.multiselect(
-    "สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique())
-)
-
-customer_filter = st.sidebar.multiselect(
-    "ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique())
-)
-
-st.sidebar.subheader("📊 แนวโน้มตามช่วงเวลา")
-period = st.sidebar.selectbox(
-    "เลือกช่วงเวลา",
-    ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"]
-)
-
-# ---------------- Apply Filters ----------------
-fdf = df[
-    (df["วันที่"] >= pd.to_datetime(date_range[0])) &
-    (df["วันที่"] <= pd.to_datetime(date_range[1]))
-]
-
-if mc_filter:
-    fdf = fdf[fdf["MC"].isin(mc_filter)]
-
-if shift_filter:
-    fdf = fdf[fdf["กะ"].isin(shift_filter)]
-
-if status_filter:
-    fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
-
-if customer_filter:
-    fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
-
-# ---------------- KPI ----------------
-k1, k2, k3 = st.columns(3)
-
-order_total = len(fdf)
-complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
-short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
-
-k1.metric("ORDER TOTAL", f"{order_total:,}")
-k2.metric("ครบจำนวน", f"{complete_qty:,}")
-k3.metric("ขาดจำนวน", f"{short_qty:,}")
-
-st.divider()
-
-# ---------------- TOP 10 + Donut ----------------
-left, right = st.columns([2, 1])
-
-# ===== TOP 10 Shortage (ALL INSIDE / ALWAYS VISIBLE) =====
-with left:
-    top10 = (
-        fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
-        .groupby("Detail")
-        .size()
-        .sort_values()
-        .tail(10)
-        .reset_index(name="จำนวน")
-    )
-
-    if not top10.empty:
-        top10["เปอร์เซ็นต์"] = (top10["จำนวน"] / order_total * 100).round(1)
-        top10["label"] = (
-            top10["จำนวน"].astype(str)
-            + " ("
-            + top10["เปอร์เซ็นต์"].astype(str)
-            + "%)"
-        )
-
-        fig_top10 = px.bar(
-            top10,
-            x="จำนวน",
-            y="Detail",
-            orientation="h",
-            title="TOP 10 สาเหตุขาดจำนวน (% เทียบ ORDER TOTAL)",
-            color="จำนวน",
-            color_continuous_scale="Reds",
-            text="label"
-        )
-
-        fig_top10.update_traces(
-            textposition="inside",          # 👉 อยู่ในแท่ง
-            insidetextanchor="end",         # 👉 ชิดปลายแท่ง
-            textfont=dict(
-                color="blue",               # 👉 สีน้ำเงิน
-                size=13,
-                family="Arial Black"
-            )
-        )
-
-        fig_top10.update_layout(
-            yaxis=dict(categoryorder="total ascending"),
-            xaxis_title="จำนวน",
-            uniformtext_minsize=10,
-            uniformtext_mode="show"
-        )
-
-        st.plotly_chart(fig_top10, use_container_width=True)
-    else:
-        st.info("ไม่มีข้อมูลขาดจำนวนในช่วงที่เลือก")
-
-with right:
-    if not fdf.empty:
-        status_df = fdf["สถานะผลิต"].value_counts().reset_index()
-        status_df.columns = ["สถานะ", "จำนวน"]
-
-        fig_status = px.pie(
-            status_df,
-            names="สถานะ",
-            values="จำนวน",
-            hole=0.6,
-            title="สัดส่วนสถานะผลิต",
-            color="สถานะ",
-            color_discrete_map={
-                "ครบจำนวน": "#2e7d32",
-                "ขาดจำนวน": "#c62828"
-            }
-        )
-
-        st.plotly_chart(fig_status, use_container_width=True)
-
-# ---------------- STACKED BAR ----------------
-st.divider()
-st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / ขาดจำนวน")
-
-trend = fdf.copy()
-
-if not trend.empty:
-    if period == "รายวัน":
-        trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
-
-    elif period == "รายสัปดาห์":
-        week_start = trend["วันที่"] - pd.to_timedelta(
-            (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
-        )
-        year = week_start.dt.year
-
-        first_sunday = (
-            pd.to_datetime(year.astype(str) + "-01-01")
-            - pd.to_timedelta(
-                (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
-                unit="D"
-            )
-        )
-
-        week_no = ((week_start - first_sunday).dt.days // 7) + 1
-        trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
-
-    elif period == "รายเดือน":
-        trend["ช่วง"] = trend["วันที่"].dt.to_period("M").astype(str)
-
-    elif period == "รายปี":
-        trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
-
-    summary = (
-        trend
-        .groupby(["ช่วง", "สถานะผลิต"])
-        .size()
-        .reset_index(name="จำนวน")
-    )
-
-    total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
-    summary = summary.merge(total, on="ช่วง")
-
-    summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
-    summary["label"] = summary["จำนวน"].astype(str) + " (" + summary["เปอร์เซ็นต์"].astype(str) + "%)"
-
-    # ⭐ สำคัญ: ล็อกให้ ครบ อยู่ล่าง / ขาด อยู่บน
-    summary["สถานะผลิต"] = pd.Categorical(
-        summary["สถานะผลิต"],
-        categories=["ครบจำนวน", "ขาดจำนวน"],
-        ordered=True
-    )
-
-    fig_stack = px.bar(
-        summary,
-        x="ช่วง",
-        y="เปอร์เซ็นต์",
-        color="สถานะผลิต",
-        text="label",
-        barmode="stack",
-        category_orders={
-            "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน"]
-        },
-        color_discrete_map={
-            "ครบจำนวน": "#2e7d32",
-            "ขาดจำนวน": "#c62828"
-        }
-    )
-
-    fig_stack.update_layout(
-        yaxis_range=[0, 100],
-        yaxis_title="เปอร์เซ็นต์ (%)",
-        xaxis_title="ช่วงเวลา"
-    )
-
-    fig_stack.update_traces(textposition="inside", textfont_size=13)
-
-    st.plotly_chart(fig_stack, use_container_width=True)
-
-# ---------------- Table ----------------
-st.divider()
-st.subheader("📋 รายละเอียด Order")
-
-fdf_display = fdf.copy()
-fdf_display["วันที่"] = fdf_display["วันที่"].dt.strftime("%d/%m/%Y")
-
-display_columns = [
-    "วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า",
-    "M1", "M3", "M5", "ลอน",
-    "ความยาวทั้งหมด(เมตร)", "ความยาว/แผ่น(มม)", "T",
-    "AVG_Speed (M/min)", "Group ขาดจำนวน",
-    "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "สถานะส่งงาน", "Detail"
-]
-
-display_columns = [c for c in display_columns if c in fdf_display.columns]
-
-st.dataframe(
-    fdf_display[display_columns].sort_values("วันที่", ascending=False),
-    use_container_width=True,
-    height=520
-)
-
-st.caption("Shortage Dashboard | FINAL PROD VERSION")
+      <Card>
+        <CardContent>
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm">
+              <thead><tr>{Object.keys(filtered[0]||{}).map(k=>(<th key={k} className="px-2 py-1 text-left">{k}</th>))}</tr></thead>
+              <tbody>{filtered.map((r,i)=>(<tr key={i} className="border-t">{Object.values(r).map((v,j)=>(<td key={j} className="px-2 py-1">{String(v)}</td>))}</tr>))}</tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
