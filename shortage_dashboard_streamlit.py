@@ -367,17 +367,21 @@ if not trend.empty:
         trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
 
     elif period == "รายเดือน":
-        trend["ช่วง"] = trend["วันที่"].dt.strftime("%b %Y")
-
+        trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%b %Y")
+        
     elif period == "รายปี":
         trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
 
     summary = (
-        trend
-        .groupby(["ช่วง", "สถานะผลิต"])
-        .size()
-        .reset_index(name="จำนวน")
-    )
+    trend
+    .groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"])
+    .size()
+    .reset_index(name="จำนวน")
+)
+
+    summary = summary.sort_values("ช่วง_dt")
+
 
     total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
     summary = summary.merge(total, on="ช่วง")
