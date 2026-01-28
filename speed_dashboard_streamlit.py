@@ -345,9 +345,9 @@ st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / 
 
 trend = fdf.copy()
 
-if not trend.empty:
+if not trend.empty and "สถานะผลิต" in trend.columns:
 
-    # ===== สร้างช่วงเวลา + key สำหรับเรียง =====
+    # ===== สร้างช่วงเวลา (SAFE MODE) =====
     if period == "รายวัน":
         trend["ช่วง_dt"] = trend["วันที่"].dt.normalize()
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
@@ -371,7 +371,10 @@ if not trend.empty:
         trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("Y").dt.to_timestamp()
         trend["ช่วง"] = trend["ช่วง_dt"].dt.year.astype(str)
 
-    # ===== สรุปข้อมูล =====
+    # ===== ป้องกันคอลัมน์หาย =====
+    trend = trend.dropna(subset=["ช่วง_dt", "สถานะผลิต"])
+
+    # ===== Group =====
     summary = (
         trend
         .groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"])
@@ -379,7 +382,6 @@ if not trend.empty:
         .reset_index(name="จำนวน")
     )
 
-    # ===== รวมยอดต่อช่วง =====
     total = (
         summary
         .groupby(["ช่วง_dt", "ช่วง"])["จำนวน"]
@@ -397,17 +399,14 @@ if not trend.empty:
         + "%)"
     )
 
-    # ===== ล็อกลำดับสี =====
     summary["สถานะผลิต"] = pd.Categorical(
         summary["สถานะผลิต"],
         categories=["ครบจำนวน", "ขาดจำนวน"],
         ordered=True
     )
 
-    # ===== เรียงตามเวลา =====
     summary = summary.sort_values("ช่วง_dt")
 
-    # ===== Plot =====
     fig_stack = px.bar(
         summary,
         x="ช่วง",
@@ -430,12 +429,12 @@ if not trend.empty:
         xaxis_title="ช่วงเวลา"
     )
 
-    fig_stack.update_traces(
-        textposition="inside",
-        textfont_size=13
-    )
+    fig_stack.update_traces(textposition="inside", textfont_size=13)
 
     st.plotly_chart(fig_stack, use_container_width=True)
+
+else:
+    st.info("ไม่มีข้อมูลสำหรับแสดงกราฟแนวโน้ม")
     
     # ---------------- SHORTAGE ISSUE SUMMARY ----------------
 st.divider()
