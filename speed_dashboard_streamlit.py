@@ -346,52 +346,68 @@ st.subheader("📊 เปอร์เซ็นต์ ครบจำนวน / 
 trend = fdf.copy()
 
 if not trend.empty:
+
+    # ===== สร้างช่วงเวลา + key สำหรับเรียง =====
     if period == "รายวัน":
-        trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
+        trend["ช่วง_dt"] = trend["วันที่"].dt.normalize()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
 
     elif period == "รายสัปดาห์":
-        week_start = trend["วันที่"] - pd.to_timedelta(
-            (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
+        trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta(
+            trend["วันที่"].dt.weekday, unit="D"
         )
-        year = week_start.dt.year
-
-        first_sunday = (
-            pd.to_datetime(year.astype(str) + "-01-01")
-            - pd.to_timedelta(
-                (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
-                unit="D"
-            )
+        trend["ช่วง"] = (
+            "Week "
+            + trend["ช่วง_dt"].dt.isocalendar().week.astype(str)
+            + " / "
+            + trend["ช่วง_dt"].dt.year.astype(str)
         )
-
-        week_no = ((week_start - first_sunday).dt.days // 7) + 1
-        trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
 
     elif period == "รายเดือน":
-        trend["ช่วง"] = trend["วันที่"].dt.to_period("M").astype(str)
+        trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%b %Y")
 
     elif period == "รายปี":
-        trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
+        trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("Y").dt.to_timestamp()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.year.astype(str)
 
+    # ===== สรุปข้อมูล =====
     summary = (
         trend
-        .groupby(["ช่วง", "สถานะผลิต"])
+        .groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"])
         .size()
         .reset_index(name="จำนวน")
     )
 
-    total = summary.groupby("ช่วง")["จำนวน"].sum().reset_index(name="รวม")
-    summary = summary.merge(total, on="ช่วง")
+    # ===== รวมยอดต่อช่วง =====
+    total = (
+        summary
+        .groupby(["ช่วง_dt", "ช่วง"])["จำนวน"]
+        .sum()
+        .reset_index(name="รวม")
+    )
+
+    summary = summary.merge(total, on=["ช่วง_dt", "ช่วง"])
 
     summary["เปอร์เซ็นต์"] = (summary["จำนวน"] / summary["รวม"] * 100).round(1)
-    summary["label"] = summary["จำนวน"].astype(str) + " (" + summary["เปอร์เซ็นต์"].astype(str) + "%)"
+    summary["label"] = (
+        summary["จำนวน"].astype(str)
+        + " ("
+        + summary["เปอร์เซ็นต์"].astype(str)
+        + "%)"
+    )
 
-    # ⭐ สำคัญ: ล็อกให้ ครบ อยู่ล่าง / ขาด อยู่บน
+    # ===== ล็อกลำดับสี =====
     summary["สถานะผลิต"] = pd.Categorical(
         summary["สถานะผลิต"],
         categories=["ครบจำนวน", "ขาดจำนวน"],
         ordered=True
     )
 
+    # ===== เรียงตามเวลา =====
+    summary = summary.sort_values("ช่วง_dt")
+
+    # ===== Plot =====
     fig_stack = px.bar(
         summary,
         x="ช่วง",
@@ -414,7 +430,10 @@ if not trend.empty:
         xaxis_title="ช่วงเวลา"
     )
 
-    fig_stack.update_traces(textposition="inside", textfont_size=13)
+    fig_stack.update_traces(
+        textposition="inside",
+        textfont_size=13
+    )
 
     st.plotly_chart(fig_stack, use_container_width=True)
     
