@@ -367,7 +367,7 @@ if not trend.empty:
         trend["ช่วง"] = "Week " + week_no.astype(str) + " / " + year.astype(str)
 
     elif period == "รายเดือน":
-    trend["ช่วง"] = trend["วันที่"].dt.strftime("%b %Y")
+        trend["ช่วง"] = trend["วันที่"].dt.strftime("%b %Y")
 
     elif period == "รายปี":
         trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
