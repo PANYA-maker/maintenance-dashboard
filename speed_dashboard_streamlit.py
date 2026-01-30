@@ -103,21 +103,6 @@ diff_order = actual_order - plan_order
 diff_minute = actual_minute - plan_minute
 
 # ======================================
-# STOP TIME KPI (เวลาหยุดเครื่อง)
-# ======================================
-stop_df = filtered_df[
-    filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง"
-]
-
-stop_order = len(stop_df)
-
-stop_minute = (
-    int(stop_df["เวลาหยุดข้อมูลเครื่อง"].sum())
-    if "เวลาหยุดข้อมูลเครื่อง" in stop_df
-    else 0
-)
-
-# ======================================
 # KPI DISPLAY
 # ======================================
 st.markdown("## 📊 Speed – Interactive Dashboard")
@@ -157,7 +142,7 @@ def kpi_card(title, bg_color, order, minute, text_color="#000"):
     </div>
     """
 
-col_plan, col_actual, col_diff ,col_stop = st.columns(4)
+col_plan, col_actual, col_diff = st.columns(3)
 
 with col_plan:
     st.markdown(
@@ -181,6 +166,9 @@ with col_actual:
         unsafe_allow_html=True
     )
 
+# สี DIFF ตามค่า
+diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
+
 with col_diff:
     st.markdown(
         kpi_card(
@@ -190,48 +178,6 @@ with col_diff:
             int(diff_minute),
             text_color="white"
         ),
-        unsafe_allow_html=True
-        
-    )
-   
-with col_stop:
-    st.markdown(
-        f"""
-        <div style="
-            background:#ffb703;
-            padding:20px;
-            border-radius:18px;
-            color:#000;
-            box-shadow:0 6px 18px rgba(0,0,0,0.15);
-            max-width:420px;
-        ">
-            <h2 style="text-align:center;margin-bottom:14px">
-                STOP TIME
-            </h2>
-            <div style="display:flex;gap:16px;justify-content:center">
-                <div style="
-                    background:rgba(255,255,255,0.45);
-                    padding:14px 20px;
-                    border-radius:12px;
-                    min-width:140px;
-                    text-align:center;
-                ">
-                    <div style="font-size:14px;opacity:0.8">Order (จอดเครื่อง)</div>
-                    <div style="font-size:28px;font-weight:700">{stop_order:,}</div>
-                </div>
-                <div style="
-                    background:rgba(255,255,255,0.45);
-                    padding:14px 20px;
-                    border-radius:12px;
-                    min-width:140px;
-                    text-align:center;
-                ">
-                    <div style="font-size:14px;opacity:0.8">Minute</div>
-                    <div style="font-size:28px;font-weight:700">{stop_minute:,}</div>
-                </div>
-            </div>
-        </div>
-        """,
         unsafe_allow_html=True
     )
 
@@ -336,3 +282,5 @@ st.dataframe(
     use_container_width=True,
     height=520
 )
+
+เอาไปใส่ตรงไหนบอกตำแหน่งที
