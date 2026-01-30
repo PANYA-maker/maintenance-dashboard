@@ -157,7 +157,7 @@ def kpi_card(title, bg_color, order, minute, text_color="#000"):
     </div>
     """
 
-col_plan, col_actual, col_diff = st.columns(3)
+col_plan, col_actual, col_stop, col_diff = st.columns(4)
 
 with col_plan:
     st.markdown(
@@ -180,6 +180,54 @@ with col_actual:
         ),
         unsafe_allow_html=True
     )
+    
+with col_stop:
+    st.markdown(
+        f"""
+        <div style="
+            background:#ffb703;
+            padding:20px;
+            border-radius:18px;
+            color:#000;
+            box-shadow:0 6px 18px rgba(0,0,0,0.15);
+        ">
+            <h2 style="text-align:center;margin-bottom:16px">
+                STOP TIME
+            </h2>
+            <div style="display:flex;gap:14px;justify-content:center">
+                <div style="
+                    background:rgba(255,255,255,0.45);
+                    padding:12px 18px;
+                    border-radius:12px;
+                    min-width:120px;
+                    text-align:center;
+                ">
+                    <div style="font-size:14px;opacity:0.8">
+                        Order (จอดเครื่อง)
+                    </div>
+                    <div style="font-size:26px;font-weight:700">
+                        {stop_order:,}
+                    </div>
+                </div>
+                <div style="
+                    background:rgba(255,255,255,0.45);
+                    padding:12px 18px;
+                    border-radius:12px;
+                    min-width:120px;
+                    text-align:center;
+                ">
+                    <div style="font-size:14px;opacity:0.8">
+                        Minute
+                    </div>
+                    <div style="font-size:26px;font-weight:700">
+                        {stop_minute:,}
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # สี DIFF ตามค่า
 diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
@@ -193,51 +241,6 @@ with col_diff:
             int(diff_minute),
             text_color="white"
         ),
-        unsafe_allow_html=True
-    )
-    
-st.markdown("### ⏱ เวลาหยุดเครื่อง")
-
-col_stop = st.columns(1)[0]
-
-with col_stop:
-    st.markdown(
-        f"""
-        <div style="
-            background:#ffb703;
-            padding:20px;
-            border-radius:18px;
-            color:#000;
-            box-shadow:0 6px 18px rgba(0,0,0,0.15);
-            max-width:420px;
-        ">
-            <h2 style="text-align:center;margin-bottom:14px">
-                STOP TIME
-            </h2>
-            <div style="display:flex;gap:16px;justify-content:center">
-                <div style="
-                    background:rgba(255,255,255,0.45);
-                    padding:14px 20px;
-                    border-radius:12px;
-                    min-width:140px;
-                    text-align:center;
-                ">
-                    <div style="font-size:14px;opacity:0.8">Order (จอดเครื่อง)</div>
-                    <div style="font-size:28px;font-weight:700">{stop_order:,}</div>
-                </div>
-                <div style="
-                    background:rgba(255,255,255,0.45);
-                    padding:14px 20px;
-                    border-radius:12px;
-                    min-width:140px;
-                    text-align:center;
-                ">
-                    <div style="font-size:14px;opacity:0.8">Minute</div>
-                    <div style="font-size:28px;font-weight:700">{stop_minute:,}</div>
-                </div>
-            </div>
-        </div>
-        """,
         unsafe_allow_html=True
     )
 
