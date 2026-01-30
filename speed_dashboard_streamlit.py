@@ -126,32 +126,36 @@ def kpi_card(title, bg_color, order, minute, text_color="#000"):
     return f"""
     <div style="
         background:{bg_color};
-        padding:20px;
+        padding:18px;
         border-radius:18px;
         color:{text_color};
         box-shadow:0 6px 18px rgba(0,0,0,0.15);
     ">
-        <h2 style="text-align:center;margin-bottom:16px">{title}</h2>
-        <div style="display:flex;gap:14px;justify-content:center">
+        <h3 style="text-align:center;margin-bottom:12px;font-size:20px;">
+            {title}
+        </h3>
+
+        <div style="display:flex;gap:12px;justify-content:center">
             <div style="
                 background:rgba(255,255,255,0.35);
-                padding:12px 18px;
+                padding:10px 14px;
                 border-radius:12px;
-                min-width:120px;
+                min-width:110px;
                 text-align:center;
             ">
-                <div style="font-size:14px;opacity:0.8">Order</div>
-                <div style="font-size:26px;font-weight:700">{order:,}</div>
+                <div style="font-size:12px;opacity:0.8">Order</div>
+                <div style="font-size:22px;font-weight:700">{order:,}</div>
             </div>
+
             <div style="
                 background:rgba(255,255,255,0.35);
-                padding:12px 18px;
+                padding:10px 14px;
                 border-radius:12px;
-                min-width:120px;
+                min-width:110px;
                 text-align:center;
             ">
-                <div style="font-size:14px;opacity:0.8">Minute</div>
-                <div style="font-size:26px;font-weight:700">{minute:+,}</div>
+                <div style="font-size:12px;opacity:0.8">Minute</div>
+                <div style="font-size:22px;font-weight:700">{minute:+,}</div>
             </div>
         </div>
     </div>
