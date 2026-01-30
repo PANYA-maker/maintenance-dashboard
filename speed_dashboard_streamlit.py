@@ -157,7 +157,7 @@ def kpi_card(title, bg_color, order, minute, text_color="#000"):
     </div>
     """
 
-col_plan, col_actual, col_diff = st.columns(3)
+col_plan, col_actual, col_diff ,col_stop = st.columns(4)
 
 with col_plan:
     st.markdown(
@@ -181,9 +181,6 @@ with col_actual:
         unsafe_allow_html=True
     )
 
-# สี DIFF ตามค่า
-diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
-
 with col_diff:
     st.markdown(
         kpi_card(
@@ -196,10 +193,7 @@ with col_diff:
         unsafe_allow_html=True
         
     )
-    st.markdown("### ⏱ เวลาหยุดเครื่อง")
-
-col_stop = st.columns(1)[0]
-
+   
 with col_stop:
     st.markdown(
         f"""
