@@ -353,15 +353,34 @@ if not trend.empty:
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
 
     elif period == "รายสัปดาห์":
-        trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta(
-            trend["วันที่"].dt.weekday, unit="D"
+
+    # 🔹 หา "วันอาทิตย์" ของสัปดาห์นั้น
+    trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta(
+        (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
+    )
+
+    # 🔹 ปีของสัปดาห์
+    year = trend["ช่วง_dt"].dt.year
+
+    # 🔹 หาอาทิตย์แรกของปี
+    first_sunday = (
+        pd.to_datetime(year.astype(str) + "-01-01")
+        - pd.to_timedelta(
+            (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
+            unit="D"
         )
-        trend["ช่วง"] = (
-            "Week "
-            + trend["ช่วง_dt"].dt.isocalendar().week.astype(str)
-            + " / "
-            + trend["ช่วง_dt"].dt.year.astype(str)
-        )
+    )
+
+    # 🔹 คำนวณเลขสัปดาห์ (Sun–Sat)
+    week_no = ((trend["ช่วง_dt"] - first_sunday).dt.days // 7) + 1
+
+    # 🔹 Label ที่แสดงบนกราฟ
+    trend["ช่วง"] = (
+        "Week "
+        + week_no.astype(str)
+        + " / "
+        + year.astype(str)
+    )
 
     elif period == "รายเดือน":
         trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
