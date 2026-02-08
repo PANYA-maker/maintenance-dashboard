@@ -353,34 +353,29 @@ if not trend.empty:
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
 
     elif period == "รายสัปดาห์":
-
-    # 🔹 หา "วันอาทิตย์" ของสัปดาห์นั้น
-    trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta(
-        (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
-    )
-
-    # 🔹 ปีของสัปดาห์
-    year = trend["ช่วง_dt"].dt.year
-
-    # 🔹 หาอาทิตย์แรกของปี
-    first_sunday = (
-        pd.to_datetime(year.astype(str) + "-01-01")
-        - pd.to_timedelta(
-            (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
-            unit="D"
+        # 🔹 หาอาทิตย์ของสัปดาห์ (Sun–Sat)
+        trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta(
+            (trend["วันที่"].dt.weekday + 1) % 7, unit="D"
         )
-    )
 
-    # 🔹 คำนวณเลขสัปดาห์ (Sun–Sat)
-    week_no = ((trend["ช่วง_dt"] - first_sunday).dt.days // 7) + 1
+        year = trend["ช่วง_dt"].dt.year
 
-    # 🔹 Label ที่แสดงบนกราฟ
-    trend["ช่วง"] = (
-        "Week "
-        + week_no.astype(str)
-        + " / "
-        + year.astype(str)
-    )
+        first_sunday = (
+            pd.to_datetime(year.astype(str) + "-01-01")
+            - pd.to_timedelta(
+                (pd.to_datetime(year.astype(str) + "-01-01").dt.weekday + 1) % 7,
+                unit="D"
+            )
+        )
+
+        week_no = ((trend["ช่วง_dt"] - first_sunday).dt.days // 7) + 1
+
+        trend["ช่วง"] = (
+            "Week "
+            + week_no.astype(str)
+            + " / "
+            + year.astype(str)
+        )
 
     elif period == "รายเดือน":
         trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
@@ -398,7 +393,6 @@ if not trend.empty:
         .reset_index(name="จำนวน")
     )
 
-    # ===== รวมยอดต่อช่วง =====
     total = (
         summary
         .groupby(["ช่วง_dt", "ช่วง"])["จำนวน"]
@@ -416,17 +410,14 @@ if not trend.empty:
         + "%)"
     )
 
-    # ===== ล็อกลำดับสี =====
     summary["สถานะผลิต"] = pd.Categorical(
         summary["สถานะผลิต"],
         categories=["ครบจำนวน", "ขาดจำนวน"],
         ordered=True
     )
 
-    # ===== เรียงตามเวลา =====
     summary = summary.sort_values("ช่วง_dt")
 
-    # ===== Plot =====
     fig_stack = px.bar(
         summary,
         x="ช่วง",
@@ -449,12 +440,10 @@ if not trend.empty:
         xaxis_title="ช่วงเวลา"
     )
 
-    fig_stack.update_traces(
-        textposition="inside",
-        textfont_size=13
-    )
+    fig_stack.update_traces(textposition="inside", textfont_size=13)
 
     st.plotly_chart(fig_stack, use_container_width=True)
+
     
     # ---------------- SHORTAGE ISSUE SUMMARY ----------------
 st.divider()
