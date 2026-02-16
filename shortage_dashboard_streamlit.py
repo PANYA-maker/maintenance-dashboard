@@ -321,7 +321,8 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         # =========================
         # NEW KPI ROW (UNDER REPAIR SUMMARY)
         # =========================
-        short_sum_qty = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ขาดจำนวน"], errors="coerce").sum()
+        # แก้ไข: เปลี่ยนจาก sum คอลัมน์ขาดจำนวน เป็นการนับจำนวนใบงาน (Order) จากสถานะผลิต
+        short_order_count = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
         pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -329,9 +330,9 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         with col_kpi_a:
             st.markdown(f"""
             <div class="kpi-card" style="background: linear-gradient(135deg, #374151, #1f2937, #111827);">
-                <div class="kpi-title">ผลรวมจำนวนชิ้นที่ขาด</div>
-                <div class="kpi-value">{short_sum_qty:,.0f}</div>
-                <div class="kpi-sub">หน่วย: ชิ้น (Quantity)</div>
+                <div class="kpi-title">ผลรวมขาดจำนวน</div>
+                <div class="kpi-value">{short_order_count:,.0f}</div>
+                <div class="kpi-sub">หน่วย: ORDER</div>
             </div>
             """, unsafe_allow_html=True)
 
