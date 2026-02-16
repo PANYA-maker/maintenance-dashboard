@@ -1,6 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
+# UPDATED: 7 Days Default Filter & Sun-Sat Week Cycle
 # =====================================
 
 import streamlit as st
@@ -10,13 +11,10 @@ import plotly.express as px
 # ---------------- CSS Styling (Stable Modern UI) ----------------
 st.markdown("""
 <style>
-    /* Main Container Padding */
     .main .block-container {
         padding-top: 1.5rem;
         padding-bottom: 1.5rem;
     }
-
-    /* KPI Card Design - Simplified for Stability */
     .kpi-wrapper {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -25,27 +23,22 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         margin-bottom: 10px;
     }
-
     .kpi-label {
         color: #64748b;
         font-size: 0.8rem;
         font-weight: 600;
         text-transform: uppercase;
     }
-
     .kpi-val {
         color: #1e293b;
         font-size: 1.6rem;
         font-weight: 700;
         margin: 5px 0;
     }
-
     .kpi-unit {
         color: #94a3b8;
         font-size: 0.75rem;
     }
-
-    /* Section Headers */
     .section-header {
         color: #1e293b;
         font-weight: 700;
@@ -96,16 +89,21 @@ with st.sidebar:
     st.markdown("---")
     max_date = df["วันที่"].max()
     min_date = df["วันที่"].min()
-    default_start = max_date - pd.Timedelta(days=7) if not pd.isna(max_date) else None
     
-    date_range = st.date_input("🗓️ เลือกช่วงเวลา",
+    # คำนวณวันเริ่มต้นย้อนหลัง 7 วัน จากวันล่าสุดในข้อมูล
+    if not pd.isna(max_date):
+        default_start = max_date - pd.Timedelta(days=7)
+    else:
+        default_start = None
+
+    date_range = st.date_input("🗓️ เลือกช่วงเวลา (เริ่มต้นที่ 7 วันล่าสุด)",
         value=[default_start.date() if default_start else None, max_date.date() if not pd.isna(max_date) else None])
     
     mc_filter = st.multiselect("Machine (MC)", sorted(df["MC"].dropna().unique()))
     shift_filter = st.multiselect("กะ (Shift)", sorted(df["กะ"].dropna().unique()))
     status_filter = st.multiselect("สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique()))
     customer_filter = st.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
-    period = st.selectbox("มุมมองแนวโน้ม", ["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"])
+    period = st.selectbox("มุมมองแนวโน้ม (เริ่มต้นสัปดาห์ที่วันอาทิตย์)", ["รายสัปดาห์", "รายวัน", "รายเดือน", "รายปี"])
 
 # ---------------- Apply Filter Logic ----------------
 fdf = df.copy()
@@ -120,7 +118,7 @@ if customer_filter: fdf = fdf[fdf["ชื่อลูกค้า"].isin(custome
 st.markdown(f"""
     <div style="margin-bottom: 25px;">
         <h1 style="margin:0; color:#1e293b; font-size:2.2rem;">Shortage Performance Intelligence</h1>
-        <p style="color:#64748b; font-size:1.1rem;">ระบบวิเคราะห์และติดตามผลการผลิตขาดจำนวน (Executive Overview)</p>
+        <p style="color:#64748b; font-size:1.1rem;">วิเคราะห์ผลผลิตขาดจำนวน | เริ่มต้น 7 วันล่าสุด (Week Cycle: อาทิตย์ - เสาร์)</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -213,19 +211,30 @@ with col_right:
     fig_status.update_layout(margin=dict(t=40, b=0), legend=dict(orientation="h", y=-0.1))
     st.plotly_chart(fig_status, use_container_width=True)
 
-# Trend Analysis
+# Trend Analysis with Sunday Start
 trend = fdf.copy()
 if not trend.empty:
-    if period == "รายวัน": trend["ช่วง"] = trend["วันที่"].dt.strftime("%d/%m/%Y")
-    elif period == "รายสัปดาห์": trend["ช่วง"] = "Week " + trend["วันที่"].dt.isocalendar().week.astype(str)
-    elif period == "รายเดือน": trend["ช่วง"] = trend["วันที่"].dt.strftime("%b %Y")
-    else: trend["ช่วง"] = trend["วันที่"].dt.year.astype(str)
+    if period == "รายวัน": 
+        trend["ช่วง_dt"] = trend["วันที่"].dt.normalize()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
+    elif period == "รายสัปดาห์": 
+        # คำนวณหา "วันอาทิตย์" ล่าสุดของแต่ละวันที่
+        trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y") + " (Sun)"
+    elif period == "รายเดือน": 
+        trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%b %Y")
+    else: 
+        trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("Y").dt.to_timestamp()
+        trend["ช่วง"] = trend["ช่วง_dt"].dt.year.astype(str)
 
-    sum_trend = trend.groupby(["ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
-    sum_trend["%"] = (sum_trend["จำนวน"] / sum_trend.groupby("ช่วง")["จำนวน"].transform("sum") * 100).round(1)
+    sum_trend = trend.groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
+    total_in_period = sum_trend.groupby("ช่วง_dt")["จำนวน"].transform("sum")
+    sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1)
+    sum_trend = sum_trend.sort_values("ช่วง_dt")
     
     fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", 
-                      title=f"แนวโน้มประสิทธิภาพการผลิต ({period})",
+                      title=f"แนวโน้มประสิทธิภาพการผลิต ({period} - เริ่มต้นที่วันอาทิตย์)",
                       text=sum_trend["%"].apply(lambda x: f'{x}%'),
                       barmode="stack", 
                       category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
@@ -263,4 +272,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
     cols = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป"]
     st.dataframe(fdf_display[[c for c in cols if c in fdf_display.columns]].sort_values("วันที่", ascending=False), use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Business Continuity Layer | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | 7-Day Default Range | Sun-Sat Week Cycle | ข้อมูลครบถ้วน 100%")
