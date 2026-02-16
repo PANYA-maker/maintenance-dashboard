@@ -1,6 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# FINAL PROD VERSION (FULL COMPLETE VERSION)
+# FINAL PROD VERSION (REPAIR CHART UPDATED)
 # =====================================
 
 import streamlit as st
@@ -192,7 +192,6 @@ with left:
         top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
         fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", title="TOP 10 สาเหตุขาดจำนวน", color="จำนวน", color_continuous_scale="Reds", text="label")
         
-        # ปรับลดขนาดตัวหนังสือในกราฟแท่ง
         fig_top10.update_traces(
             textposition="inside", 
             insidetextanchor="end", 
@@ -215,21 +214,20 @@ with right:
         status_df, 
         names="สถานะ", 
         values="จำนวน", 
-        hole=0.6, 
+        hole=0, 
         title="สัดส่วนสถานะผลิต", 
         color="สถานะ", 
         color_discrete_map={
             "ครบจำนวน": "#2e7d32", 
             "ขาดจำนวน": "#c62828",
-            "ยกเลิกผลิต": "#ff4b4b" # เพิ่มสีสำหรับยกเลิกผลิต
+            "ยกเลิกผลิต": "#ff4b4b"
         }
     )
     
-    # แก้ไข: บังคับให้แสดงตัวเลข (textposition="inside") และตั้งค่า textinfo
     fig_status.update_traces(
-        textinfo="percent+label",
+        textinfo="percent", 
         textposition="inside",
-        textfont=dict(size=13, color="white"), 
+        textfont=dict(size=14, color="white", family="Arial Black"), 
         insidetextorientation='horizontal'
     )
     fig_status.update_layout(
@@ -278,7 +276,6 @@ if not trend.empty:
         }
     )
     
-    # ปรับลดขนาดตัวหนังสือในกราฟแนวโน้ม
     fig_stack.update_layout(
         yaxis_range=[0, 100], 
         yaxis_title="เปอร์เซ็นต์ (%)", 
@@ -303,12 +300,18 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             st.markdown("### 📋 ตารางสรุปปัญหา")
             st.dataframe(issue_df, use_container_width=True, height=350)
         with c2:
-            fig_issue = px.pie(issue_df, names="สถานะซ่อมสรุป", values="จำนวน", hole=0.5, title="สัดส่วนปัญหาสถานะซ่อม")
-            # แก้ไข: บังคับให้แสดงตัวเลขในกราฟปัญหาซ่อมด้วย
+            fig_issue = px.pie(
+                issue_df, 
+                names="สถานะซ่อมสรุป", 
+                values="จำนวน", 
+                hole=0.5, 
+                title="สัดส่วนปัญหาสถานะซ่อม"
+            )
+            # แก้ไข: แสดงผลทั้ง ชื่อ (label) และ เปอร์เซ็นต์ (percent)
             fig_issue.update_traces(
                 textinfo="percent+label", 
                 textposition="inside",
-                textfont=dict(size=12)
+                textfont=dict(size=12, color="white", family="Arial Black")
             )
             fig_issue.update_layout(title_font_size=16)
             st.plotly_chart(fig_issue, use_container_width=True)
@@ -336,4 +339,4 @@ st.dataframe(
     height=500
 )
 
-st.caption("Shortage Dashboard | FINAL PROD VERSION | Optimized Labels Build")
+st.caption("Shortage Dashboard | FINAL PROD VERSION | Repair Summary Labels Build")
