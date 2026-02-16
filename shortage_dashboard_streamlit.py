@@ -132,13 +132,13 @@ short_pct = (short_qty / order_total * 100) if order_total > 0 else 0
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.markdown(f'<div class="kpi-card"><div class="kpi-title">ORDER TOTAL</div><div class="kpi-value">{order_total:,}</div><div class="kpi-sub">จำนวน Order ทั้งหมด</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">ORDER TOTAL</div><div class="kpi-value">{order_total:,}</div><div class="kpi-sub">จำนวนใบงานทั้งหมด</div></div>', unsafe_allow_html=True)
 with c2:
-    st.markdown(f'<div class="kpi-card"><div class="kpi-title">ครบจำนวน</div><div class="kpi-value">{complete_qty:,}</div><div class="kpi-sub">ผลิตครบตามแผน</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">ครบจำนวน</div><div class="kpi-value">{complete_qty:,}</div><div class="kpi-sub">ใบงานที่ผลิตครบ</div></div>', unsafe_allow_html=True)
 with c3:
-    st.markdown(f'<div class="kpi-card"><div class="kpi-title">ขาดจำนวน</div><div class="kpi-value">{short_qty:,}</div><div class="kpi-sub">Order ที่ผลิตไม่ครบ</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">ขาดจำนวน</div><div class="kpi-value">{short_qty:,}</div><div class="kpi-sub">ใบงานที่ผลิตไม่ครบ (Order)</div></div>', unsafe_allow_html=True)
 with c4:
-    st.markdown(f'<div class="kpi-card"><div class="kpi-title">% ขาดจำนวน</div><div class="kpi-value">{short_pct:.1f}%</div><div class="kpi-sub">เทียบ ORDER TOTAL</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">% ขาดจำนวน</div><div class="kpi-value">{short_pct:.1f}%</div><div class="kpi-sub">เทียบใบงานทั้งหมด</div></div>', unsafe_allow_html=True)
 
 # =========================
 # KPI ROW 2 : SHORTAGE METRICS (METERS / SQM / WEIGHT)
@@ -321,7 +321,7 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         # =========================
         # NEW KPI ROW (UNDER REPAIR SUMMARY)
         # =========================
-        short_sum_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ขาดจำนวน"], errors="coerce").sum()
+        short_sum_qty = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ขาดจำนวน"], errors="coerce").sum()
         pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -329,9 +329,9 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         with col_kpi_a:
             st.markdown(f"""
             <div class="kpi-card" style="background: linear-gradient(135deg, #374151, #1f2937, #111827);">
-                <div class="kpi-title">ผลรวมขาดจำนวน</div>
-                <div class="kpi-value">{short_sum_val:,.0f}</div>
-                <div class="kpi-sub">หน่วย: ORDER</div>
+                <div class="kpi-title">ผลรวมจำนวนชิ้นที่ขาด</div>
+                <div class="kpi-value">{short_sum_qty:,.0f}</div>
+                <div class="kpi-sub">หน่วย: ชิ้น (Quantity)</div>
             </div>
             """, unsafe_allow_html=True)
 
