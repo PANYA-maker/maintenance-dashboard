@@ -294,6 +294,33 @@ if not trend.empty:
 # ---------------- REPAIR SUMMARY ----------------
 st.divider()
 st.subheader("🛠️ สรุปปัญหาสถานะซ่อม (เฉพาะงานขาดจำนวน)")
+
+# =========================
+# KPI ROW (UNDER REPAIR HEADER)
+# =========================
+# ย้ายตำแหน่งการคำนวณและการแสดงผล KPI มาไว้ใต้ Header ทันที
+short_order_count = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
+pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
+
+col_kpi_a, col_kpi_b = st.columns(2)
+with col_kpi_a:
+    st.markdown(f"""
+    <div class="kpi-card" style="background: linear-gradient(135deg, #374151, #1f2937, #111827);">
+        <div class="kpi-title">ผลรวมขาดจำนวน</div>
+        <div class="kpi-value">{short_order_count:,.0f}</div>
+        <div class="kpi-sub">หน่วย: ORDER</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi_b:
+    st.markdown(f"""
+    <div class="kpi-card" style="background: linear-gradient(135deg, #78350f, #92400e, #b45309);">
+        <div class="kpi-title">น้ำหนักของเหลือ PDW</div>
+        <div class="kpi-value">{pdw_scrap_val:,.0f}</div>
+        <div class="kpi-sub">หน่วย: กิโลกรัม</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if "สถานะซ่อมสรุป" in fdf.columns:
     issue_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].dropna(subset=["สถานะซ่อมสรุป"]).groupby("สถานะซ่อมสรุป").size().reset_index(name="จำนวน").sort_values("จำนวน", ascending=False)
     
@@ -317,34 +344,6 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             )
             fig_issue.update_layout(title_font_size=16)
             st.plotly_chart(fig_issue, use_container_width=True)
-
-        # =========================
-        # NEW KPI ROW (UNDER REPAIR SUMMARY)
-        # =========================
-        # แก้ไข: เปลี่ยนจาก sum คอลัมน์ขาดจำนวน เป็นการนับจำนวนใบงาน (Order) จากสถานะผลิต
-        short_order_count = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
-        pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_kpi_a, col_kpi_b = st.columns(2)
-        with col_kpi_a:
-            st.markdown(f"""
-            <div class="kpi-card" style="background: linear-gradient(135deg, #374151, #1f2937, #111827);">
-                <div class="kpi-title">ผลรวมขาดจำนวน</div>
-                <div class="kpi-value">{short_order_count:,.0f}</div>
-                <div class="kpi-sub">หน่วย: ORDER</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with col_kpi_b:
-            st.markdown(f"""
-            <div class="kpi-card" style="background: linear-gradient(135deg, #78350f, #92400e, #b45309);">
-                <div class="kpi-title">น้ำหนักของเหลือ PDW</div>
-                <div class="kpi-value">{pdw_scrap_val:,.0f}</div>
-                <div class="kpi-sub">หน่วย: กิโลกรัม</div>
-            </div>
-            """, unsafe_allow_html=True)
-
     else:
         st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวน")
 else:
