@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: In-Graph Labels for Repair Chart Only
+# UPDATED: Simplified Week Label (Week X) with Sunday Start
 # =====================================
 
 import streamlit as st
@@ -90,6 +90,7 @@ with st.sidebar:
     max_date = df["วันที่"].max()
     min_date = df["วันที่"].min()
     
+    # คำนวณวันเริ่มต้นย้อนหลัง 7 วัน จากวันล่าสุดในข้อมูล
     if not pd.isna(max_date):
         default_start = max_date - pd.Timedelta(days=7)
     else:
@@ -197,7 +198,6 @@ with col_left:
         fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", 
                           title="TOP 10 สาเหตุงานขาดจำนวน", 
                           color="จำนวน", color_continuous_scale="Reds", text="label")
-        # กลับสู่ค่าปกติ: แสดงตัวเลขที่ปลายแท่ง (auto)
         fig_top10.update_traces(textposition="auto")
         fig_top10.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=40, b=0))
         st.plotly_chart(fig_top10, use_container_width=True)
@@ -208,7 +208,6 @@ with col_right:
     fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", 
                        title="สัดส่วนสถานะการผลิต",
                        color="สถานะ", color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-    # กลับสู่ค่าปกติ: แสดงเฉพาะเปอร์เซ็นต์ และโชว์ Legend
     fig_status.update_traces(textinfo="percent")
     fig_status.update_layout(margin=dict(t=40, b=0), showlegend=True)
     st.plotly_chart(fig_status, use_container_width=True)
@@ -221,8 +220,10 @@ if not trend.empty:
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         title_suffix = ""
     elif period == "รายสัปดาห์": 
+        # คำนวณหา "วันอาทิตย์" ล่าสุดของแต่ละวันที่
         trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
-        trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y") + " (Sun)"
+        # เปลี่ยนรูปแบบเป็น Week X โดยใช้ %U (นับวันอาทิตย์เป็นวันแรกของสัปดาห์)
+        trend["ช่วง"] = "Week " + trend["วันที่"].dt.strftime("%U")
         title_suffix = " - เริ่มต้นสัปดาห์ที่วันอาทิตย์"
     elif period == "รายเดือน": 
         trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
@@ -244,7 +245,6 @@ if not trend.empty:
                       barmode="stack", 
                       category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
                       color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-    # กลับสู่ค่าปกติ: ให้ตัวเลขวางแบบอัตโนมัติ
     fig_trend.update_traces(textposition="auto")
     fig_trend.update_layout(yaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', legend=dict(orientation="h", y=-0.2))
     st.plotly_chart(fig_trend, use_container_width=True)
@@ -269,16 +269,15 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         st.dataframe(issue_df, use_container_width=True, hide_index=True)
     with t2:
         fig_repair = px.pie(issue_df, names="สถานะซ่อมสรุป", values="จำนวน", hole=0.5, title="สัดส่วนปัญหาสถานะซ่อม")
-        # เฉพาะกราฟนี้: แสดง Label และ Percent ภายในโดนัท และซ่อน Legend
         fig_repair.update_traces(textinfo="label+percent", textposition="inside", textfont_size=11, textfont_color="white")
         fig_repair.update_layout(margin=dict(t=30, b=0), showlegend=False)
         st.plotly_chart(fig_repair, use_container_width=True)
 
 # Data Explorer
-with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Records)"):
+with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
     fdf_display = fdf.copy()
     fdf_display["วันที่"] = fdf_display["วันที่"].dt.strftime("%d/%m/%Y")
     cols = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป"]
     st.dataframe(fdf_display[[c for c in cols if c in fdf_display.columns]].sort_values("วันที่", ascending=False), use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Focused In-Graph labels for Repair Chart only | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Sunday-Start Week Cycle | ข้อมูลครบถ้วน 100%")
