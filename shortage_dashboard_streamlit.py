@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Simplified Week Label (Week X) with Sunday Start
+# UPDATED: Trend Chart Labels showing Count and Percentage
 # =====================================
 
 import streamlit as st
@@ -237,11 +237,13 @@ if not trend.empty:
     sum_trend = trend.groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
     total_in_period = sum_trend.groupby("ช่วง_dt")["จำนวน"].transform("sum")
     sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1)
+    # แก้ไข: สร้างคอลัมน์สำหรับแสดงข้อความ จำนวน (เปอร์เซ็นต์)
+    sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
     sum_trend = sum_trend.sort_values("ช่วง_dt")
     
     fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", 
                       title=f"แนวโน้มประสิทธิภาพการผลิต ({period}{title_suffix})",
-                      text=sum_trend["%"].apply(lambda x: f'{x}%'),
+                      text="label_display",
                       barmode="stack", 
                       category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
                       color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
