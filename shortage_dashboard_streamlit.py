@@ -192,16 +192,17 @@ with left:
         top10["label"] = top10["จำนวน"].astype(str) + " (" + top10["เปอร์เซ็นต์"].astype(str) + "%)"
         fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", title="TOP 10 สาเหตุขาดจำนวน", color="จำนวน", color_continuous_scale="Reds", text="label")
         
-        # ปรับแต่งตัวหนังสือในกราฟแท่ง
+        # ปรับลดขนาดตัวหนังสือในกราฟแท่ง
         fig_top10.update_traces(
             textposition="inside", 
             insidetextanchor="end", 
-            textfont=dict(color="white", size=15, family="Arial Black") # เพิ่มขนาดและทำตัวหนา
+            textfont=dict(color="white", size=12, family="Arial") 
         )
         fig_top10.update_layout(
-            title_font_size=20,
-            xaxis=dict(tickfont=dict(size=14, weight='bold')),
-            yaxis=dict(tickfont=dict(size=14, weight='bold'))
+            title_font_size=16,
+            xaxis=dict(tickfont=dict(size=12)),
+            yaxis=dict(tickfont=dict(size=12)),
+            margin=dict(l=20, r=20, t=40, b=20)
         )
         st.plotly_chart(fig_top10, use_container_width=True)
     else:
@@ -212,13 +213,13 @@ with right:
     status_df.columns = ["สถานะ", "จำนวน"]
     fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", hole=0.6, title="สัดส่วนสถานะผลิต", color="สถานะ", color_discrete_map={"ครบจำนวน": "#2e7d32", "ขาดจำนวน": "#c62828"})
     
-    # ปรับแต่งตัวหนังสือในกราฟวงกลม
+    # ปรับลดขนาดตัวหนังสือในกราฟวงกลม
     fig_status.update_traces(
         textinfo="percent+label",
-        textfont=dict(size=16, color="white", family="Arial Black"), # ตัวหนังสือใหญ่ขึ้นและหนาขึ้น
+        textfont=dict(size=13, color="white"), 
         insidetextorientation='horizontal'
     )
-    fig_status.update_layout(title_font_size=20)
+    fig_status.update_layout(title_font_size=16, margin=dict(l=20, r=20, t=40, b=20))
     st.plotly_chart(fig_status, use_container_width=True)
 
 # ---------------- STACKED BAR TREND ----------------
@@ -248,16 +249,16 @@ if not trend.empty:
     
     fig_stack = px.bar(summary, x="ช่วง", y="เปอร์เซ็นต์", color="สถานะผลิต", text="label", barmode="stack", color_discrete_map={"ครบจำนวน": "#2e7d32", "ขาดจำนวน": "#c62828"})
     
-    # ปรับแต่งตัวหนังสือในกราฟแนวโน้ม
+    # ปรับลดขนาดตัวหนังสือในกราฟแนวโน้ม
     fig_stack.update_layout(
         yaxis_range=[0, 100], 
         yaxis_title="เปอร์เซ็นต์ (%)", 
         xaxis_title="ช่วงเวลา",
-        title_font_size=20,
-        xaxis=dict(tickfont=dict(size=14, weight='bold')),
-        yaxis=dict(tickfont=dict(size=14, weight='bold'))
+        title_font_size=16,
+        xaxis=dict(tickfont=dict(size=12)),
+        yaxis=dict(tickfont=dict(size=12))
     )
-    fig_stack.update_traces(textfont=dict(size=14, family="Arial Black"))
+    fig_stack.update_traces(textfont=dict(size=12))
     
     st.plotly_chart(fig_stack, use_container_width=True)
 
@@ -277,8 +278,9 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             fig_issue.update_traces(
                 textinfo="percent+label", 
                 textposition="inside",
-                textfont=dict(size=15, family="Arial Black")
+                textfont=dict(size=13)
             )
+            fig_issue.update_layout(title_font_size=16)
             st.plotly_chart(fig_issue, use_container_width=True)
     else:
         st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวน")
@@ -304,4 +306,4 @@ st.dataframe(
     height=500
 )
 
-st.caption("Shortage Dashboard | FINAL PROD VERSION | High Visibility Build")
+st.caption("Shortage Dashboard | FINAL PROD VERSION | Optimized Visibility")
