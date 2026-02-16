@@ -317,6 +317,33 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             )
             fig_issue.update_layout(title_font_size=16)
             st.plotly_chart(fig_issue, use_container_width=True)
+
+        # =========================
+        # NEW KPI ROW (UNDER REPAIR SUMMARY)
+        # =========================
+        short_sum_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ขาดจำนวน"], errors="coerce").sum()
+        pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_kpi_a, col_kpi_b = st.columns(2)
+        with col_kpi_a:
+            st.markdown(f"""
+            <div class="kpi-card" style="background: linear-gradient(135deg, #374151, #1f2937, #111827);">
+                <div class="kpi-title">ผลรวมขาดจำนวน</div>
+                <div class="kpi-value">{short_sum_val:,.0f}</div>
+                <div class="kpi-sub">หน่วย: ORDER</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_kpi_b:
+            st.markdown(f"""
+            <div class="kpi-card" style="background: linear-gradient(135deg, #78350f, #92400e, #b45309);">
+                <div class="kpi-title">น้ำหนักของเหลือ PDW</div>
+                <div class="kpi-value">{pdw_scrap_val:,.0f}</div>
+                <div class="kpi-sub">หน่วย: กิโลกรัม</div>
+            </div>
+            """, unsafe_allow_html=True)
+
     else:
         st.info("ไม่มีข้อมูลสถานะซ่อมสำหรับงานขาดจำนวน")
 else:
