@@ -1,6 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# FINAL PROD VERSION (DECIMAL % BUILD)
+# FINAL PROD VERSION (FIXED INSIGHT TEXT)
 # =====================================
 
 import streamlit as st
@@ -138,7 +138,6 @@ with c2:
 with c3:
     st.markdown(f'<div class="kpi-card"><div class="kpi-title">ขาดจำนวน</div><div class="kpi-value">{short_qty:,}</div><div class="kpi-sub">Order ที่ผลิตไม่ครบ</div></div>', unsafe_allow_html=True)
 with c4:
-    # แก้ไข: แสดงทศนิยม 1 ตำแหน่งสำหรับเปอร์เซ็นต์
     st.markdown(f'<div class="kpi-card"><div class="kpi-title">% ขาดจำนวน</div><div class="kpi-value">{short_pct:.1f}%</div><div class="kpi-sub">เทียบ ORDER TOTAL</div></div>', unsafe_allow_html=True)
 
 # =========================
@@ -176,7 +175,6 @@ if not fdf.empty and order_total > 0:
     st.info(f"""
     📊 **ภาพรวมช่วงเวลาที่เลือก**
     - ORDER TOTAL : **{order_total:,}**
-    # แก้ไข: แสดงทศนิยม 1 ตำแหน่งสำหรับเปอร์เซ็นต์ในสรุปผล
     - ขาดจำนวน : **{short_qty:,} Order** (**{short_pct:.1f}%**) → {status_msg}  
     - {main_cause_text}  
     - เมตรขาดรวม: **{missing_meters:,.0f} ม.** | ตร.ม. ขาดรวม: **{missing_sqm:,.0f} ตร.ม.** {pdw_text}
@@ -343,4 +341,4 @@ st.dataframe(
     height=500
 )
 
-st.caption("Shortage Dashboard | FINAL PROD VERSION | Decimal Percent Update")
+st.caption("Shortage Dashboard | FINAL PROD VERSION | High Visibility Build")
