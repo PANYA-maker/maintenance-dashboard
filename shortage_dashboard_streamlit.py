@@ -1,6 +1,6 @@
 # =====================================
 # Shortage Dashboard : DATA CHECK
-# FINAL PROD VERSION (REPAIR CHART UPDATED)
+# FINAL PROD VERSION (DECIMAL % BUILD)
 # =====================================
 
 import streamlit as st
@@ -138,6 +138,7 @@ with c2:
 with c3:
     st.markdown(f'<div class="kpi-card"><div class="kpi-title">ขาดจำนวน</div><div class="kpi-value">{short_qty:,}</div><div class="kpi-sub">Order ที่ผลิตไม่ครบ</div></div>', unsafe_allow_html=True)
 with c4:
+    # แก้ไข: แสดงทศนิยม 1 ตำแหน่งสำหรับเปอร์เซ็นต์
     st.markdown(f'<div class="kpi-card"><div class="kpi-title">% ขาดจำนวน</div><div class="kpi-value">{short_pct:.1f}%</div><div class="kpi-sub">เทียบ ORDER TOTAL</div></div>', unsafe_allow_html=True)
 
 # =========================
@@ -149,11 +150,11 @@ missing_weight = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "�
 
 k1, k2, k3 = st.columns(3)
 with k1:
-    st.markdown(f'<div class="kpi-card" style="background: linear-gradient(135deg, #4b1212, #7f1d1d, #991b1b);"><div class="kpi-title">ผลรวมจำนวนเมตรขาดจำนวน</div><div class="kpi-value">{missing_meters:,.2f}</div><div class="kpi-sub">หน่วย: เมตร</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="background: linear-gradient(135deg, #4b1212, #7f1d1d, #991b1b);"><div class="kpi-title">ผลรวมจำนวนเมตรขาดจำนวน</div><div class="kpi-value">{missing_meters:,.0f}</div><div class="kpi-sub">หน่วย: เมตร</div></div>', unsafe_allow_html=True)
 with k2:
-    st.markdown(f'<div class="kpi-card" style="background: linear-gradient(135deg, #1e3a8a, #1e40af, #1d4ed8);"><div class="kpi-title">ผลรวมตารางเมตรขาดจำนวน</div><div class="kpi-value">{missing_sqm:,.2f}</div><div class="kpi-sub">หน่วย: ตารางเมตร</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="background: linear-gradient(135deg, #1e3a8a, #1e40af, #1d4ed8);"><div class="kpi-title">ผลรวมตารางเมตรขาดจำนวน</div><div class="kpi-value">{missing_sqm:,.0f}</div><div class="kpi-sub">หน่วย: ตารางเมตร</div></div>', unsafe_allow_html=True)
 with k3:
-    st.markdown(f'<div class="kpi-card" style="background: linear-gradient(135deg, #064e3b, #065f46, #047857);"><div class="kpi-title">ผลรวมน้ำหนักงานขาดจำนวน</div><div class="kpi-value">{missing_weight:,.2f}</div><div class="kpi-sub">หน่วย: กิโลกรัม</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card" style="background: linear-gradient(135deg, #064e3b, #065f46, #047857);"><div class="kpi-title">ผลรวมน้ำหนักงานขาดจำนวน</div><div class="kpi-value">{missing_weight:,.0f}</div><div class="kpi-sub">หน่วย: กิโลกรัม</div></div>', unsafe_allow_html=True)
 
 st.divider()
 
@@ -170,14 +171,15 @@ if not fdf.empty and order_total > 0:
     pdw_text = ""
     if pdw_col in fdf.columns:
         pdw_sum = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", pdw_col], errors="coerce").fillna(0).sum()
-        pdw_text = f" | น้ำหนักของเหลือ PDW รวม: **{pdw_sum:,.2f} KG**"
+        pdw_text = f" | น้ำหนักของเหลือ PDW รวม: **{pdw_sum:,.0f} KG**"
 
     st.info(f"""
     📊 **ภาพรวมช่วงเวลาที่เลือก**
     - ORDER TOTAL : **{order_total:,}**
+    # แก้ไข: แสดงทศนิยม 1 ตำแหน่งสำหรับเปอร์เซ็นต์ในสรุปผล
     - ขาดจำนวน : **{short_qty:,} Order** (**{short_pct:.1f}%**) → {status_msg}  
     - {main_cause_text}  
-    - เมตรขาดรวม: **{missing_meters:,.2f} ม.** | ตร.ม. ขาดรวม: **{missing_sqm:,.2f} ตร.ม.** {pdw_text}
+    - เมตรขาดรวม: **{missing_meters:,.0f} ม.** | ตร.ม. ขาดรวม: **{missing_sqm:,.0f} ตร.ม.** {pdw_text}
     """)
 else:
     st.info("ไม่มีข้อมูลเพียงพอสำหรับสรุปผล")
@@ -269,6 +271,9 @@ if not trend.empty:
         color="สถานะผลิต", 
         text="label", 
         barmode="stack", 
+        category_orders={
+            "สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]
+        },
         color_discrete_map={
             "ครบจำนวน": "#2e7d32", 
             "ขาดจำนวน": "#c62828",
@@ -307,7 +312,6 @@ if "สถานะซ่อมสรุป" in fdf.columns:
                 hole=0.5, 
                 title="สัดส่วนปัญหาสถานะซ่อม"
             )
-            # แก้ไข: แสดงผลทั้ง ชื่อ (label) และ เปอร์เซ็นต์ (percent)
             fig_issue.update_traces(
                 textinfo="percent+label", 
                 textposition="inside",
@@ -339,4 +343,4 @@ st.dataframe(
     height=500
 )
 
-st.caption("Shortage Dashboard | FINAL PROD VERSION | Repair Summary Labels Build")
+st.caption("Shortage Dashboard | FINAL PROD VERSION | Decimal Percent Update")
