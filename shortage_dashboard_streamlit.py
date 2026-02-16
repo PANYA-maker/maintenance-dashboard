@@ -211,15 +211,32 @@ with left:
 with right:
     status_df = fdf["สถานะผลิต"].value_counts().reset_index()
     status_df.columns = ["สถานะ", "จำนวน"]
-    fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", hole=0.6, title="สัดส่วนสถานะผลิต", color="สถานะ", color_discrete_map={"ครบจำนวน": "#2e7d32", "ขาดจำนวน": "#c62828"})
+    fig_status = px.pie(
+        status_df, 
+        names="สถานะ", 
+        values="จำนวน", 
+        hole=0.6, 
+        title="สัดส่วนสถานะผลิต", 
+        color="สถานะ", 
+        color_discrete_map={
+            "ครบจำนวน": "#2e7d32", 
+            "ขาดจำนวน": "#c62828",
+            "ยกเลิกผลิต": "#ff4b4b" # เพิ่มสีสำหรับยกเลิกผลิต
+        }
+    )
     
-    # ปรับลดขนาดตัวหนังสือในกราฟวงกลม
+    # แก้ไข: บังคับให้แสดงตัวเลข (textposition="inside") และตั้งค่า textinfo
     fig_status.update_traces(
         textinfo="percent+label",
+        textposition="inside",
         textfont=dict(size=13, color="white"), 
         insidetextorientation='horizontal'
     )
-    fig_status.update_layout(title_font_size=16, margin=dict(l=20, r=20, t=40, b=20))
+    fig_status.update_layout(
+        title_font_size=16, 
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+    )
     st.plotly_chart(fig_status, use_container_width=True)
 
 # ---------------- STACKED BAR TREND ----------------
@@ -247,7 +264,19 @@ if not trend.empty:
     summary["label"] = summary["จำนวน"].astype(str) + " (" + summary["เปอร์เซ็นต์"].astype(str) + "%)"
     summary = summary.sort_values("ช่วง_dt")
     
-    fig_stack = px.bar(summary, x="ช่วง", y="เปอร์เซ็นต์", color="สถานะผลิต", text="label", barmode="stack", color_discrete_map={"ครบจำนวน": "#2e7d32", "ขาดจำนวน": "#c62828"})
+    fig_stack = px.bar(
+        summary, 
+        x="ช่วง", 
+        y="เปอร์เซ็นต์", 
+        color="สถานะผลิต", 
+        text="label", 
+        barmode="stack", 
+        color_discrete_map={
+            "ครบจำนวน": "#2e7d32", 
+            "ขาดจำนวน": "#c62828",
+            "ยกเลิกผลิต": "#ff4b4b"
+        }
+    )
     
     # ปรับลดขนาดตัวหนังสือในกราฟแนวโน้ม
     fig_stack.update_layout(
@@ -258,7 +287,7 @@ if not trend.empty:
         xaxis=dict(tickfont=dict(size=12)),
         yaxis=dict(tickfont=dict(size=12))
     )
-    fig_stack.update_traces(textfont=dict(size=12))
+    fig_stack.update_traces(textfont=dict(size=11))
     
     st.plotly_chart(fig_stack, use_container_width=True)
 
@@ -275,10 +304,11 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             st.dataframe(issue_df, use_container_width=True, height=350)
         with c2:
             fig_issue = px.pie(issue_df, names="สถานะซ่อมสรุป", values="จำนวน", hole=0.5, title="สัดส่วนปัญหาสถานะซ่อม")
+            # แก้ไข: บังคับให้แสดงตัวเลขในกราฟปัญหาซ่อมด้วย
             fig_issue.update_traces(
                 textinfo="percent+label", 
                 textposition="inside",
-                textfont=dict(size=13)
+                textfont=dict(size=12)
             )
             fig_issue.update_layout(title_font_size=16)
             st.plotly_chart(fig_issue, use_container_width=True)
@@ -306,4 +336,4 @@ st.dataframe(
     height=500
 )
 
-st.caption("Shortage Dashboard | FINAL PROD VERSION | Optimized Visibility")
+st.caption("Shortage Dashboard | FINAL PROD VERSION | Optimized Labels Build")
