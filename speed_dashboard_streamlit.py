@@ -55,7 +55,7 @@ if df["วันที่"].isna().all():
 df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
 df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
 
-# แปลงตัวเลข (เพิ่ม 'Diff เวลา' เข้าไปเพื่อให้คำนวณผลรวมได้)
+# แปลงตัวเลข (รวม 'Diff เวลา' สำหรับการคำนวณ KPI ใหม่)
 numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง", "Diff เวลา"]
 for col in numeric_cols:
     if col in df.columns:
@@ -130,40 +130,50 @@ if order_lengths:
 # ======================================
 # KPI CALCULATION
 # ======================================
-# 1. PLAN / ACTUAL / DIFF (General)
+# 1. PLAN
 plan_order = filtered_df["Speed Plan"].replace(0, pd.NA).notna().sum() if "Speed Plan" in filtered_df.columns else 0
-actual_order = filtered_df["Actual Speed"].replace(0, pd.NA).notna().sum() if "Actual Speed" in filtered_df.columns else 0
-
 plan_minute = int(filtered_df["เวลา Plan"].sum() / 60) if "เวลา Plan" in filtered_df.columns else 0
+
+# 2. ACTUAL
+actual_order = filtered_df["Actual Speed"].replace(0, pd.NA).notna().sum() if "Actual Speed" in filtered_df.columns else 0
 actual_minute = int(filtered_df["เวลา Actual"].sum() / 60) if "เวลา Actual" in filtered_df.columns else 0
 
-diff_order = actual_order - plan_order
-diff_minute = actual_minute - plan_minute
-
-# 2. NON-STOP KPI (แทนที่ Stop Time เดิม)
+# 3. NON-STOP (ออเดอร์ที่ไม่จอดเครื่อง)
 non_stop_order = 0
 non_stop_minute = 0
-
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
-    # Condition 1: Order Count -> Checked-2="YES" AND ลักษณะ เวลาหยุดเครื่อง="ไม่จอดเครื่อง"
-    cond_count = (
+    cond_ns_count = (
         (filtered_df["Checked-2"].str.lower() == "yes") & 
         (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
     )
-    non_stop_order = len(filtered_df[cond_count])
-
-    # Condition 2: Minute -> Sum of "Diff เวลา" where ลักษณะ เวลาหยุดเครื่อง="ไม่จอดเครื่อง"
+    non_stop_order = len(filtered_df[cond_ns_count])
+    
+    cond_ns_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
     if "Diff เวลา" in filtered_df.columns:
-        cond_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
-        non_stop_minute = int(filtered_df.loc[cond_time, "Diff เวลา"].sum())
+        non_stop_minute = int(filtered_df.loc[cond_ns_time, "Diff เวลา"].sum())
+
+# 4. STOP ORDERS (ใหม่: ออเดอร์ที่จอดเครื่อง - แทนที่ DIFF เดิม)
+stop_orders_count = 0
+stop_orders_diff_sum = 0
+if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
+    # นับ Checked-2 เป็น "YES" และ ลักษณะเวลาหยุดเครื่อง เป็น "จอดเครื่อง"
+    cond_stop_count = (
+        (filtered_df["Checked-2"].str.lower() == "yes") & 
+        (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
+    )
+    stop_orders_count = len(filtered_df[cond_stop_count])
+
+    # ผลรวม Diff เวลา เฉพาะ "จอดเครื่อง"
+    if "Diff เวลา" in filtered_df.columns:
+        cond_stop_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
+        stop_orders_diff_sum = int(filtered_df.loc[cond_stop_time, "Diff เวลา"].sum())
 
 # ======================================
 # KPI DISPLAY (Compact Version)
 # ======================================
 st.markdown("### 📊 Speed – Interactive Dashboard")
 
-def kpi_card_compact(title, bg_color, order, minute, text_color="#000"):
-    # ปรับ CSS ให้ Card กระชับขึ้น
+def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", order_label="Order", minute_label="Minute"):
     return f"""
     <div style="
         background:{bg_color};
@@ -176,68 +186,51 @@ def kpi_card_compact(title, bg_color, order, minute, text_color="#000"):
         <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">{title}</h4>
         <div style="display:flex; gap:8px; justify-content:space-between;">
             <div style="
-                background:rgba(255,255,255,0.4);
+                background:rgba(255,255,255,0.3);
                 padding:8px;
                 border-radius:8px;
                 flex:1;
                 text-align:center;
             ">
-                <div style="font-size:12px; opacity:0.9;">Order</div>
-                <div style="font-size:20px; font-weight:700;">{order:,}</div>
+                <div style="font-size:11px; opacity:0.9;">{order_label}</div>
+                <div style="font-size:20px; font-weight:700;">{order_val:,}</div>
             </div>
             <div style="
-                background:rgba(255,255,255,0.4);
+                background:rgba(255,255,255,0.3);
                 padding:8px;
                 border-radius:8px;
                 flex:1;
                 text-align:center;
             ">
-                <div style="font-size:12px; opacity:0.9;">Minute</div>
-                <div style="font-size:20px; font-weight:700;">{minute:+,}</div>
+                <div style="font-size:11px; opacity:0.9;">{minute_label}</div>
+                <div style="font-size:20px; font-weight:700;">{minute_val:+,}</div>
             </div>
         </div>
     </div>
     """
 
-# ใช้ 4 คอลัมน์เหมือนเดิม แต่เปลี่ยนช่องที่ 3 เป็น Non-Stop
-col_plan, col_actual, col_nonstop, col_diff = st.columns(4)
+# แสดง 4 คอลัมน์หลัก
+col_plan, col_actual, col_nonstop, col_stop_orders = st.columns(4)
 
 with col_plan:
-    st.markdown(kpi_card_compact("PLAN", "#2ec4c6", plan_order, int(plan_minute)), unsafe_allow_html=True)
-with col_actual:
-    st.markdown(kpi_card_compact("ACTUAL", "#a3d977", actual_order, int(actual_minute)), unsafe_allow_html=True)
-with col_nonstop:
-    # เปลี่ยนจากการ์ด Stop Time เป็นการ์ด NON-STOP
-    st.markdown(f"""
-        <div style="
-            background:#9b59b6;
-            padding:15px;
-            border-radius:12px;
-            color:#fff;
-            box-shadow:0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-        ">
-            <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">NON-STOP</h4>
-            <div style="display:flex; gap:8px; justify-content:space-between;">
-                <div style="background:rgba(255,255,255,0.2); padding:8px; border-radius:8px; flex:1; text-align:center;">
-                    <div style="font-size:12px; opacity:0.9;">Order (Yes)</div>
-                    <div style="font-size:20px; font-weight:700;">{non_stop_order:,}</div>
-                </div>
-                <div style="background:rgba(255,255,255,0.2); padding:8px; border-radius:8px; flex:1; text-align:center;">
-                    <div style="font-size:12px; opacity:0.9;">Diff Time</div>
-                    <div style="font-size:20px; font-weight:700;">{non_stop_minute:+,}</div>
-                </div>
-            </div>
-        </div>""", unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("PLAN", "#2ec4c6", plan_order, plan_minute), unsafe_allow_html=True)
 
-diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
-with col_diff:
-    st.markdown(kpi_card_compact("DIFF", diff_color, diff_order, int(diff_minute), text_color="white"), unsafe_allow_html=True)
+with col_actual:
+    st.markdown(kpi_card_compact("ACTUAL", "#a3d977", actual_order, actual_minute), unsafe_allow_html=True)
+
+with col_nonstop:
+    # การ์ด Non-Stop (ออเดอร์ที่ไม่จอด)
+    st.markdown(kpi_card_compact("NON-STOP", "#9b59b6", non_stop_order, non_stop_minute, text_color="#fff", order_label="Order (Yes)"), unsafe_allow_html=True)
+
+with col_stop_orders:
+    # การ์ด Stop Orders (ออเดอร์ที่จอดเครื่อง - แทนที่ DIFF)
+    # ใช้สีส้มแดง (#e67e22) เพื่อให้เห็นความแตกต่างของสถานะจอดเครื่อง
+    st.markdown(kpi_card_compact("STOP ORDERS", "#e67e22", stop_orders_count, stop_orders_diff_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
 
 st.divider()
 
 # ======================================
-# Charts (With tighter margins)
+# Charts
 # ======================================
 colA, colB = st.columns(2)
 
@@ -249,7 +242,6 @@ with colA:
         bar_df["Label"] = bar_df["Order Count"].astype(str) + " (" + bar_df["Percent"].round(0).astype(int).astype(str) + "%)"
         
         fig_bar = px.bar(bar_df, x="Percent", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h", text="Label", title="100% Stacked: ลักษณะ Order ความยาว")
-        # ปรับ layout ให้แน่นขึ้น
         fig_bar.update_layout(
             barmode="stack", 
             xaxis=dict(range=[0, 100]), 
@@ -266,7 +258,6 @@ with colB:
     if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
         stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
         fig_pie = px.pie(stop_sum, names="ลักษณะ เวลาหยุดเครื่อง", values="จำนวนครั้ง", hole=0.45)
-        # ปรับ layout ให้แน่นขึ้น
         fig_pie.update_layout(
             height=350,
             margin=dict(l=10, r=10, t=30, b=10),
