@@ -132,7 +132,7 @@ if order_lengths:
 
 # 1. NON-STOP Calculation
 non_stop_order = 0
-raw_non_stop_minute = 0.0 # เก็บค่าดิบไว้ก่อน
+raw_non_stop_minute = 0.0
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
     cond_ns_count = (
         (filtered_df["Checked-2"].str.upper() == "YES") & 
@@ -146,7 +146,7 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
 
 # 2. STOP ORDERS Calculation
 stop_orders_count = 0
-raw_stop_orders_time_sum = 0.0 # เก็บค่าดิบไว้ก่อน
+raw_stop_orders_time_sum = 0.0
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
     cond_stop_mask = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
     cond_stop_yes = (filtered_df["Checked-2"].str.upper() == "YES") & cond_stop_mask
@@ -159,7 +159,7 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
 # 3. OVERALL Calculation (นำค่าดิบมารวมกันก่อนปัดเศษ เพื่อให้ตรงกับกราฟ)
 overall_speed_time = int(round(raw_non_stop_minute + raw_stop_orders_time_sum))
 
-# สำหรับแสดงในการ์ดแยก ก็ปัดเศษตามปกติ
+# สำหรับแสดงในการ์ดแยก
 non_stop_minute_display = int(round(raw_non_stop_minute))
 stop_orders_time_sum_display = int(round(raw_stop_orders_time_sum))
 
@@ -260,8 +260,6 @@ with colA:
         )
         fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
         st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.info("ไม่พบข้อมูลลักษณะ Order ความยาว")
 
 with colB:
     st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
@@ -288,8 +286,6 @@ with colB:
             marker=dict(line=dict(color='#FFFFFF', width=2))
         )
         st.plotly_chart(fig_pie, use_container_width=True)
-    else:
-        st.info("ไม่พบข้อมูลลักษณะเวลาหยุดเครื่อง")
 
 # ======================================
 # TREND CHART: OVERALL SPEED
@@ -327,10 +323,12 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
     
     trend_resampled = trend_data.set_index('วันที่')['Overall_Contribution'].resample(freq_map[freq_option]).sum().reset_index()
     
+    # การแสดงผล Label ตามความถี่ที่เลือก
     if freq_option == "รายวัน":
         trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
     elif freq_option == "รายสัปดาห์":
-        trend_resampled['Date_Label'] = "สัปดาห์ " + trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
+        # เปลี่ยนเป็น WEEK 1, WEEK 2, WEEK 3... ตามจำนวนแท่งที่ปรากฏ
+        trend_resampled['Date_Label'] = [f"WEEK {i+1}" for i in range(len(trend_resampled))]
     elif freq_option == "รายเดือน":
         trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%m/%Y')
     else:
@@ -359,8 +357,6 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
     )
 
     st.plotly_chart(fig_trend, use_container_width=True)
-else:
-    st.info("ไม่มีข้อมูลเพียงพอสำหรับสร้างกราฟแนวโน้ม")
 
 # ======================================
 # Detail Table
@@ -392,5 +388,3 @@ if existing_cols:
         use_container_width=True,
         height=520
     )
-else:
-    st.warning("ไม่พบคอลัมน์ข้อมูลที่จะแสดงผล")
