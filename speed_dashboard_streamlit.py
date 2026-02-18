@@ -48,23 +48,21 @@ df.columns = df.columns.str.strip()
 # ======================================
 # Convert Date / Time
 # ======================================
-# แปลงวันที่ให้รองรับรูปแบบ DD/MM/YY
 df["วันที่"] = pd.to_datetime(df["วันที่"], format="%d/%m/%y", errors="coerce")
-# ถ้า format ไม่ตรงลองแบบ auto
 if df["วันที่"].isna().all():
      df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
 
 df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
 df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
 
-# แปลงตัวเลขสำคัญ (จัดการพวก text ที่ปนมาเช่น 'ยกเลิกเดินงาน')
+# แปลงตัวเลข
 numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง"]
 for col in numeric_cols:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
 # ======================================
-# Default Date = 7 days latest with data
+# Default Date
 # ======================================
 if df["วันที่"].notna().any():
     max_date = df["วันที่"].max()
@@ -78,7 +76,6 @@ else:
 # ======================================
 st.sidebar.header("🔎 ตัวกรองข้อมูล")
 
-# เพิ่มปุ่ม Clear Cache เผื่อข้อมูลไม่อัปเดต
 if st.sidebar.button("🔄 รีโหลดข้อมูลใหม่"):
     st.cache_data.clear()
     st.rerun()
@@ -136,7 +133,6 @@ actual_minute = int(filtered_df["เวลา Actual"].sum() / 60) if "เวล
 diff_order = actual_order - plan_order
 diff_minute = actual_minute - plan_minute
 
-# Stop Time KPI
 stop_order = 0
 stop_minute = 0
 if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
@@ -145,40 +141,42 @@ if "ลักษณะ เวลาหยุดเครื่อง" in filtere
     stop_minute = int(stop_df["เวลาหยุดข้อมูลเครื่อง"].sum()) if "เวลาหยุดข้อมูลเครื่อง" in stop_df.columns else 0
 
 # ======================================
-# KPI DISPLAY
+# KPI DISPLAY (Compact Version)
 # ======================================
-st.markdown("## 📊 Speed – Interactive Dashboard")
+st.markdown("### 📊 Speed – Interactive Dashboard")
 
-def kpi_card(title, bg_color, order, minute, text_color="#000"):
+def kpi_card_compact(title, bg_color, order, minute, text_color="#000"):
+    # ปรับ CSS ให้ Card กระชับขึ้น (Padding น้อยลง, Flexbox จัดกลาง)
     return f"""
     <div style="
         background:{bg_color};
-        padding:20px;
-        border-radius:18px;
+        padding:15px;
+        border-radius:12px;
         color:{text_color};
-        box-shadow:0 6px 18px rgba(0,0,0,0.15);
+        box-shadow:0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
     ">
-        <h2 style="text-align:center;margin-bottom:16px">{title}</h2>
-        <div style="display:flex;gap:14px;justify-content:center">
+        <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">{title}</h4>
+        <div style="display:flex; gap:8px; justify-content:space-between;">
             <div style="
-                background:rgba(255,255,255,0.35);
-                padding:12px 18px;
-                border-radius:12px;
-                min-width:120px;
+                background:rgba(255,255,255,0.4);
+                padding:8px;
+                border-radius:8px;
+                flex:1;
                 text-align:center;
             ">
-                <div style="font-size:14px;opacity:0.8">Order</div>
-                <div style="font-size:26px;font-weight:700">{order:,}</div>
+                <div style="font-size:12px; opacity:0.9;">Order</div>
+                <div style="font-size:20px; font-weight:700;">{order:,}</div>
             </div>
             <div style="
-                background:rgba(255,255,255,0.35);
-                padding:12px 18px;
-                border-radius:12px;
-                min-width:120px;
+                background:rgba(255,255,255,0.4);
+                padding:8px;
+                border-radius:8px;
+                flex:1;
                 text-align:center;
             ">
-                <div style="font-size:14px;opacity:0.8">Minute</div>
-                <div style="font-size:26px;font-weight:700">{minute:+,}</div>
+                <div style="font-size:12px; opacity:0.9;">Minute</div>
+                <div style="font-size:20px; font-weight:700;">{minute:+,}</div>
             </div>
         </div>
     </div>
@@ -187,45 +185,60 @@ def kpi_card(title, bg_color, order, minute, text_color="#000"):
 col_plan, col_actual, col_stop, col_diff = st.columns(4)
 
 with col_plan:
-    st.markdown(kpi_card("PLAN", "#2ec4c6", plan_order, int(plan_minute)), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("PLAN", "#2ec4c6", plan_order, int(plan_minute)), unsafe_allow_html=True)
 with col_actual:
-    st.markdown(kpi_card("ACTUAL", "#a3d977", actual_order, int(actual_minute)), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("ACTUAL", "#a3d977", actual_order, int(actual_minute)), unsafe_allow_html=True)
 with col_stop:
+    # Manual card for Stop Time to match the compact style
     st.markdown(f"""
-        <div style="background:#ffb703;padding:20px;border-radius:18px;color:#000;box-shadow:0 6px 18px rgba(0,0,0,0.15);">
-            <h2 style="text-align:center;margin-bottom:16px">STOP TIME</h2>
-            <div style="display:flex;gap:14px;justify-content:center">
-                <div style="background:rgba(255,255,255,0.45);padding:12px 18px;border-radius:12px;min-width:120px;text-align:center;">
-                    <div style="font-size:14px;opacity:0.8">Order (จอดเครื่อง)</div>
-                    <div style="font-size:26px;font-weight:700">{stop_order:,}</div>
+        <div style="
+            background:#ffb703;
+            padding:15px;
+            border-radius:12px;
+            color:#000;
+            box-shadow:0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        ">
+            <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">STOP TIME</h4>
+            <div style="display:flex; gap:8px; justify-content:space-between;">
+                <div style="background:rgba(255,255,255,0.45); padding:8px; border-radius:8px; flex:1; text-align:center;">
+                    <div style="font-size:12px; opacity:0.9;">Order (จอด)</div>
+                    <div style="font-size:20px; font-weight:700;">{stop_order:,}</div>
                 </div>
-                <div style="background:rgba(255,255,255,0.45);padding:12px 18px;border-radius:12px;min-width:120px;text-align:center;">
-                    <div style="font-size:14px;opacity:0.8">Minute</div>
-                    <div style="font-size:26px;font-weight:700">{stop_minute:,}</div>
+                <div style="background:rgba(255,255,255,0.45); padding:8px; border-radius:8px; flex:1; text-align:center;">
+                    <div style="font-size:12px; opacity:0.9;">Minute</div>
+                    <div style="font-size:20px; font-weight:700;">{stop_minute:,}</div>
                 </div>
             </div>
         </div>""", unsafe_allow_html=True)
 
 diff_color = "#ff3b30" if diff_order < 0 or diff_minute < 0 else "#2ecc71"
 with col_diff:
-    st.markdown(kpi_card("DIFF", diff_color, diff_order, int(diff_minute), text_color="white"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("DIFF", diff_color, diff_order, int(diff_minute), text_color="white"), unsafe_allow_html=True)
 
 st.divider()
 
 # ======================================
-# Charts
+# Charts (With tighter margins)
 # ======================================
 colA, colB = st.columns(2)
 
 with colA:
-    st.subheader("📊 สัดส่วนลักษณะ Order ความยาว (100%)")
+    st.subheader("📊 สัดส่วนลักษณะ Order ความยาว")
     if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
         bar_df = filtered_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
         bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: x / x.sum() * 100)
-        bar_df["Label"] = bar_df["Order Count"].astype(str) + "<br>(" + bar_df["Percent"].round(1).astype(str) + "%)"
+        bar_df["Label"] = bar_df["Order Count"].astype(str) + " (" + bar_df["Percent"].round(0).astype(int).astype(str) + "%)"
         
         fig_bar = px.bar(bar_df, x="Percent", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h", text="Label", title="100% Stacked: ลักษณะ Order ความยาว")
-        fig_bar.update_layout(barmode="stack", xaxis=dict(range=[0, 100]), height=420)
+        # ปรับ layout ให้แน่นขึ้น
+        fig_bar.update_layout(
+            barmode="stack", 
+            xaxis=dict(range=[0, 100]), 
+            height=350, 
+            margin=dict(l=10, r=10, t=30, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
         st.plotly_chart(fig_bar, use_container_width=True)
     else:
         st.info("ไม่พบข้อมูลกราฟ")
@@ -235,6 +248,12 @@ with colB:
     if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
         stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
         fig_pie = px.pie(stop_sum, names="ลักษณะ เวลาหยุดเครื่อง", values="จำนวนครั้ง", hole=0.45)
+        # ปรับ layout ให้แน่นขึ้น
+        fig_pie.update_layout(
+            height=350,
+            margin=dict(l=10, r=10, t=30, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
         st.info("ไม่พบข้อมูลกราฟ")
@@ -244,7 +263,6 @@ with colB:
 # ======================================
 st.subheader("📋 รายละเอียด Order")
 
-# รายชื่อคอลัมน์ทั้งหมดที่คุณต้องการ (รวมถึง M1-M5, PDR ฯลฯ)
 full_cols_list = [
     "วันที่", "เครื่องจักร", "กะ", 
     "ลำดับที่", "PDR", "Flute", 
@@ -261,15 +279,13 @@ full_cols_list = [
     "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"
 ]
 
-# กรองเอาเฉพาะคอลัมน์ที่มีอยู่จริงในไฟล์
 existing_cols = [col for col in full_cols_list if col in filtered_df.columns]
 
-# ถ้ามีคอลัมน์เหลือ แสดงผล
 if existing_cols:
     st.dataframe(
         filtered_df[existing_cols].sort_values("วันที่", ascending=False),
         use_container_width=True,
-        height=600
+        height=520
     )
 else:
     st.warning("ไม่พบคอลัมน์ข้อมูลที่จะแสดงผล")
