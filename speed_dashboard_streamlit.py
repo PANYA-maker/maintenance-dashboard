@@ -131,47 +131,42 @@ if order_lengths:
 
 # 1. PLAN
 plan_order = filtered_df["Speed Plan"].replace(0, pd.NA).notna().sum() if "Speed Plan" in filtered_df.columns else 0
-# เปลี่ยนจาก int() เป็น round() เพื่อให้ปัดเศษอย่างถูกต้อง
 plan_minute = round(filtered_df["เวลา Plan"].sum() / 60) if "เวลา Plan" in filtered_df.columns else 0
 
 # 2. ACTUAL
 actual_order = filtered_df["Actual Speed"].replace(0, pd.NA).notna().sum() if "Actual Speed" in filtered_df.columns else 0
-# เปลี่ยนจาก int() เป็น round()
 actual_minute = round(filtered_df["เวลา Actual"].sum() / 60) if "เวลา Actual" in filtered_df.columns else 0
 
 # 3. NON-STOP (ออเดอร์ที่ไม่จอดเครื่อง)
 non_stop_order = 0
 non_stop_minute = 0
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
-    # กรอง Checked-2 เป็น YES (ไม่สนพิมพ์เล็กใหญ่) และ ลักษณะฯ เป็น ไม่จอดเครื่อง
     cond_ns_count = (
         (filtered_df["Checked-2"].str.upper() == "YES") & 
         (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
     )
     non_stop_order = len(filtered_df[cond_ns_count])
     
-    # ผลรวม Diff เวลา เฉพาะ "ไม่จอดเครื่อง"
     cond_ns_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
     if "Diff เวลา" in filtered_df.columns:
-        # เปลี่ยนจาก int() เป็น round() เพื่อแก้ปัญหา 5.7 กลายเป็น 5
         non_stop_minute = round(filtered_df.loc[cond_ns_time, "Diff เวลา"].sum())
 
-# 4. STOP ORDERS (ออเดอร์ที่จอดเครื่อง)
+# 4. STOP ORDERS (ออเดอร์ที่จอดเครื่อง - สูตรใหม่ตามเงื่อนไขที่ระบุ)
 stop_orders_count = 0
-stop_orders_diff_sum = 0
+stop_orders_time_sum = 0
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
-    # กรอง Checked-2 เป็น YES และ ลักษณะฯ เป็น จอดเครื่อง
-    cond_stop_count = (
-        (filtered_df["Checked-2"].str.upper() == "YES") & 
-        (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
-    )
-    stop_orders_count = len(filtered_df[cond_stop_count])
+    # นับ Checked-2 เป็น "YES" และ กรอง "จอดเครื่อง"
+    cond_stop_mask = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
+    cond_stop_yes = (filtered_df["Checked-2"].str.upper() == "YES") & cond_stop_mask
+    
+    stop_orders_count = len(filtered_df[cond_stop_yes])
 
-    # ผลรวม Diff เวลา เฉพาะ "จอดเครื่อง"
-    cond_stop_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
-    if "Diff เวลา" in filtered_df.columns:
-        # เปลี่ยนจาก int() เป็น round() เพื่อแก้ปัญหา 5.7 กลายเป็น 5
-        stop_orders_diff_sum = round(filtered_df.loc[cond_stop_time, "Diff เวลา"].sum())
+    # เวลารวม = (ผลรวม Diff เวลา) + (ผลรวม เวลาหยุดข้อมูลเครื่อง) เฉพาะ "จอดเครื่อง"
+    diff_val = filtered_df.loc[cond_stop_mask, "Diff เวลา"].sum() if "Diff เวลา" in filtered_df.columns else 0
+    stop_info_val = filtered_df.loc[cond_stop_mask, "เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
+    
+    # ใช้ round() เพื่อให้ 5.7 ปัดเป็น 6
+    stop_orders_time_sum = round(diff_val + stop_info_val)
 
 # ======================================
 # KPI DISPLAY (Compact Version)
@@ -227,7 +222,8 @@ with col_nonstop:
     st.markdown(kpi_card_compact("NON-STOP", "#9b59b6", non_stop_order, non_stop_minute, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
 
 with col_stop_orders:
-    st.markdown(kpi_card_compact("STOP ORDERS", "#e67e22", stop_orders_count, stop_orders_diff_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
+    # แสดงเวลารวมจากสูตรใหม่ (Diff Time + Stop Time)
+    st.markdown(kpi_card_compact("STOP ORDERS", "#e67e22", stop_orders_count, stop_orders_time_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
 
 st.divider()
 
