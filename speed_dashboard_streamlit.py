@@ -62,13 +62,17 @@ def load_and_clean_data():
     df.columns = df.columns.str.strip()
     
     # 2. Convert Date 'วันที่'
-    # Try multiple formats or fallback to default
     try:
+        # Try converting with specific format first (common in Thai locale CSVs)
         df["วันที่"] = pd.to_datetime(df["วันที่"], format="%d/%m/%y", errors='coerce')
     except:
+        # Fallback to auto-detection
         df["วันที่"] = pd.to_datetime(df["วันที่"], errors='coerce')
+    
+    # Fill invalid dates with today or drop? Better to keep as NaT or handle later
+    # For visualization, we might drop rows with no date, but let's keep them in table
         
-    # 3. Convert Numeric Columns (Handle text like 'ยกเลิกเดินงาน')
+    # 3. Convert Numeric Columns
     numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง"]
     
     for col in numeric_cols:
@@ -76,16 +80,11 @@ def load_and_clean_data():
             # Force convert to numeric, turn errors (text) into NaN, then fill with 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # 4. Fill Missing Strings and Strip Whitespace
-    str_cols = [
-        "เครื่องจักร", "กะ", "Speed เทียบแผน", 
-        "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", 
-        "รายละเอียด", "PDR", "Start Time", "Stop Time"
-    ]
-    for col in str_cols:
-        if col in df.columns:
-            # Convert to string, fill NaN with empty string, then strip spaces
-            df[col] = df[col].fillna("").astype(str).str.strip()
+    # 4. Fill Missing Strings for ALL Object Columns
+    # This ensures columns like 'Start Time', 'Stop Time', 'สาเหตุจาก' are clean
+    object_cols = df.select_dtypes(include=['object']).columns
+    for col in object_cols:
+        df[col] = df[col].fillna("").astype(str).str.strip()
 
     return df
 
@@ -102,11 +101,10 @@ if df.empty:
 st.sidebar.title("⚙️ Configuration")
 st.sidebar.markdown("---")
 
-# Date Filter
+# Date Filter Logic
 if df["วันที่"].notna().any():
     min_date = df["วันที่"].min()
     max_date = df["วันที่"].max()
-    # Default to last 7 days available data
     default_start = max_date - pd.Timedelta(days=7) if pd.notnull(max_date) else datetime.now()
 else:
     min_date = datetime.now()
@@ -120,7 +118,7 @@ date_range = st.sidebar.date_input(
     max_value=max_date
 )
 
-# Helper for Multiselect with "All" option implicitly
+# Helper for Multiselect
 def create_filter(label, col_name):
     if col_name in df.columns:
         options = sorted(df[col_name].unique())
@@ -140,7 +138,6 @@ if len(date_range) == 2:
         (df["วันที่"] >= pd.to_datetime(start_date)) & 
         (df["วันที่"] <= pd.to_datetime(end_date))
     )
-    # Add optional filters only if columns exist
     if "เครื่องจักร" in df.columns:
         mask &= df["เครื่องจักร"].isin(selected_machines)
     if "กะ" in df.columns:
@@ -150,7 +147,7 @@ if len(date_range) == 2:
         
     filtered_df = df.loc[mask]
 else:
-    filtered_df = df.copy() # Fallback
+    filtered_df = df.copy()
 
 # ======================================
 # 4. Main Dashboard Area
@@ -164,10 +161,8 @@ with tab1:
     # --- KPI SECTION ---
     st.subheader("Key Performance Indicators")
     
-    # Calculate KPIs
     total_orders = len(filtered_df)
     
-    # Speed (Avoid division by zero)
     avg_plan_speed = 0
     avg_actual_speed = 0
     if "Speed Plan" in filtered_df.columns:
@@ -178,16 +173,13 @@ with tab1:
     if pd.isna(avg_plan_speed): avg_plan_speed = 0
     if pd.isna(avg_actual_speed): avg_actual_speed = 0
     
-    # Time
     total_run_time_min = filtered_df["เวลา Actual"].sum() if "เวลา Actual" in filtered_df.columns else 0
     total_plan_time_min = filtered_df["เวลา Plan"].sum() if "เวลา Plan" in filtered_df.columns else 0
     total_stop_time_min = filtered_df["เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
     
-    # Diff Calculation
     speed_diff = avg_actual_speed - avg_plan_speed
     time_diff = total_run_time_min - total_plan_time_min
 
-    # Create 4 Columns for Metrics
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
     with kpi1:
@@ -195,7 +187,6 @@ with tab1:
     with kpi2:
         st.metric("Avg Actual Speed", f"{avg_actual_speed:,.1f}", f"{speed_diff:+.1f} vs Plan")
     with kpi3:
-        # Convert min to Hours
         hours = total_run_time_min / 60
         st.metric("Production Time", f"{hours:,.1f} hrs", f"{time_diff/60:+.1f} hrs vs Plan")
     with kpi4:
@@ -204,50 +195,38 @@ with tab1:
 
     st.markdown("---")
 
-    # --- CHARTS SECTION TOP ---
     c1, c2 = st.columns([2, 1])
 
     with c1:
         st.subheader("📈 Speed Trend: Plan vs Actual")
-        if "วันที่" in filtered_df.columns:
-            # Daily Average Speed
+        if "วันที่" in filtered_df.columns and not filtered_df.empty:
             daily_speed = filtered_df.groupby("วันที่")[["Speed Plan", "Actual Speed"]].mean().reset_index()
-            
             fig_line = go.Figure()
             fig_line.add_trace(go.Scatter(x=daily_speed["วันที่"], y=daily_speed["Speed Plan"], 
                                         mode='lines', name='Plan Speed', line=dict(color='#bdc3c7', dash='dash')))
             fig_line.add_trace(go.Scatter(x=daily_speed["วันที่"], y=daily_speed["Actual Speed"], 
                                         mode='lines+markers', name='Actual Speed', line=dict(color='#2ecc71', width=3)))
-            
             fig_line.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20), hovermode="x unified")
             st.plotly_chart(fig_line, use_container_width=True)
 
     with c2:
         st.subheader("🛑 Stop Causes Analysis")
-        # Filter only rows with Stop Time > 0
-        if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns:
+        if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns and not filtered_df.empty:
             stop_data = filtered_df[filtered_df["เวลาหยุดข้อมูลเครื่อง"] > 0]
             if not stop_data.empty:
                 stop_summary = stop_data.groupby("ลักษณะ เวลาหยุดเครื่อง")["เวลาหยุดข้อมูลเครื่อง"].sum().reset_index()
-                
                 fig_pie = px.donut(stop_summary, values='เวลาหยุดข้อมูลเครื่อง', names='ลักษณะ เวลาหยุดเครื่อง', 
                                  hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
                 fig_pie.update_layout(height=350, margin=dict(l=20, r=20, t=0, b=20), showlegend=False)
                 fig_pie.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.info("No stop time data (Machine Run 100%).")
-        else:
-            st.warning("Column 'เวลาหยุดข้อมูลเครื่อง' not found.")
 
-    # --- CHARTS SECTION BOTTOM ---
     c3, c4 = st.columns(2)
 
     with c3:
         st.subheader("🏭 Performance by Machine")
-        if "Speed เทียบแผน" in filtered_df.columns:
+        if "Speed เทียบแผน" in filtered_df.columns and not filtered_df.empty:
             status_by_machine = filtered_df.groupby(["เครื่องจักร", "Speed เทียบแผน"]).size().reset_index(name="Count")
-            
             fig_bar = px.bar(status_by_machine, x="Count", y="เครื่องจักร", color="Speed เทียบแผน", 
                              orientation='h', title="Count of Speed Status by Machine",
                              color_discrete_map={"เร็วกว่าแผน": "#2ecc71", "ตามแผน": "#3498db", "ช้ากว่าแผน": "#e74c3c", "ยกเลิกเดินงาน": "#95a5a6"})
@@ -256,18 +235,16 @@ with tab1:
 
     with c4:
         st.subheader("📦 Speed vs Order Length")
-        if "ลักษณะ Order ความยาว" in filtered_df.columns:
-            # Clean data for scatter (remove 0 speeds)
+        if "ลักษณะ Order ความยาว" in filtered_df.columns and not filtered_df.empty:
             scatter_df = filtered_df[filtered_df["Actual Speed"] > 0]
-            
-            fig_scatter = px.scatter(scatter_df, x="Actual Speed", y="เวลา Actual", color="ลักษณะ Order ความยาว",
-                                   hover_data=["PDR", "เครื่องจักร"],
-                                   title="Correlation: Speed vs Operation Time")
-            fig_scatter.update_layout(height=300)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            if not scatter_df.empty:
+                fig_scatter = px.scatter(scatter_df, x="Actual Speed", y="เวลา Actual", color="ลักษณะ Order ความยาว",
+                                       hover_data=["PDR", "เครื่องจักร"],
+                                       title="Correlation: Speed vs Operation Time")
+                fig_scatter.update_layout(height=300)
+                st.plotly_chart(fig_scatter, use_container_width=True)
 
 with tab2:
-    # --- DATA TABLE ---
     st.subheader("📋 Detailed Data View")
     
     if filtered_df.empty:
@@ -282,27 +259,38 @@ with tab2:
             mime='text/csv',
         )
         
-        # Define desired columns (Added missing columns back)
-        target_cols = [
-            "วันที่", "Start Time", "Stop Time", "เครื่องจักร", "กะ", "PDR", 
+        # --- Column Management ---
+        # Prioritize these columns if they exist
+        priority_cols = [
+            "วันที่", "เครื่องจักร", "กะ", "PDR", "Start Time", "Stop Time", 
             "รายละเอียด", "Speed Plan", "Actual Speed", "Speed เทียบแผน", 
-            "เวลา Plan", "เวลา Actual", "ลักษณะ Order ความยาว", "ลักษณะ เวลาหยุดเครื่อง"
+            "เวลา Plan", "เวลา Actual", "Diff เวลา", "ลักษณะ เวลาหยุดเครื่อง", 
+            "สาเหตุจาก", "กรุ๊ปปัญหา"
         ]
         
-        # Filter only columns that actually exist in the dataframe to prevent errors
-        cols_to_show = [c for c in target_cols if c in filtered_df.columns]
-
-        if not cols_to_show:
-            st.error("ไม่พบคอลัมน์ที่ต้องการแสดงผล")
-            st.write("Columns found in file:", filtered_df.columns.tolist())
+        # Determine columns to show by default
+        # 1. Start with priority columns that exist
+        default_cols = [c for c in priority_cols if c in filtered_df.columns]
+        # 2. Add remaining columns that are not in priority list
+        all_cols = filtered_df.columns.tolist()
+        remaining_cols = [c for c in all_cols if c not in default_cols]
+        
+        # Allow user to select columns
+        selected_cols = st.multiselect(
+            "Select Columns to Display:",
+            options=all_cols,
+            default=default_cols + remaining_cols[:2] # Default to priority + first 2 others
+        )
+        
+        if not selected_cols:
+            st.info("Please select at least one column.")
         else:
-            # Create a display copy
-            display_df = filtered_df[cols_to_show].copy()
+            # Create a display copy AND RESET INDEX to prevent style errors
+            display_df = filtered_df[selected_cols].copy().reset_index(drop=True)
 
-            # Style function: Highlight rows based on 'Speed เทียบแผน'
+            # Style function
             def highlight_status(row):
                 color = ''
-                # Check if column exists in this row/index before accessing
                 if "Speed เทียบแผน" in row.index:
                     status = str(row["Speed เทียบแผน"])
                     if "ช้ากว่าแผน" in status:
@@ -311,25 +299,24 @@ with tab2:
                         color = 'background-color: #e8f5e9' # Green tint
                 return [color] * len(row)
 
-            # Define format dict only for existing columns
+            # Format numbers
             format_dict = {
                 "Speed Plan": "{:.0f}", "Actual Speed": "{:.0f}", 
-                "เวลา Plan": "{:.0f}", "เวลา Actual": "{:.0f}"
+                "เวลา Plan": "{:.0f}", "เวลา Actual": "{:.0f}",
+                "Diff เวลา": "{:.0f}"
             }
             valid_format = {k: v for k, v in format_dict.items() if k in display_df.columns}
 
             try:
-                # Display Styled DataFrame
                 st.dataframe(
-                    display_df.style.apply(highlight_status, axis=1)
-                    .format(valid_format),
+                    display_df.style.apply(highlight_status, axis=1).format(valid_format),
                     use_container_width=True,
                     height=600
                 )
             except Exception as e:
-                # Fallback if styling fails
-                st.warning(f"Styling failed, showing plain table. Error: {e}")
-                st.dataframe(display_df, use_container_width=True)
+                # Robust Fallback
+                st.warning(f"Note: Styling disabled due to data structure. Showing raw table.")
+                st.dataframe(display_df, use_container_width=True, height=600)
 
 # Footer
 st.markdown("---")
