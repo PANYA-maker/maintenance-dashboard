@@ -108,9 +108,11 @@ order_lengths = multi_filter("📦 ลักษณะ Order ความยา�
 # Apply Filters
 # ======================================
 if len(date_range) == 2:
+    start_dt = pd.to_datetime(date_range[0])
+    end_dt = pd.to_datetime(date_range[1])
     filtered_df = df[
-        (df["วันที่"] >= pd.to_datetime(date_range[0])) &
-        (df["วันที่"] <= pd.to_datetime(date_range[1]))
+        (df["วันที่"] >= start_dt) &
+        (df["วันที่"] <= end_dt)
     ].copy()
 else:
     filtered_df = df.copy()
@@ -156,7 +158,7 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
     stop_info_val = filtered_df.loc[cond_stop_mask, "เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
     raw_stop_orders_time_sum = diff_val + stop_info_val
 
-# 3. OVERALL Calculation (นำค่าดิบมารวมกันก่อนปัดเศษ เพื่อให้ตรงกับกราฟ)
+# 3. OVERALL Calculation (ปัดเศษผลรวมดิบเพื่อให้ตรงกับกราฟ)
 overall_speed_time = int(round(raw_non_stop_minute + raw_stop_orders_time_sum))
 
 # สำหรับแสดงในการ์ดแยก
@@ -288,7 +290,7 @@ with colB:
         st.plotly_chart(fig_pie, use_container_width=True)
 
 # ======================================
-# TREND CHART: OVERALL SPEED
+# TREND CHART: OVERALL SPEED (WEEKISO)
 # ======================================
 st.markdown("---")
 st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (Time Trend Analysis)")
@@ -314,25 +316,31 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
             index=0
         )
 
-    freq_map = {
-        "รายวัน": "D",
-        "รายสัปดาห์": "W-MON",
-        "รายเดือน": "MS",
-        "รายปี": "YS"
-    }
-    
-    trend_resampled = trend_data.set_index('วันที่')['Overall_Contribution'].resample(freq_map[freq_option]).sum().reset_index()
-    
-    # การแสดงผล Label ตามความถี่ที่เลือก
-    if freq_option == "รายวัน":
-        trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
-    elif freq_option == "รายสัปดาห์":
-        # เปลี่ยนเป็น WEEK 1, WEEK 2, WEEK 3... ตามจำนวนแท่งที่ปรากฏ
-        trend_resampled['Date_Label'] = [f"WEEK {i+1}" for i in range(len(trend_resampled))]
-    elif freq_option == "รายเดือน":
-        trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%m/%Y')
+    if freq_option == "รายสัปดาห์":
+        # ใช้ ISO Week (WEEKISO)
+        trend_data['ISO_Year'] = trend_data['วันที่'].dt.isocalendar().year
+        trend_data['ISO_Week'] = trend_data['วันที่'].dt.isocalendar().week
+        
+        # จัดกลุ่มตามปีและเลขสัปดาห์ ISO
+        trend_resampled = trend_data.groupby(['ISO_Year', 'ISO_Week'])['Overall_Contribution'].sum().reset_index()
+        # สร้าง Label เช่น "WEEK 7" หรือ "2026-W07" (ถ้าคาบเกี่ยวหลายปี)
+        # กรณีคาบเกี่ยวหลายปี จะใส่เลขปีให้ด้วยเพื่อให้เรียงถูกต้อง
+        trend_resampled['Date_Label'] = trend_resampled.apply(
+            lambda x: f"WEEK {x['ISO_Week']}" if trend_resampled['ISO_Year'].nunique() == 1 
+            else f"{x['ISO_Year']}-W{x['ISO_Week']:02d}", axis=1
+        )
+        # เรียงลำดับตามปีและสัปดาห์
+        trend_resampled = trend_resampled.sort_values(['ISO_Year', 'ISO_Week'])
     else:
-        trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%Y')
+        freq_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
+        trend_resampled = trend_data.set_index('วันที่')['Overall_Contribution'].resample(freq_map[freq_option]).sum().reset_index()
+        
+        if freq_option == "รายวัน":
+            trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
+        elif freq_option == "รายเดือน":
+            trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%m/%Y')
+        else:
+            trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%Y')
 
     fig_trend = go.Figure()
     colors = ['#2ecc71' if val >= 0 else '#e74c3c' for val in trend_resampled['Overall_Contribution']]
@@ -348,7 +356,7 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
 
     fig_trend.update_layout(
         title=f"แนวโน้มประสิทธิภาพเวลา ({freq_option})",
-        xaxis_title="ช่วงเวลา",
+        xaxis_title="สัปดาห์ (ISO Standard)",
         yaxis_title="Overall Speed (Min)",
         height=450,
         margin=dict(l=20, r=20, t=50, b=20),
