@@ -158,7 +158,7 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
     stop_info_val = filtered_df.loc[cond_stop_mask, "เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
     raw_stop_orders_time_sum = diff_val + stop_info_val
 
-# 3. OVERALL Calculation (ปัดเศษผลรวมดิบเพื่อให้ตรงกับกราฟ)
+# 3. OVERALL Calculation
 overall_speed_time = int(round(raw_non_stop_minute + raw_stop_orders_time_sum))
 
 # สำหรับแสดงในการ์ดแยก
@@ -166,41 +166,44 @@ non_stop_minute_display = int(round(raw_non_stop_minute))
 stop_orders_time_sum_display = int(round(raw_stop_orders_time_sum))
 
 # ======================================
-# KPI DISPLAY (Compact Version)
+# KPI DISPLAY (Redesigned Version)
 # ======================================
 st.markdown("### 📊 Speed – Performance Overview")
 
-def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", order_label="Order", minute_label="Minute"):
+def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#fff", order_label="Order", minute_label="Time Min"):
     return f"""
     <div style="
         background:{bg_color};
-        padding:15px;
-        border-radius:12px;
+        padding:20px 15px;
+        border-radius:15px;
         color:{text_color};
-        box-shadow:0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         margin-bottom: 10px;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     ">
-        <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px; font-family:sans-serif;">{title}</h4>
-        <div style="display:flex; gap:8px; justify-content:space-between;">
+        <h4 style="text-align:center; margin:0 0 15px 0; font-size:18px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">{title}</h4>
+        <div style="display:flex; gap:10px; justify-content:space-between;">
             <div style="
-                background:rgba(255,255,255,0.25);
-                padding:8px;
-                border-radius:8px;
+                background:rgba(255,255,255,0.2);
+                padding:12px 8px;
+                border-radius:12px;
                 flex:1;
                 text-align:center;
+                backdrop-filter: blur(4px);
             ">
-                <div style="font-size:11px; opacity:0.9;">{order_label}</div>
-                <div style="font-size:22px; font-weight:700;">{order_val:,}</div>
+                <div style="font-size:12px; font-weight: 500; opacity:0.85; margin-bottom: 4px;">{order_label}</div>
+                <div style="font-size:24px; font-weight:800;">{order_val:,}</div>
             </div>
             <div style="
-                background:rgba(255,255,255,0.25);
-                padding:8px;
-                border-radius:8px;
+                background:rgba(255,255,255,0.2);
+                padding:12px 8px;
+                border-radius:12px;
                 flex:1;
                 text-align:center;
+                backdrop-filter: blur(4px);
             ">
-                <div style="font-size:11px; opacity:0.9;">{minute_label}</div>
-                <div style="font-size:22px; font-weight:700;">{minute_val:+,}</div>
+                <div style="font-size:12px; font-weight: 500; opacity:0.85; margin-bottom: 4px;">{minute_label}</div>
+                <div style="font-size:24px; font-weight:800;">{minute_val:+,}</div>
             </div>
         </div>
     </div>
@@ -210,10 +213,10 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", 
 col_ns, col_so, col_ov = st.columns(3)
 
 with col_ns:
-    st.markdown(kpi_card_compact("NON-STOP", "#8e44ad", non_stop_order, non_stop_minute_display, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("NON-STOP", "#8e44ad", non_stop_order, non_stop_minute_display), unsafe_allow_html=True)
 
 with col_so:
-    st.markdown(kpi_card_compact("STOP ORDERS", "#d35400", stop_orders_count, stop_orders_time_sum_display, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("STOP ORDERS", "#d35400", stop_orders_count, stop_orders_time_sum_display), unsafe_allow_html=True)
 
 with col_ov:
     overall_bg_color = "#27ae60" if overall_speed_time >= 0 else "#c0392b"
@@ -221,10 +224,7 @@ with col_ov:
         "OVERALL SPEED", 
         overall_bg_color, 
         non_stop_order + stop_orders_count, 
-        overall_speed_time, 
-        text_color="#fff", 
-        order_label="Total Order", 
-        minute_label="Summary Min"
+        overall_speed_time
     ), unsafe_allow_html=True)
 
 st.divider()
@@ -317,19 +317,13 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
         )
 
     if freq_option == "รายสัปดาห์":
-        # ใช้ ISO Week (WEEKISO)
         trend_data['ISO_Year'] = trend_data['วันที่'].dt.isocalendar().year
         trend_data['ISO_Week'] = trend_data['วันที่'].dt.isocalendar().week
-        
-        # จัดกลุ่มตามปีและเลขสัปดาห์ ISO
         trend_resampled = trend_data.groupby(['ISO_Year', 'ISO_Week'])['Overall_Contribution'].sum().reset_index()
-        # สร้าง Label เช่น "WEEK 7" หรือ "2026-W07" (ถ้าคาบเกี่ยวหลายปี)
-        # กรณีคาบเกี่ยวหลายปี จะใส่เลขปีให้ด้วยเพื่อให้เรียงถูกต้อง
         trend_resampled['Date_Label'] = trend_resampled.apply(
             lambda x: f"WEEK {x['ISO_Week']}" if trend_resampled['ISO_Year'].nunique() == 1 
             else f"{x['ISO_Year']}-W{x['ISO_Week']:02d}", axis=1
         )
-        # เรียงลำดับตามปีและสัปดาห์
         trend_resampled = trend_resampled.sort_values(['ISO_Year', 'ISO_Week'])
     else:
         freq_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
