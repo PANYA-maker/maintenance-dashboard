@@ -58,7 +58,7 @@ def load_and_clean_data():
 
     # --- Data Cleaning Steps ---
     
-    # 1. Clean Column Names
+    # 1. Clean Column Names (Remove leading/trailing spaces)
     df.columns = df.columns.str.strip()
     
     # 2. Convert Date 'วันที่'
@@ -76,11 +76,16 @@ def load_and_clean_data():
             # Force convert to numeric, turn errors (text) into NaN, then fill with 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # 4. Fill Missing Strings
-    str_cols = ["เครื่องจักร", "กะ", "Speed เทียบแผน", "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว"]
+    # 4. Fill Missing Strings and Strip Whitespace
+    str_cols = [
+        "เครื่องจักร", "กะ", "Speed เทียบแผน", 
+        "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", 
+        "รายละเอียด", "PDR", "Start Time", "Stop Time"
+    ]
     for col in str_cols:
         if col in df.columns:
-            df[col] = df[col].fillna("Unknown").astype(str)
+            # Convert to string, fill NaN with empty string, then strip spaces
+            df[col] = df[col].fillna("").astype(str).str.strip()
 
     return df
 
@@ -98,11 +103,15 @@ st.sidebar.title("⚙️ Configuration")
 st.sidebar.markdown("---")
 
 # Date Filter
-min_date = df["วันที่"].min()
-max_date = df["วันที่"].max()
-
-# Default to last 7 days available data
-default_start = max_date - pd.Timedelta(days=7) if pd.notnull(max_date) else datetime.now()
+if df["วันที่"].notna().any():
+    min_date = df["วันที่"].min()
+    max_date = df["วันที่"].max()
+    # Default to last 7 days available data
+    default_start = max_date - pd.Timedelta(days=7) if pd.notnull(max_date) else datetime.now()
+else:
+    min_date = datetime.now()
+    max_date = datetime.now()
+    default_start = datetime.now()
 
 date_range = st.sidebar.date_input(
     "📅 Select Date Range",
@@ -113,9 +122,11 @@ date_range = st.sidebar.date_input(
 
 # Helper for Multiselect with "All" option implicitly
 def create_filter(label, col_name):
-    options = sorted(df[col_name].unique())
-    selected = st.sidebar.multiselect(label, options)
-    return selected if selected else options
+    if col_name in df.columns:
+        options = sorted(df[col_name].unique())
+        selected = st.sidebar.multiselect(label, options)
+        return selected if selected else options
+    return []
 
 # Create Filters
 selected_machines = create_filter("🏭 เครื่องจักร (Machine)", "เครื่องจักร")
@@ -127,11 +138,16 @@ if len(date_range) == 2:
     start_date, end_date = date_range
     mask = (
         (df["วันที่"] >= pd.to_datetime(start_date)) & 
-        (df["วันที่"] <= pd.to_datetime(end_date)) &
-        (df["เครื่องจักร"].isin(selected_machines)) &
-        (df["กะ"].isin(selected_shifts)) &
-        (df["ลักษณะ Order ความยาว"].isin(selected_lengths))
+        (df["วันที่"] <= pd.to_datetime(end_date))
     )
+    # Add optional filters only if columns exist
+    if "เครื่องจักร" in df.columns:
+        mask &= df["เครื่องจักร"].isin(selected_machines)
+    if "กะ" in df.columns:
+        mask &= df["กะ"].isin(selected_shifts)
+    if "ลักษณะ Order ความยาว" in df.columns:
+        mask &= df["ลักษณะ Order ความยาว"].isin(selected_lengths)
+        
     filtered_df = df.loc[mask]
 else:
     filtered_df = df.copy() # Fallback
@@ -152,15 +168,20 @@ with tab1:
     total_orders = len(filtered_df)
     
     # Speed (Avoid division by zero)
-    avg_plan_speed = filtered_df[filtered_df["Speed Plan"] > 0]["Speed Plan"].mean()
-    avg_actual_speed = filtered_df[filtered_df["Actual Speed"] > 0]["Actual Speed"].mean()
+    avg_plan_speed = 0
+    avg_actual_speed = 0
+    if "Speed Plan" in filtered_df.columns:
+        avg_plan_speed = filtered_df[filtered_df["Speed Plan"] > 0]["Speed Plan"].mean()
+    if "Actual Speed" in filtered_df.columns:
+        avg_actual_speed = filtered_df[filtered_df["Actual Speed"] > 0]["Actual Speed"].mean()
+    
     if pd.isna(avg_plan_speed): avg_plan_speed = 0
     if pd.isna(avg_actual_speed): avg_actual_speed = 0
     
     # Time
-    total_run_time_min = filtered_df["เวลา Actual"].sum()
-    total_plan_time_min = filtered_df["เวลา Plan"].sum()
-    total_stop_time_min = filtered_df["เวลาหยุดข้อมูลเครื่อง"].sum()
+    total_run_time_min = filtered_df["เวลา Actual"].sum() if "เวลา Actual" in filtered_df.columns else 0
+    total_plan_time_min = filtered_df["เวลา Plan"].sum() if "เวลา Plan" in filtered_df.columns else 0
+    total_stop_time_min = filtered_df["เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
     
     # Diff Calculation
     speed_diff = avg_actual_speed - avg_plan_speed
@@ -188,58 +209,62 @@ with tab1:
 
     with c1:
         st.subheader("📈 Speed Trend: Plan vs Actual")
-        # Daily Average Speed
-        daily_speed = filtered_df.groupby("วันที่")[["Speed Plan", "Actual Speed"]].mean().reset_index()
-        
-        fig_line = go.Figure()
-        fig_line.add_trace(go.Scatter(x=daily_speed["วันที่"], y=daily_speed["Speed Plan"], 
-                                    mode='lines', name='Plan Speed', line=dict(color='#bdc3c7', dash='dash')))
-        fig_line.add_trace(go.Scatter(x=daily_speed["วันที่"], y=daily_speed["Actual Speed"], 
-                                    mode='lines+markers', name='Actual Speed', line=dict(color='#2ecc71', width=3)))
-        
-        fig_line.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20), hovermode="x unified")
-        st.plotly_chart(fig_line, use_container_width=True)
+        if "วันที่" in filtered_df.columns:
+            # Daily Average Speed
+            daily_speed = filtered_df.groupby("วันที่")[["Speed Plan", "Actual Speed"]].mean().reset_index()
+            
+            fig_line = go.Figure()
+            fig_line.add_trace(go.Scatter(x=daily_speed["วันที่"], y=daily_speed["Speed Plan"], 
+                                        mode='lines', name='Plan Speed', line=dict(color='#bdc3c7', dash='dash')))
+            fig_line.add_trace(go.Scatter(x=daily_speed["วันที่"], y=daily_speed["Actual Speed"], 
+                                        mode='lines+markers', name='Actual Speed', line=dict(color='#2ecc71', width=3)))
+            
+            fig_line.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20), hovermode="x unified")
+            st.plotly_chart(fig_line, use_container_width=True)
 
     with c2:
         st.subheader("🛑 Stop Causes Analysis")
         # Filter only rows with Stop Time > 0
-        stop_data = filtered_df[filtered_df["เวลาหยุดข้อมูลเครื่อง"] > 0]
-        stop_summary = stop_data.groupby("ลักษณะ เวลาหยุดเครื่อง")["เวลาหยุดข้อมูลเครื่อง"].sum().reset_index()
-        
-        if not stop_summary.empty:
-            fig_pie = px.donut(stop_summary, values='เวลาหยุดข้อมูลเครื่อง', names='ลักษณะ เวลาหยุดเครื่อง', 
-                             hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
-            fig_pie.update_layout(height=350, margin=dict(l=20, r=20, t=0, b=20), showlegend=False)
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig_pie, use_container_width=True)
+        if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns:
+            stop_data = filtered_df[filtered_df["เวลาหยุดข้อมูลเครื่อง"] > 0]
+            if not stop_data.empty:
+                stop_summary = stop_data.groupby("ลักษณะ เวลาหยุดเครื่อง")["เวลาหยุดข้อมูลเครื่อง"].sum().reset_index()
+                
+                fig_pie = px.donut(stop_summary, values='เวลาหยุดข้อมูลเครื่อง', names='ลักษณะ เวลาหยุดเครื่อง', 
+                                 hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
+                fig_pie.update_layout(height=350, margin=dict(l=20, r=20, t=0, b=20), showlegend=False)
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.info("No stop time data (Machine Run 100%).")
         else:
-            st.info("No stop time data for selected range.")
+            st.warning("Column 'เวลาหยุดข้อมูลเครื่อง' not found.")
 
     # --- CHARTS SECTION BOTTOM ---
     c3, c4 = st.columns(2)
 
     with c3:
         st.subheader("🏭 Performance by Machine")
-        # Stacked bar chart for Speed Status
-        status_by_machine = filtered_df.groupby(["เครื่องจักร", "Speed เทียบแผน"]).size().reset_index(name="Count")
-        
-        fig_bar = px.bar(status_by_machine, x="Count", y="เครื่องจักร", color="Speed เทียบแผน", 
-                         orientation='h', title="Count of Speed Status by Machine",
-                         color_discrete_map={"เร็วกว่าแผน": "#2ecc71", "ตามแผน": "#3498db", "ช้ากว่าแผน": "#e74c3c", "ยกเลิกเดินงาน": "#95a5a6"})
-        fig_bar.update_layout(height=300)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        if "Speed เทียบแผน" in filtered_df.columns:
+            status_by_machine = filtered_df.groupby(["เครื่องจักร", "Speed เทียบแผน"]).size().reset_index(name="Count")
+            
+            fig_bar = px.bar(status_by_machine, x="Count", y="เครื่องจักร", color="Speed เทียบแผน", 
+                             orientation='h', title="Count of Speed Status by Machine",
+                             color_discrete_map={"เร็วกว่าแผน": "#2ecc71", "ตามแผน": "#3498db", "ช้ากว่าแผน": "#e74c3c", "ยกเลิกเดินงาน": "#95a5a6"})
+            fig_bar.update_layout(height=300)
+            st.plotly_chart(fig_bar, use_container_width=True)
 
     with c4:
         st.subheader("📦 Speed vs Order Length")
-        # Scatter plot to see if Length affects Speed
-        # Clean data for scatter (remove 0 speeds)
-        scatter_df = filtered_df[filtered_df["Actual Speed"] > 0]
-        
-        fig_scatter = px.scatter(scatter_df, x="Actual Speed", y="เวลา Actual", color="ลักษณะ Order ความยาว",
-                               hover_data=["PDR", "เครื่องจักร"],
-                               title="Correlation: Speed vs Operation Time")
-        fig_scatter.update_layout(height=300)
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        if "ลักษณะ Order ความยาว" in filtered_df.columns:
+            # Clean data for scatter (remove 0 speeds)
+            scatter_df = filtered_df[filtered_df["Actual Speed"] > 0]
+            
+            fig_scatter = px.scatter(scatter_df, x="Actual Speed", y="เวลา Actual", color="ลักษณะ Order ความยาว",
+                                   hover_data=["PDR", "เครื่องจักร"],
+                                   title="Correlation: Speed vs Operation Time")
+            fig_scatter.update_layout(height=300)
+            st.plotly_chart(fig_scatter, use_container_width=True)
 
 with tab2:
     # --- DATA TABLE ---
@@ -257,10 +282,11 @@ with tab2:
             mime='text/csv',
         )
         
-        # Define desired columns
+        # Define desired columns (Added missing columns back)
         target_cols = [
-            "วันที่", "เครื่องจักร", "PDR", "Speed Plan", "Actual Speed", 
-            "Speed เทียบแผน", "เวลา Plan", "เวลา Actual", "ลักษณะ เวลาหยุดเครื่อง"
+            "วันที่", "Start Time", "Stop Time", "เครื่องจักร", "กะ", "PDR", 
+            "รายละเอียด", "Speed Plan", "Actual Speed", "Speed เทียบแผน", 
+            "เวลา Plan", "เวลา Actual", "ลักษณะ Order ความยาว", "ลักษณะ เวลาหยุดเครื่อง"
         ]
         
         # Filter only columns that actually exist in the dataframe to prevent errors
@@ -268,7 +294,7 @@ with tab2:
 
         if not cols_to_show:
             st.error("ไม่พบคอลัมน์ที่ต้องการแสดงผล")
-            st.write("Columns found:", filtered_df.columns.tolist())
+            st.write("Columns found in file:", filtered_df.columns.tolist())
         else:
             # Create a display copy
             display_df = filtered_df[cols_to_show].copy()
@@ -279,9 +305,9 @@ with tab2:
                 # Check if column exists in this row/index before accessing
                 if "Speed เทียบแผน" in row.index:
                     status = str(row["Speed เทียบแผน"])
-                    if status == "ช้ากว่าแผน":
+                    if "ช้ากว่าแผน" in status:
                         color = 'background-color: #ffebee' # Red tint
-                    elif status == "เร็วกว่าแผน":
+                    elif "เร็วกว่าแผน" in status:
                         color = 'background-color: #e8f5e9' # Green tint
                 return [color] * len(row)
 
