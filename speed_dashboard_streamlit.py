@@ -224,7 +224,7 @@ with col_ov:
 st.divider()
 
 # ======================================
-# Charts Improvement
+# Charts Row 1
 # ======================================
 colA, colB = st.columns(2)
 
@@ -286,6 +286,86 @@ with colB:
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
         st.info("ไม่พบข้อมูลลักษณะเวลาหยุดเครื่อง")
+
+# ======================================
+# TREND CHART: OVERALL SPEED (Daily, Weekly, Monthly, Yearly)
+# ======================================
+st.markdown("---")
+st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (Time Trend Analysis)")
+
+if not filtered_df.empty and "วันที่" in filtered_df.columns:
+    # สร้างคอลัมน์คำนวณรายบรรทัดสำหรับ Overall Speed
+    # Overall = (Diff เวลา ถ้าไม่จอด) + (Diff เวลา + เวลาหยุดเครื่อง ถ้าจอด)
+    trend_data = filtered_df.copy()
+    
+    def calc_row_overall(row):
+        val = 0.0
+        if row['ลักษณะ เวลาหยุดเครื่อง'] == "ไม่จอดเครื่อง":
+            val = row['Diff เวลา']
+        elif row['ลักษณะ เวลาหยุดเครื่อง'] == "จอดเครื่อง":
+            val = row['Diff เวลา'] + row['เวลาหยุดข้อมูลเครื่อง']
+        return val
+
+    trend_data['Overall_Contribution'] = trend_data.apply(calc_row_overall, axis=1)
+
+    # ตัวเลือกความถี่
+    freq_col1, freq_col2 = st.columns([1, 4])
+    with freq_col1:
+        freq_option = st.selectbox(
+            "เลือกความถี่ของกราฟ:",
+            options=["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"],
+            index=0
+        )
+
+    # Mapping frequency
+    freq_map = {
+        "รายวัน": "D",
+        "รายสัปดาห์": "W-MON",
+        "รายเดือน": "MS",
+        "รายปี": "YS"
+    }
+    
+    # สรุปข้อมูลตามความถี่
+    trend_resampled = trend_data.set_index('วันที่')['Overall_Contribution'].resample(freq_map[freq_option]).sum().reset_index()
+    
+    # จัดรูปแบบวันที่ให้สวยงามตามความถี่
+    if freq_option == "รายวัน":
+        trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
+    elif freq_option == "รายสัปดาห์":
+        trend_resampled['Date_Label'] = "สัปดาห์ " + trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
+    elif freq_option == "รายเดือน":
+        trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%m/%Y')
+    else:
+        trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%Y')
+
+    # สร้างกราฟแนวโน้ม
+    fig_trend = go.Figure()
+
+    # กำหนดสีแท่งกราฟ (เขียวถ้าบวก แดงถ้าลบ)
+    colors = ['#2ecc71' if val >= 0 else '#e74c3c' for val in trend_resampled['Overall_Contribution']]
+
+    fig_trend.add_trace(go.Bar(
+        x=trend_resampled['Date_Label'],
+        y=trend_resampled['Overall_Contribution'],
+        marker_color=colors,
+        text=trend_resampled['Overall_Contribution'].round(1),
+        textposition='outside',
+        hovertemplate="ช่วงเวลา: %{x}<br>Overall Speed: %{y:.1f} Min<extra></extra>"
+    ))
+
+    fig_trend.update_layout(
+        title=f"แนวโน้มประสิทธิภาพเวลา ({freq_option})",
+        xaxis_title="ช่วงเวลา",
+        yaxis_title="Overall Speed (Min)",
+        height=450,
+        margin=dict(l=20, r=20, t=50, b=20),
+        template="plotly_white",
+        showlegend=False
+    )
+
+    st.plotly_chart(fig_trend, use_container_width=True)
+else:
+    st.info("ไม่มีข้อมูลเพียงพอสำหรับสร้างกราฟแนวโน้ม")
 
 # ======================================
 # Detail Table
