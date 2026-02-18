@@ -42,8 +42,9 @@ st.markdown("""
 SHEET_ID = "1Dd1PkTf2gW8tGSXVlr6WXgA974wcvySZTnVgv2G-7QU"
 SHEET_NAME = "DATA-SPEED"
 
+# เปลี่ยนชื่อฟังก์ชันเพื่อบังคับ Clear Cache (Force Reload)
 @st.cache_data(ttl=300)
-def load_and_clean_data():
+def load_data_v2():
     # Construct URL for Google Sheet CSV export
     url = (
         f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq"
@@ -59,7 +60,6 @@ def load_and_clean_data():
     # --- Data Cleaning Steps ---
     
     # 1. Clean Column Names (Remove leading/trailing spaces)
-    # This matches your specific column list automatically
     df.columns = df.columns.str.strip()
     
     # 2. Convert Date 'วันที่' (Format: 27/10/25)
@@ -68,33 +68,37 @@ def load_and_clean_data():
     except:
         df["วันที่"] = pd.to_datetime(df["วันที่"], errors='coerce')
         
-    # 3. Convert Numeric Columns (Force numeric, handle 'ยกเลิกเดินงาน' or empty)
+    # 3. Convert Numeric Columns based on your FULL LIST
+    # ใส่รายชื่อคอลัมน์ที่เป็นตัวเลขทั้งหมดตามที่คุณให้มา
     numeric_targets = [
-        "Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", 
-        "Diff เวลา", "เวลาหยุดเครื่องจากผลิต", "เวลาหยุดข้อมูลเครื่อง",
+        "ลำดับที่", "M5", "M4", "M3", "M2", "M1", 
         "หน้ากว้าง (W) PLAN", "ความยาว (L) PLAN", "T", 
-        "ความยาวเมตร PLAN", "ความยาวเมตร MC"
+        "ความยาวเมตร PLAN", "ความยาวเมตร MC", 
+        "Speed Plan", "Actual Speed", 
+        "เวลา Plan", "เวลา Actual", "Diff เวลา", 
+        "เวลาหยุดเครื่องจากผลิต", "เวลาหยุดข้อมูลเครื่อง"
     ]
     
     for col in numeric_targets:
         if col in df.columns:
+            # แปลงเป็นตัวเลข ถ้ามี text ปนให้เป็น 0 (coerce -> NaN -> 0)
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
     # 4. Fill Missing Strings for ALL Object Columns
-    # Includes: Start Time, Stop Time, PDR, สาเหตุจาก, กรุ๊ปปัญหา, รายละเอียด
     object_cols = df.select_dtypes(include=['object']).columns
     for col in object_cols:
         df[col] = df[col].fillna("").astype(str).str.strip()
 
-    # 5. Optional: Try to parse Start/Stop Time for sorting if needed
-    # Format sample: 27/10/2025 13:00
+    # 5. Handle Start/Stop Time specifically if needed for calculation
     if "Start Time" in df.columns:
-        df["Start Time Object"] = pd.to_datetime(df["Start Time"], format="%d/%m/%Y %H:%M", errors='coerce')
+        df["Start Time"] = pd.to_datetime(df["Start Time"], format="%d/%m/%Y %H:%M", errors='coerce')
+    if "Stop Time" in df.columns:
+        df["Stop Time"] = pd.to_datetime(df["Stop Time"], format="%d/%m/%Y %H:%M", errors='coerce')
 
     return df
 
 # Load Data
-df = load_and_clean_data()
+df = load_data_v2()
 
 if df.empty:
     st.warning("ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบ Google Sheet ID หรือ Permission")
@@ -104,6 +108,12 @@ if df.empty:
 # 3. Sidebar Filters
 # ======================================
 st.sidebar.title("⚙️ Configuration")
+
+# ปุ่ม Clear Cache เพื่อแก้ปัญหาข้อมูลไม่เปลี่ยน
+if st.sidebar.button("🔄 Reload Data (Clear Cache)"):
+    st.cache_data.clear()
+    st.rerun()
+
 st.sidebar.markdown("---")
 
 # Date Filter Logic
@@ -278,29 +288,34 @@ with tab2:
             mime='text/csv',
         )
         
-        # --- Column Management using User's List ---
-        # Defining the priority order based on user input
-        priority_cols = [
-            "วันที่", "เครื่องจักร", "กะ", "PDR", "Start Time", "Stop Time",
-            "Speed Plan", "Actual Speed", "Speed เทียบแผน",
-            "เวลา Plan", "เวลา Actual", "Diff เวลา",
-            "ลักษณะ Order ความยาว", "ลักษณะ เวลาหยุดเครื่อง",
-            "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด",
-            "หน้ากว้าง (W) PLAN", "ความยาว (L) PLAN", "Flute"
+        # --- Column Management using YOUR EXACT LIST ---
+        # ก๊อปปี้รายชื่อคอลัมน์ที่คุณให้มาใส่ลงไปตรงนี้เป๊ะๆ
+        user_defined_cols = [
+            "ลำดับที่", "PDR", "Flute", "M5", "M4", "M3", "M2", "M1", 
+            "หน้ากว้าง (W) PLAN", "ความยาว (L) PLAN", "T", 
+            "ความยาวเมตร PLAN", "ความยาวเมตร MC", 
+            "Speed Plan", "Actual Speed", "Speed เทียบแผน", 
+            "เวลา Plan", "เวลา Actual", "Diff เวลา", 
+            "เวลาหยุดเครื่องจากผลิต", "เวลาหยุดข้อมูลเครื่อง", 
+            "Checked-1", "Checked-2", "Start Time", "Stop Time", 
+            "ลักษณะ Order PLAN", "ลักษณะ Order MC", 
+            "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", 
+            "กะ", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด", 
+            "เครื่องจักร", "วันที่"
         ]
         
-        # 1. Start with priority columns that exist
-        default_cols = [c for c in priority_cols if c in filtered_df.columns]
+        # 1. Start with priority columns that exist in the dataframe
+        default_cols = [c for c in user_defined_cols if c in filtered_df.columns]
         
-        # 2. Add remaining columns that are not in priority list
-        all_cols = filtered_df.columns.tolist()
-        remaining_cols = [c for c in all_cols if c not in default_cols]
+        # 2. Add remaining columns (if any exist in data but not in your list)
+        all_cols_in_data = filtered_df.columns.tolist()
+        remaining_cols = [c for c in all_cols_in_data if c not in default_cols]
         
         # Allow user to select columns
         selected_cols = st.multiselect(
             "Select Columns to Display:",
-            options=all_cols,
-            default=default_cols  # Show priority columns by default
+            options=all_cols_in_data,
+            default=default_cols + remaining_cols[:2]  # Show your list by default
         )
         
         if not selected_cols:
@@ -321,11 +336,15 @@ with tab2:
                 return [color] * len(row)
 
             # Format numbers (Integer format for cleaner look)
+            # เพิ่มคอลัมน์ตัวเลขให้ครบถ้วน
             format_dict = {
                 "Speed Plan": "{:.0f}", "Actual Speed": "{:.0f}", 
                 "เวลา Plan": "{:.0f}", "เวลา Actual": "{:.0f}",
                 "Diff เวลา": "{:.0f}", "หน้ากว้าง (W) PLAN": "{:.0f}", 
-                "ความยาว (L) PLAN": "{:.0f}"
+                "ความยาว (L) PLAN": "{:.0f}", "ความยาวเมตร PLAN": "{:.0f}",
+                "ความยาวเมตร MC": "{:.0f}", "T": "{:.0f}",
+                "M1": "{:.0f}", "M2": "{:.0f}", "M3": "{:.0f}", 
+                "M4": "{:.0f}", "M5": "{:.0f}"
             }
             # Only apply format if column exists in selection
             valid_format = {k: v for k, v in format_dict.items() if k in display_df.columns}
