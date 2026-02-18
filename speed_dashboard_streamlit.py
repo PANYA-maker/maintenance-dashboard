@@ -59,32 +59,37 @@ def load_and_clean_data():
     # --- Data Cleaning Steps ---
     
     # 1. Clean Column Names (Remove leading/trailing spaces)
+    # This matches your specific column list automatically
     df.columns = df.columns.str.strip()
     
-    # 2. Convert Date 'วันที่'
+    # 2. Convert Date 'วันที่' (Format: 27/10/25)
     try:
-        # Try converting with specific format first (common in Thai locale CSVs)
         df["วันที่"] = pd.to_datetime(df["วันที่"], format="%d/%m/%y", errors='coerce')
     except:
-        # Fallback to auto-detection
         df["วันที่"] = pd.to_datetime(df["วันที่"], errors='coerce')
-    
-    # Fill invalid dates with today or drop? Better to keep as NaT or handle later
-    # For visualization, we might drop rows with no date, but let's keep them in table
         
-    # 3. Convert Numeric Columns
-    numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง"]
+    # 3. Convert Numeric Columns (Force numeric, handle 'ยกเลิกเดินงาน' or empty)
+    numeric_targets = [
+        "Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", 
+        "Diff เวลา", "เวลาหยุดเครื่องจากผลิต", "เวลาหยุดข้อมูลเครื่อง",
+        "หน้ากว้าง (W) PLAN", "ความยาว (L) PLAN", "T", 
+        "ความยาวเมตร PLAN", "ความยาวเมตร MC"
+    ]
     
-    for col in numeric_cols:
+    for col in numeric_targets:
         if col in df.columns:
-            # Force convert to numeric, turn errors (text) into NaN, then fill with 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
     # 4. Fill Missing Strings for ALL Object Columns
-    # This ensures columns like 'Start Time', 'Stop Time', 'สาเหตุจาก' are clean
+    # Includes: Start Time, Stop Time, PDR, สาเหตุจาก, กรุ๊ปปัญหา, รายละเอียด
     object_cols = df.select_dtypes(include=['object']).columns
     for col in object_cols:
         df[col] = df[col].fillna("").astype(str).str.strip()
+
+    # 5. Optional: Try to parse Start/Stop Time for sorting if needed
+    # Format sample: 27/10/2025 13:00
+    if "Start Time" in df.columns:
+        df["Start Time Object"] = pd.to_datetime(df["Start Time"], format="%d/%m/%Y %H:%M", errors='coerce')
 
     return df
 
@@ -166,13 +171,16 @@ with tab1:
     avg_plan_speed = 0
     avg_actual_speed = 0
     if "Speed Plan" in filtered_df.columns:
+        # Filter out 0 for mean calculation to be accurate
         avg_plan_speed = filtered_df[filtered_df["Speed Plan"] > 0]["Speed Plan"].mean()
     if "Actual Speed" in filtered_df.columns:
         avg_actual_speed = filtered_df[filtered_df["Actual Speed"] > 0]["Actual Speed"].mean()
     
+    # Handle NaN
     if pd.isna(avg_plan_speed): avg_plan_speed = 0
     if pd.isna(avg_actual_speed): avg_actual_speed = 0
     
+    # Sums
     total_run_time_min = filtered_df["เวลา Actual"].sum() if "เวลา Actual" in filtered_df.columns else 0
     total_plan_time_min = filtered_df["เวลา Plan"].sum() if "เวลา Plan" in filtered_df.columns else 0
     total_stop_time_min = filtered_df["เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
@@ -211,7 +219,8 @@ with tab1:
 
     with c2:
         st.subheader("🛑 Stop Causes Analysis")
-        if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns and not filtered_df.empty:
+        # Ensure column exists
+        if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
             stop_data = filtered_df[filtered_df["เวลาหยุดข้อมูลเครื่อง"] > 0]
             if not stop_data.empty:
                 stop_summary = stop_data.groupby("ลักษณะ เวลาหยุดเครื่อง")["เวลาหยุดข้อมูลเครื่อง"].sum().reset_index()
@@ -220,6 +229,10 @@ with tab1:
                 fig_pie.update_layout(height=350, margin=dict(l=20, r=20, t=0, b=20), showlegend=False)
                 fig_pie.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                st.info("No stop time recorded in this period.")
+        else:
+            st.warning("Missing columns for Stop Analysis")
 
     c3, c4 = st.columns(2)
 
@@ -238,8 +251,14 @@ with tab1:
         if "ลักษณะ Order ความยาว" in filtered_df.columns and not filtered_df.empty:
             scatter_df = filtered_df[filtered_df["Actual Speed"] > 0]
             if not scatter_df.empty:
+                # Add hover data if columns exist
+                hover_data = []
+                for h_col in ["PDR", "เครื่องจักร", "Start Time"]:
+                    if h_col in scatter_df.columns:
+                        hover_data.append(h_col)
+                        
                 fig_scatter = px.scatter(scatter_df, x="Actual Speed", y="เวลา Actual", color="ลักษณะ Order ความยาว",
-                                       hover_data=["PDR", "เครื่องจักร"],
+                                       hover_data=hover_data,
                                        title="Correlation: Speed vs Operation Time")
                 fig_scatter.update_layout(height=300)
                 st.plotly_chart(fig_scatter, use_container_width=True)
@@ -259,18 +278,20 @@ with tab2:
             mime='text/csv',
         )
         
-        # --- Column Management ---
-        # Prioritize these columns if they exist
+        # --- Column Management using User's List ---
+        # Defining the priority order based on user input
         priority_cols = [
-            "วันที่", "เครื่องจักร", "กะ", "PDR", "Start Time", "Stop Time", 
-            "รายละเอียด", "Speed Plan", "Actual Speed", "Speed เทียบแผน", 
-            "เวลา Plan", "เวลา Actual", "Diff เวลา", "ลักษณะ เวลาหยุดเครื่อง", 
-            "สาเหตุจาก", "กรุ๊ปปัญหา"
+            "วันที่", "เครื่องจักร", "กะ", "PDR", "Start Time", "Stop Time",
+            "Speed Plan", "Actual Speed", "Speed เทียบแผน",
+            "เวลา Plan", "เวลา Actual", "Diff เวลา",
+            "ลักษณะ Order ความยาว", "ลักษณะ เวลาหยุดเครื่อง",
+            "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด",
+            "หน้ากว้าง (W) PLAN", "ความยาว (L) PLAN", "Flute"
         ]
         
-        # Determine columns to show by default
         # 1. Start with priority columns that exist
         default_cols = [c for c in priority_cols if c in filtered_df.columns]
+        
         # 2. Add remaining columns that are not in priority list
         all_cols = filtered_df.columns.tolist()
         remaining_cols = [c for c in all_cols if c not in default_cols]
@@ -279,7 +300,7 @@ with tab2:
         selected_cols = st.multiselect(
             "Select Columns to Display:",
             options=all_cols,
-            default=default_cols + remaining_cols[:2] # Default to priority + first 2 others
+            default=default_cols  # Show priority columns by default
         )
         
         if not selected_cols:
@@ -299,12 +320,14 @@ with tab2:
                         color = 'background-color: #e8f5e9' # Green tint
                 return [color] * len(row)
 
-            # Format numbers
+            # Format numbers (Integer format for cleaner look)
             format_dict = {
                 "Speed Plan": "{:.0f}", "Actual Speed": "{:.0f}", 
                 "เวลา Plan": "{:.0f}", "เวลา Actual": "{:.0f}",
-                "Diff เวลา": "{:.0f}"
+                "Diff เวลา": "{:.0f}", "หน้ากว้าง (W) PLAN": "{:.0f}", 
+                "ความยาว (L) PLAN": "{:.0f}"
             }
+            # Only apply format if column exists in selection
             valid_format = {k: v for k, v in format_dict.items() if k in display_df.columns}
 
             try:
