@@ -44,7 +44,7 @@ SHEET_NAME = "DATA-SPEED"
 
 # เปลี่ยนชื่อฟังก์ชันเพื่อบังคับ Clear Cache (Force Reload)
 @st.cache_data(ttl=300)
-def load_data_v2():
+def load_data_v3():
     # Construct URL for Google Sheet CSV export
     url = (
         f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq"
@@ -52,6 +52,7 @@ def load_data_v2():
     )
     
     try:
+        # Load CSV
         df = pd.read_csv(url)
     except Exception as e:
         st.error(f"Error loading data from Google Sheet: {e}")
@@ -59,7 +60,7 @@ def load_data_v2():
 
     # --- Data Cleaning Steps ---
     
-    # 1. Clean Column Names (Remove leading/trailing spaces)
+    # 1. Clean Column Names (Important: Remove hidden spaces)
     df.columns = df.columns.str.strip()
     
     # 2. Convert Date 'วันที่' (Format: 27/10/25)
@@ -98,7 +99,7 @@ def load_data_v2():
     return df
 
 # Load Data
-df = load_data_v2()
+df = load_data_v3()
 
 if df.empty:
     st.warning("ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบ Google Sheet ID หรือ Permission")
@@ -304,6 +305,11 @@ with tab2:
             "เครื่องจักร", "วันที่"
         ]
         
+        with st.expander("🛠 Debug: เช็คชื่อคอลัมน์ (Column Check)"):
+            st.write("คอลัมน์ที่อ่านได้จากไฟล์ (Available Columns):")
+            st.write(df.columns.tolist())
+            st.write("จำนวนแถว (Rows):", len(df))
+        
         # 1. Start with priority columns that exist in the dataframe
         default_cols = [c for c in user_defined_cols if c in filtered_df.columns]
         
@@ -312,10 +318,12 @@ with tab2:
         remaining_cols = [c for c in all_cols_in_data if c not in default_cols]
         
         # Allow user to select columns
+        # KEY CHANGED: Added unique key to force widget reset
         selected_cols = st.multiselect(
-            "Select Columns to Display:",
+            "เลือกคอลัมน์ที่ต้องการแสดง (Select Columns):",
             options=all_cols_in_data,
-            default=default_cols + remaining_cols[:2]  # Show your list by default
+            default=default_cols,
+            key="column_multiselect_v3"
         )
         
         if not selected_cols:
