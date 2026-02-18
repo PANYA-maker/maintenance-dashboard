@@ -55,11 +55,17 @@ if df["วันที่"].isna().all():
 df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
 df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
 
-# แปลงตัวเลข
-numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง"]
+# แปลงตัวเลข (เพิ่ม 'Diff เวลา' เข้าไปเพื่อให้คำนวณผลรวมได้)
+numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง", "Diff เวลา"]
 for col in numeric_cols:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+# Clean string columns for filtering logic
+if "Checked-2" in df.columns:
+    df["Checked-2"] = df["Checked-2"].astype(str).str.strip()
+if "ลักษณะ เวลาหยุดเครื่อง" in df.columns:
+    df["ลักษณะ เวลาหยุดเครื่อง"] = df["ลักษณะ เวลาหยุดเครื่อง"].astype(str).str.strip()
 
 # ======================================
 # Default Date
@@ -124,6 +130,7 @@ if order_lengths:
 # ======================================
 # KPI CALCULATION
 # ======================================
+# 1. PLAN / ACTUAL / DIFF (General)
 plan_order = filtered_df["Speed Plan"].replace(0, pd.NA).notna().sum() if "Speed Plan" in filtered_df.columns else 0
 actual_order = filtered_df["Actual Speed"].replace(0, pd.NA).notna().sum() if "Actual Speed" in filtered_df.columns else 0
 
@@ -133,12 +140,22 @@ actual_minute = int(filtered_df["เวลา Actual"].sum() / 60) if "เวล
 diff_order = actual_order - plan_order
 diff_minute = actual_minute - plan_minute
 
-stop_order = 0
-stop_minute = 0
-if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
-    stop_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง"]
-    stop_order = len(stop_df)
-    stop_minute = int(stop_df["เวลาหยุดข้อมูลเครื่อง"].sum()) if "เวลาหยุดข้อมูลเครื่อง" in stop_df.columns else 0
+# 2. NON-STOP KPI (แทนที่ Stop Time เดิม)
+non_stop_order = 0
+non_stop_minute = 0
+
+if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
+    # Condition 1: Order Count -> Checked-2="YES" AND ลักษณะ เวลาหยุดเครื่อง="ไม่จอดเครื่อง"
+    cond_count = (
+        (filtered_df["Checked-2"].str.lower() == "yes") & 
+        (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
+    )
+    non_stop_order = len(filtered_df[cond_count])
+
+    # Condition 2: Minute -> Sum of "Diff เวลา" where ลักษณะ เวลาหยุดเครื่อง="ไม่จอดเครื่อง"
+    if "Diff เวลา" in filtered_df.columns:
+        cond_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
+        non_stop_minute = int(filtered_df.loc[cond_time, "Diff เวลา"].sum())
 
 # ======================================
 # KPI DISPLAY (Compact Version)
@@ -146,7 +163,7 @@ if "ลักษณะ เวลาหยุดเครื่อง" in filtere
 st.markdown("### 📊 Speed – Interactive Dashboard")
 
 def kpi_card_compact(title, bg_color, order, minute, text_color="#000"):
-    # ปรับ CSS ให้ Card กระชับขึ้น (Padding น้อยลง, Flexbox จัดกลาง)
+    # ปรับ CSS ให้ Card กระชับขึ้น
     return f"""
     <div style="
         background:{bg_color};
@@ -182,32 +199,33 @@ def kpi_card_compact(title, bg_color, order, minute, text_color="#000"):
     </div>
     """
 
-col_plan, col_actual, col_stop, col_diff = st.columns(4)
+# ใช้ 4 คอลัมน์เหมือนเดิม แต่เปลี่ยนช่องที่ 3 เป็น Non-Stop
+col_plan, col_actual, col_nonstop, col_diff = st.columns(4)
 
 with col_plan:
     st.markdown(kpi_card_compact("PLAN", "#2ec4c6", plan_order, int(plan_minute)), unsafe_allow_html=True)
 with col_actual:
     st.markdown(kpi_card_compact("ACTUAL", "#a3d977", actual_order, int(actual_minute)), unsafe_allow_html=True)
-with col_stop:
-    # Manual card for Stop Time to match the compact style
+with col_nonstop:
+    # เปลี่ยนจากการ์ด Stop Time เป็นการ์ด NON-STOP
     st.markdown(f"""
         <div style="
-            background:#ffb703;
+            background:#9b59b6;
             padding:15px;
             border-radius:12px;
-            color:#000;
+            color:#fff;
             box-shadow:0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 10px;
         ">
-            <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">STOP TIME</h4>
+            <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">NON-STOP</h4>
             <div style="display:flex; gap:8px; justify-content:space-between;">
-                <div style="background:rgba(255,255,255,0.45); padding:8px; border-radius:8px; flex:1; text-align:center;">
-                    <div style="font-size:12px; opacity:0.9;">Order (จอด)</div>
-                    <div style="font-size:20px; font-weight:700;">{stop_order:,}</div>
+                <div style="background:rgba(255,255,255,0.2); padding:8px; border-radius:8px; flex:1; text-align:center;">
+                    <div style="font-size:12px; opacity:0.9;">Order (Yes)</div>
+                    <div style="font-size:20px; font-weight:700;">{non_stop_order:,}</div>
                 </div>
-                <div style="background:rgba(255,255,255,0.45); padding:8px; border-radius:8px; flex:1; text-align:center;">
-                    <div style="font-size:12px; opacity:0.9;">Minute</div>
-                    <div style="font-size:20px; font-weight:700;">{stop_minute:,}</div>
+                <div style="background:rgba(255,255,255,0.2); padding:8px; border-radius:8px; flex:1; text-align:center;">
+                    <div style="font-size:12px; opacity:0.9;">Diff Time</div>
+                    <div style="font-size:20px; font-weight:700;">{non_stop_minute:+,}</div>
                 </div>
             </div>
         </div>""", unsafe_allow_html=True)
