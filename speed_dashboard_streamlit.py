@@ -164,7 +164,6 @@ overall_speed_time = non_stop_minute + stop_orders_time_sum
 st.markdown("### 📊 Speed – Interactive Dashboard")
 
 def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", order_label="Order", minute_label="Minute"):
-    # ปรับสไตล์ให้ดูพรีเมียมและพอดีกับเนื้อหา
     return f"""
     <div style="
         background:{bg_color};
@@ -200,7 +199,7 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", 
     </div>
     """
 
-# แสดง 3 คอลัมน์หลักตามที่ต้องการ
+# แสดง 3 คอลัมน์หลัก
 col_ns, col_so, col_ov = st.columns(3)
 
 with col_ns:
@@ -210,28 +209,18 @@ with col_so:
     st.markdown(kpi_card_compact("STOP ORDERS", "#e67e22", stop_orders_count, stop_orders_time_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
 
 with col_ov:
-    # การ์ดภาพรวมสปีด (OVERALL SPEED) - ใช้สีเข้มเพื่อให้ดูเป็นบทสรุป
-    st.markdown(f"""
-    <div style="
-        background:#2c3e50;
-        padding:15px;
-        border-radius:12px;
-        color:#fff;
-        box-shadow:0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 10px;
-        text-align:center;
-    ">
-        <h4 style="margin:0 0 10px 0; font-size:16px;">OVERALL SPEED</h4>
-        <div style="
-            background:rgba(255,255,255,0.15);
-            padding:12px;
-            border-radius:8px;
-        ">
-            <div style="font-size:11px; opacity:0.8; margin-bottom:4px;">เวลาภาพรวม (Total Summary)</div>
-            <div style="font-size:28px; font-weight:700;">{overall_speed_time:+,} <span style="font-size:14px; font-weight:400;">Min</span></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # ลูกเล่นใหม่: สีเขียวถ้าบวก สีแดงถ้าลบ
+    overall_bg_color = "#2ecc71" if overall_speed_time >= 0 else "#e74c3c"
+    # ใช้ kpi_card_compact เพื่อให้ขนาดเท่ากับการ์ดอื่น
+    st.markdown(kpi_card_compact(
+        "OVERALL SPEED", 
+        overall_bg_color, 
+        non_stop_order + stop_orders_count, 
+        overall_speed_time, 
+        text_color="#fff", 
+        order_label="Total Order", 
+        minute_label="Summary Min"
+    ), unsafe_allow_html=True)
 
 st.divider()
 
