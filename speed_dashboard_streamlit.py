@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from urllib.parse import quote
 
 # ======================================
@@ -161,7 +162,7 @@ overall_speed_time = non_stop_minute + stop_orders_time_sum
 # ======================================
 # KPI DISPLAY (Compact Version)
 # ======================================
-st.markdown("### 📊 Speed – Interactive Dashboard")
+st.markdown("### 📊 Speed – Performance Overview")
 
 def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", order_label="Order", minute_label="Minute"):
     return f"""
@@ -173,7 +174,7 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", 
         box-shadow:0 4px 6px rgba(0,0,0,0.1);
         margin-bottom: 10px;
     ">
-        <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">{title}</h4>
+        <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px; font-family:sans-serif;">{title}</h4>
         <div style="display:flex; gap:8px; justify-content:space-between;">
             <div style="
                 background:rgba(255,255,255,0.25);
@@ -203,15 +204,13 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", 
 col_ns, col_so, col_ov = st.columns(3)
 
 with col_ns:
-    st.markdown(kpi_card_compact("NON-STOP", "#9b59b6", non_stop_order, non_stop_minute, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("NON-STOP", "#8e44ad", non_stop_order, non_stop_minute, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
 
 with col_so:
-    st.markdown(kpi_card_compact("STOP ORDERS", "#e67e22", stop_orders_count, stop_orders_time_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("STOP ORDERS", "#d35400", stop_orders_count, stop_orders_time_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
 
 with col_ov:
-    # ลูกเล่นใหม่: สีเขียวถ้าบวก สีแดงถ้าลบ
-    overall_bg_color = "#2ecc71" if overall_speed_time >= 0 else "#e74c3c"
-    # ใช้ kpi_card_compact เพื่อให้ขนาดเท่ากับการ์ดอื่น
+    overall_bg_color = "#27ae60" if overall_speed_time >= 0 else "#c0392b"
     st.markdown(kpi_card_compact(
         "OVERALL SPEED", 
         overall_bg_color, 
@@ -225,47 +224,74 @@ with col_ov:
 st.divider()
 
 # ======================================
-# Charts
+# Charts Improvement
 # ======================================
 colA, colB = st.columns(2)
 
 with colA:
-    st.subheader("📊 สัดส่วนลักษณะ Order ความยาว")
+    st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาวแยกตามเครื่องจักร")
     if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
         bar_df = filtered_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
-        bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: x / x.sum() * 100)
-        bar_df["Label"] = bar_df["Order Count"].astype(str) + " (" + bar_df["Percent"].round(0).astype(int).astype(str) + "%)"
+        bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: (x / x.sum() * 100).round(1))
         
-        fig_bar = px.bar(bar_df, x="Percent", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h", text="Label", title="100% Stacked: ลักษณะ Order ความยาว")
+        fig_bar = px.bar(
+            bar_df, 
+            x="Percent", 
+            y="เครื่องจักร", 
+            color="ลักษณะ Order ความยาว", 
+            orientation="h",
+            text=bar_df.apply(lambda row: f"{row['Order Count']} ({row['Percent']}%)", axis=1),
+            color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+        
         fig_bar.update_layout(
             barmode="stack", 
-            xaxis=dict(range=[0, 100]), 
-            height=350, 
-            margin=dict(l=10, r=10, t=30, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            xaxis=dict(title="สัดส่วนเปอร์เซ็นต์ (%)", range=[0, 105]),
+            yaxis=dict(title=None),
+            height=400, 
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            hovermode="closest",
+            template="plotly_white"
         )
+        fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
         st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        st.info("ไม่พบข้อมูลกราฟ")
+        st.info("ไม่พบข้อมูลลักษณะ Order ความยาว")
 
 with colB:
-    st.subheader("🛑 สัดส่วนลักษณะเวลาหยุดเครื่อง")
+    st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
     if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
         stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
-        fig_pie = px.pie(stop_sum, names="ลักษณะ เวลาหยุดเครื่อง", values="จำนวนครั้ง", hole=0.45)
+        
+        fig_pie = px.pie(
+            stop_sum, 
+            names="ลักษณะ เวลาหยุดเครื่อง", 
+            values="จำนวนครั้ง", 
+            hole=0.5,
+            color_discrete_sequence=px.colors.qualitative.Safe
+        )
+        
         fig_pie.update_layout(
-            height=350,
-            margin=dict(l=10, r=10, t=30, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            height=400,
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            template="plotly_white"
+        )
+        fig_pie.update_traces(
+            textinfo='percent+label',
+            pull=[0.05] * len(stop_sum),
+            marker=dict(line=dict(color='#FFFFFF', width=2))
         )
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
-        st.info("ไม่พบข้อมูลกราฟ")
+        st.info("ไม่พบข้อมูลลักษณะเวลาหยุดเครื่อง")
 
 # ======================================
 # Detail Table
 # ======================================
-st.subheader("📋 รายละเอียด Order")
+st.markdown("---")
+st.subheader("📋 รายละเอียดรายการ Order (Data Logs)")
 
 full_cols_list = [
     "วันที่", "เครื่องจักร", "กะ", 
