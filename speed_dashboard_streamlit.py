@@ -245,41 +245,65 @@ with tab2:
     # --- DATA TABLE ---
     st.subheader("📋 Detailed Data View")
     
-    # Download Button
-    csv = filtered_df.to_csv(index=False).encode('utf-8-sig')
-    st.download_button(
-        label="📥 Download Filtered CSV",
-        data=csv,
-        file_name='filtered_speed_data.csv',
-        mime='text/csv',
-    )
-    
-    # Interactive Table with styling
-    # Define columns to show
-    cols_to_show = [
-        "วันที่", "เครื่องจักร", "PDR", "Speed Plan", "Actual Speed", 
-        "Speed เทียบแผน", "เวลา Plan", "เวลา Actual", "ลักษณะ เวลาหยุดเครื่อง"
-    ]
-    
-    # Filter columns that exist in the dataframe
-    cols_to_show = [c for c in cols_to_show if c in filtered_df.columns]
+    if filtered_df.empty:
+        st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไขที่เลือก (No data found)")
+    else:
+        # Download Button
+        csv = filtered_df.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(
+            label="📥 Download Filtered CSV",
+            data=csv,
+            file_name='filtered_speed_data.csv',
+            mime='text/csv',
+        )
+        
+        # Define desired columns
+        target_cols = [
+            "วันที่", "เครื่องจักร", "PDR", "Speed Plan", "Actual Speed", 
+            "Speed เทียบแผน", "เวลา Plan", "เวลา Actual", "ลักษณะ เวลาหยุดเครื่อง"
+        ]
+        
+        # Filter only columns that actually exist in the dataframe to prevent errors
+        cols_to_show = [c for c in target_cols if c in filtered_df.columns]
 
-    # Style function: Highlight rows based on 'Speed เทียบแผน'
-    def highlight_status(s):
-        if s["Speed เทียบแผน"] == "ช้ากว่าแผน":
-            return ['background-color: #ffebee'] * len(s)
-        elif s["Speed เทียบแผน"] == "เร็วกว่าแผน":
-            return ['background-color: #e8f5e9'] * len(s)
+        if not cols_to_show:
+            st.error("ไม่พบคอลัมน์ที่ต้องการแสดงผล")
+            st.write("Columns found:", filtered_df.columns.tolist())
         else:
-            return [''] * len(s)
+            # Create a display copy
+            display_df = filtered_df[cols_to_show].copy()
 
-    # Display Styled DataFrame
-    st.dataframe(
-        filtered_df[cols_to_show].style.apply(highlight_status, axis=1, subset=cols_to_show)
-        .format({"Speed Plan": "{:.0f}", "Actual Speed": "{:.0f}", "เวลา Plan": "{:.0f}", "เวลา Actual": "{:.0f}"}),
-        use_container_width=True,
-        height=600
-    )
+            # Style function: Highlight rows based on 'Speed เทียบแผน'
+            def highlight_status(row):
+                color = ''
+                # Check if column exists in this row/index before accessing
+                if "Speed เทียบแผน" in row.index:
+                    status = str(row["Speed เทียบแผน"])
+                    if status == "ช้ากว่าแผน":
+                        color = 'background-color: #ffebee' # Red tint
+                    elif status == "เร็วกว่าแผน":
+                        color = 'background-color: #e8f5e9' # Green tint
+                return [color] * len(row)
+
+            # Define format dict only for existing columns
+            format_dict = {
+                "Speed Plan": "{:.0f}", "Actual Speed": "{:.0f}", 
+                "เวลา Plan": "{:.0f}", "เวลา Actual": "{:.0f}"
+            }
+            valid_format = {k: v for k, v in format_dict.items() if k in display_df.columns}
+
+            try:
+                # Display Styled DataFrame
+                st.dataframe(
+                    display_df.style.apply(highlight_status, axis=1)
+                    .format(valid_format),
+                    use_container_width=True,
+                    height=600
+                )
+            except Exception as e:
+                # Fallback if styling fails
+                st.warning(f"Styling failed, showing plain table. Error: {e}")
+                st.dataframe(display_df, use_container_width=True)
 
 # Footer
 st.markdown("---")
