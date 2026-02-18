@@ -130,9 +130,9 @@ if order_lengths:
 # KPI CALCULATION
 # ======================================
 
-# 1. NON-STOP (ออเดอร์ที่ไม่จอดเครื่อง)
+# 1. NON-STOP Calculation
 non_stop_order = 0
-non_stop_minute = 0
+raw_non_stop_minute = 0.0 # เก็บค่าดิบไว้ก่อน
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
     cond_ns_count = (
         (filtered_df["Checked-2"].str.upper() == "YES") & 
@@ -142,12 +142,11 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
     
     cond_ns_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
     if "Diff เวลา" in filtered_df.columns:
-        # ปรับการปัดเศษให้เป็นจำนวนเต็ม (round และ int)
-        non_stop_minute = int(round(filtered_df.loc[cond_ns_time, "Diff เวลา"].sum()))
+        raw_non_stop_minute = filtered_df.loc[cond_ns_time, "Diff เวลา"].sum()
 
-# 2. STOP ORDERS (ออเดอร์ที่จอดเครื่อง)
+# 2. STOP ORDERS Calculation
 stop_orders_count = 0
-stop_orders_time_sum = 0
+raw_stop_orders_time_sum = 0.0 # เก็บค่าดิบไว้ก่อน
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
     cond_stop_mask = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
     cond_stop_yes = (filtered_df["Checked-2"].str.upper() == "YES") & cond_stop_mask
@@ -155,11 +154,14 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
 
     diff_val = filtered_df.loc[cond_stop_mask, "Diff เวลา"].sum() if "Diff เวลา" in filtered_df.columns else 0
     stop_info_val = filtered_df.loc[cond_stop_mask, "เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
-    # ปรับการปัดเศษให้เป็นจำนวนเต็ม (round และ int)
-    stop_orders_time_sum = int(round(diff_val + stop_info_val))
+    raw_stop_orders_time_sum = diff_val + stop_info_val
 
-# 3. OVERALL SPEED (ภาพรวมสปีด = Non-Stop Diff Time + Stop Orders Total Time)
-overall_speed_time = non_stop_minute + stop_orders_time_sum
+# 3. OVERALL Calculation (นำค่าดิบมารวมกันก่อนปัดเศษ เพื่อให้ตรงกับกราฟ)
+overall_speed_time = int(round(raw_non_stop_minute + raw_stop_orders_time_sum))
+
+# สำหรับแสดงในการ์ดแยก ก็ปัดเศษตามปกติ
+non_stop_minute_display = int(round(raw_non_stop_minute))
+stop_orders_time_sum_display = int(round(raw_stop_orders_time_sum))
 
 # ======================================
 # KPI DISPLAY (Compact Version)
@@ -206,10 +208,10 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", 
 col_ns, col_so, col_ov = st.columns(3)
 
 with col_ns:
-    st.markdown(kpi_card_compact("NON-STOP", "#8e44ad", non_stop_order, non_stop_minute, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("NON-STOP", "#8e44ad", non_stop_order, non_stop_minute_display, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
 
 with col_so:
-    st.markdown(kpi_card_compact("STOP ORDERS", "#d35400", stop_orders_count, stop_orders_time_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
+    st.markdown(kpi_card_compact("STOP ORDERS", "#d35400", stop_orders_count, stop_orders_time_sum_display, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
 
 with col_ov:
     overall_bg_color = "#27ae60" if overall_speed_time >= 0 else "#c0392b"
@@ -341,7 +343,7 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
         x=trend_resampled['Date_Label'],
         y=trend_resampled['Overall_Contribution'],
         marker_color=colors,
-        text=trend_resampled['Overall_Contribution'].round(0).astype(int), # ปรับ Text กราฟให้เป็นจำนวนเต็มด้วย
+        text=trend_resampled['Overall_Contribution'].round(0).astype(int), 
         textposition='outside',
         hovertemplate="ช่วงเวลา: %{x}<br>Overall Speed: %{y:.1f} Min<extra></extra>"
     ))
