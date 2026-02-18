@@ -55,13 +55,13 @@ if df["วันที่"].isna().all():
 df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
 df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
 
-# แปลงตัวเลข (บังคับให้เป็นตัวเลขและจัดการค่าว่าง/ข้อความให้เป็น 0)
+# แปลงตัวเลข
 numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง", "Diff เวลา"]
 for col in numeric_cols:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-# ลบช่องว่างในคอลัมน์ที่เป็นข้อความเพื่อป้องกันปัญหาการหาข้อมูลไม่เจอ
+# ลบช่องว่างในข้อความ
 for col in df.select_dtypes(include=['object']).columns:
     df[col] = df[col].astype(str).str.strip()
 
@@ -129,15 +129,7 @@ if order_lengths:
 # KPI CALCULATION
 # ======================================
 
-# 1. PLAN
-plan_order = filtered_df["Speed Plan"].replace(0, pd.NA).notna().sum() if "Speed Plan" in filtered_df.columns else 0
-plan_minute = round(filtered_df["เวลา Plan"].sum() / 60) if "เวลา Plan" in filtered_df.columns else 0
-
-# 2. ACTUAL
-actual_order = filtered_df["Actual Speed"].replace(0, pd.NA).notna().sum() if "Actual Speed" in filtered_df.columns else 0
-actual_minute = round(filtered_df["เวลา Actual"].sum() / 60) if "เวลา Actual" in filtered_df.columns else 0
-
-# 3. NON-STOP (ออเดอร์ที่ไม่จอดเครื่อง)
+# 1. NON-STOP (ออเดอร์ที่ไม่จอดเครื่อง)
 non_stop_order = 0
 non_stop_minute = 0
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
@@ -151,22 +143,20 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
     if "Diff เวลา" in filtered_df.columns:
         non_stop_minute = round(filtered_df.loc[cond_ns_time, "Diff เวลา"].sum())
 
-# 4. STOP ORDERS (ออเดอร์ที่จอดเครื่อง - สูตรใหม่ตามเงื่อนไขที่ระบุ)
+# 2. STOP ORDERS (ออเดอร์ที่จอดเครื่อง)
 stop_orders_count = 0
 stop_orders_time_sum = 0
 if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
-    # นับ Checked-2 เป็น "YES" และ กรอง "จอดเครื่อง"
     cond_stop_mask = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
     cond_stop_yes = (filtered_df["Checked-2"].str.upper() == "YES") & cond_stop_mask
-    
     stop_orders_count = len(filtered_df[cond_stop_yes])
 
-    # เวลารวม = (ผลรวม Diff เวลา) + (ผลรวม เวลาหยุดข้อมูลเครื่อง) เฉพาะ "จอดเครื่อง"
     diff_val = filtered_df.loc[cond_stop_mask, "Diff เวลา"].sum() if "Diff เวลา" in filtered_df.columns else 0
     stop_info_val = filtered_df.loc[cond_stop_mask, "เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
-    
-    # ใช้ round() เพื่อให้ 5.7 ปัดเป็น 6
     stop_orders_time_sum = round(diff_val + stop_info_val)
+
+# 3. OVERALL SPEED (ภาพรวมสปีด = Non-Stop Diff Time + Stop Orders Total Time)
+overall_speed_time = non_stop_minute + stop_orders_time_sum
 
 # ======================================
 # KPI DISPLAY (Compact Version)
@@ -174,6 +164,7 @@ if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหย
 st.markdown("### 📊 Speed – Interactive Dashboard")
 
 def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", order_label="Order", minute_label="Minute"):
+    # ปรับสไตล์ให้ดูพรีเมียมและพอดีกับเนื้อหา
     return f"""
     <div style="
         background:{bg_color};
@@ -186,44 +177,61 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#000", 
         <h4 style="text-align:center; margin:0 0 10px 0; font-size:16px;">{title}</h4>
         <div style="display:flex; gap:8px; justify-content:space-between;">
             <div style="
-                background:rgba(255,255,255,0.3);
+                background:rgba(255,255,255,0.25);
                 padding:8px;
                 border-radius:8px;
                 flex:1;
                 text-align:center;
             ">
                 <div style="font-size:11px; opacity:0.9;">{order_label}</div>
-                <div style="font-size:20px; font-weight:700;">{order_val:,}</div>
+                <div style="font-size:22px; font-weight:700;">{order_val:,}</div>
             </div>
             <div style="
-                background:rgba(255,255,255,0.3);
+                background:rgba(255,255,255,0.25);
                 padding:8px;
                 border-radius:8px;
                 flex:1;
                 text-align:center;
             ">
                 <div style="font-size:11px; opacity:0.9;">{minute_label}</div>
-                <div style="font-size:20px; font-weight:700;">{minute_val:+,}</div>
+                <div style="font-size:22px; font-weight:700;">{minute_val:+,}</div>
             </div>
         </div>
     </div>
     """
 
-# แสดง 4 คอลัมน์หลัก
-col_plan, col_actual, col_nonstop, col_stop_orders = st.columns(4)
+# แสดง 3 คอลัมน์หลักตามที่ต้องการ
+col_ns, col_so, col_ov = st.columns(3)
 
-with col_plan:
-    st.markdown(kpi_card_compact("PLAN", "#2ec4c6", plan_order, plan_minute), unsafe_allow_html=True)
-
-with col_actual:
-    st.markdown(kpi_card_compact("ACTUAL", "#a3d977", actual_order, actual_minute), unsafe_allow_html=True)
-
-with col_nonstop:
+with col_ns:
     st.markdown(kpi_card_compact("NON-STOP", "#9b59b6", non_stop_order, non_stop_minute, text_color="#fff", order_label="Order (Yes)", minute_label="Diff Time"), unsafe_allow_html=True)
 
-with col_stop_orders:
-    # แสดงเวลารวมจากสูตรใหม่ (Diff Time + Stop Time)
+with col_so:
     st.markdown(kpi_card_compact("STOP ORDERS", "#e67e22", stop_orders_count, stop_orders_time_sum, text_color="#fff", order_label="Order (Yes)", minute_label="Total Time"), unsafe_allow_html=True)
+
+with col_ov:
+    # การ์ดภาพรวมสปีด (OVERALL SPEED) - ใช้สีเข้มเพื่อให้ดูเป็นบทสรุป
+    st.markdown(f"""
+    <div style="
+        background:#2c3e50;
+        padding:15px;
+        border-radius:12px;
+        color:#fff;
+        box-shadow:0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
+        text-align:center;
+    ">
+        <h4 style="margin:0 0 10px 0; font-size:16px;">OVERALL SPEED</h4>
+        <div style="
+            background:rgba(255,255,255,0.15);
+            padding:12px;
+            border-radius:8px;
+        ">
+            <div style="font-size:11px; opacity:0.8; margin-bottom:4px;">เวลาภาพรวม (Total Summary)</div>
+            <div style="font-size:28px; font-weight:700;">{overall_speed_time:+,} <span style="font-size:14px; font-weight:400;">Min</span></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
