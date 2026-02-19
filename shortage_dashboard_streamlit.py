@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Trend Chart Labels showing Count and Percentage
+# UPDATED: Added Machine Performance Stacked Bar Chart
 # =====================================
 
 import streamlit as st
@@ -90,7 +90,6 @@ with st.sidebar:
     max_date = df["วันที่"].max()
     min_date = df["วันที่"].min()
     
-    # คำนวณวันเริ่มต้นย้อนหลัง 7 วัน จากวันล่าสุดในข้อมูล
     if not pd.isna(max_date):
         default_start = max_date - pd.Timedelta(days=7)
     else:
@@ -179,7 +178,7 @@ if not fdf.empty and order_total > 0:
     * **สถานะปัจจุบัน:** {status_label} ด้วยอัตราขาดจำนวน **{short_pct:.1f}%**
     * **ปัจจัยหลักที่ส่งผล:** ปัญหาหลักคือ **{main_cause}**
     * **ผลกระทบสะสม:** ขาดรวมทั้งหมด **{missing_meters:,.0f} เมตร** คิดเป็นน้ำหนักรวม **{missing_weight:,.0f} กก.**
-    * **การจัดการของเสีย:** มีน้ำหนักของเหลือ PDW สะสมในระบบซ่อม **{pdw_scrap_val:,.0f} กก.**
+    * **การจัดการของเสีย:** มีน้ำหนัก PDW สะสมในระบบซ่อม **{pdw_scrap_val:,.0f} กก.**
     """)
 else:
     st.info("กรุณาเลือกช่วงเวลาที่มีข้อมูล")
@@ -220,9 +219,7 @@ if not trend.empty:
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         title_suffix = ""
     elif period == "รายสัปดาห์": 
-        # คำนวณหา "วันอาทิตย์" ล่าสุดของแต่ละวันที่
         trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
-        # เปลี่ยนรูปแบบเป็น Week X โดยใช้ %U (นับวันอาทิตย์เป็นวันแรกของสัปดาห์)
         trend["ช่วง"] = "Week " + trend["วันที่"].dt.strftime("%U")
         title_suffix = " - เริ่มต้นสัปดาห์ที่วันอาทิตย์"
     elif period == "รายเดือน": 
@@ -237,7 +234,6 @@ if not trend.empty:
     sum_trend = trend.groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
     total_in_period = sum_trend.groupby("ช่วง_dt")["จำนวน"].transform("sum")
     sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1)
-    # แก้ไข: สร้างคอลัมน์สำหรับแสดงข้อความ จำนวน (เปอร์เซ็นต์)
     sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
     sum_trend = sum_trend.sort_values("ช่วง_dt")
     
@@ -252,14 +248,41 @@ if not trend.empty:
     st.plotly_chart(fig_trend, use_container_width=True)
 
 # =========================
-# SECTION 5: REPAIR & DATA EXPLORER
+# SECTION 5: MACHINE PERFORMANCE (NEW SECTION)
+# =========================
+st.markdown('<div class="section-header">🖥️ ประสิทธิภาพรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
+mc_perf = fdf.copy()
+if not mc_perf.empty:
+    mc_summary = mc_perf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวน')
+    mc_total = mc_summary.groupby('MC')['จำนวน'].transform('sum')
+    mc_summary['%'] = (mc_summary['จำนวน'] / mc_total * 100).round(1)
+    mc_summary['label_display'] = mc_summary.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
+    
+    # Sort MC by name to keep it consistent
+    mc_summary = mc_summary.sort_values('MC')
+    
+    fig_mc = px.bar(mc_summary, x="MC", y="%", color="สถานะผลิต", 
+                    title="สัดส่วนสถานะการผลิตแยกตามเครื่องจักร (Compare MC Performance)",
+                    text="label_display",
+                    barmode="stack", 
+                    category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
+                    color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
+    
+    fig_mc.update_traces(textposition="inside", textfont=dict(size=11, color="white"))
+    fig_mc.update_layout(yaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', 
+                         xaxis_title="รหัสเครื่องจักร (MC)", yaxis_title="สัดส่วน (%)",
+                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    st.plotly_chart(fig_mc, use_container_width=True)
+
+# =========================
+# SECTION 6: REPAIR & DATA EXPLORER
 # =========================
 st.divider()
 st.markdown('<div class="section-header">🛠️ งานซ่อมและการจัดการ PDW (Repair Workstream)</div>', unsafe_allow_html=True)
 short_order_count = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
 
 r_col1, r_col2 = st.columns(2)
-with r_col1: kpi_box("Shortage Orders (Repair)", f"{short_order_count:,.0f}", "ผลิตไม่ครบ (Order)", "#374151")
+with r_col1: kpi_box("Shortage Orders (Repair)", f"{short_order_count:,.0f}", "ใบงานที่ต้องดำเนินการซ่อม", "#374151")
 with r_col2: kpi_box("Total PDW Scrap", f"{pdw_scrap_val:,.0f}", "น้ำหนักของเหลือรวม (กิโลกรัม)", "#78350f")
 
 if "สถานะซ่อมสรุป" in fdf.columns:
@@ -282,4 +305,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
     cols = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป"]
     st.dataframe(fdf_display[[c for c in cols if c in fdf_display.columns]].sort_values("วันที่", ascending=False), use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Sunday-Start Week Cycle | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Machine Performance Analysis Included | ข้อมูลครบถ้วน 100%")
