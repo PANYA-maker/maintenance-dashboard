@@ -260,20 +260,36 @@ with tab_logs:
     with col_a:
         st.markdown("#### 📦 สัดส่วนออเดอร์แยกตามเครื่องจักร")
         if "เครื่องจักร" in f_df.columns:
+            # 1. คำนวณจำนวนและเปอร์เซ็นต์
             bar_df = f_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="C")
+            bar_df['Total'] = bar_df.groupby('เครื่องจักร')['C'].transform('sum')
+            bar_df['Pct'] = (bar_df['C'] / bar_df['Total'] * 100).round(1)
+            # สร้าง Label ข้อความ (จำนวน และ เปอร์เซ็นต์)
+            bar_df['Label'] = bar_df.apply(lambda r: f"{int(r['C'])} ({r['Pct']}%)", axis=1)
+
             fig_bar = px.bar(
                 bar_df, x="C", y="เครื่องจักร", color="ลักษณะ Order ความยาว", 
                 orientation="h", barmode="stack",
                 color_discrete_sequence=px.colors.qualitative.Pastel,
-                text_auto=True
+                text='Label' # ใช้ Label ที่สร้างขึ้น
             )
             fig_bar.update_layout(
-                height=350, template="plotly_white", 
+                height=400, template="plotly_white", 
                 margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                xaxis_title="จำนวนออเดอร์"
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+                xaxis_title="จำนวนออเดอร์",
+                yaxis_title=None,
+                # ป้องกันข้อความทับกันโดยซ่อนอันที่เล็กเกินไป
+                uniformtext_minsize=8,
+                uniformtext_mode='hide'
             )
-            fig_bar.update_traces(marker_line_color='white', marker_line_width=1, opacity=0.9)
+            fig_bar.update_traces(
+                textposition='inside', 
+                insidetextanchor='middle',
+                marker_line_color='white', 
+                marker_line_width=1.5, 
+                opacity=0.9
+            )
             st.plotly_chart(fig_bar, use_container_width=True)
 
     with col_b:
@@ -285,10 +301,14 @@ with tab_logs:
                 hole=0.6, color_discrete_sequence=px.colors.qualitative.Safe
             )
             fig_stop.update_layout(
-                height=350, margin=dict(l=10, r=10, t=10, b=10),
+                height=400, margin=dict(l=10, r=10, t=10, b=10),
                 legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5)
             )
-            fig_stop.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)))
+            fig_stop.update_traces(
+                textinfo='percent+label', 
+                marker=dict(line=dict(color='#ffffff', width=2)),
+                pull=[0.05, 0, 0] # ดึงเซกเมนต์ออกมาเล็กน้อยเพื่อความสวยงาม
+            )
             st.plotly_chart(fig_stop, use_container_width=True)
 
     st.markdown("---")
@@ -302,7 +322,9 @@ with tab_logs:
         with c2:
             filter_prob = st.multiselect("กรองตามกรุ๊ปปัญหา:", options=get_opts("กรุ๊ปปัญหา"))
         with c3:
-            filter_speed = st.multiselect("กรองตาม Speed เทียบแผน:", options=get_opts("Speed เทียบแผน"))
+            # ใช้คอลัมน์ Speed เทียบแผน ถ้ามี
+            s_opts = get_opts("Speed เทียบแผน") if "Speed เทียบแผน" in f_df.columns else []
+            filter_speed = st.multiselect("กรองตาม Speed เทียบแผน:", options=s_opts)
 
     # Apply Table Filters
     log_df = f_df.copy()
