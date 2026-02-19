@@ -166,7 +166,7 @@ non_stop_minute_display = int(round(raw_non_stop_minute))
 stop_orders_time_sum_display = int(round(raw_stop_orders_time_sum))
 
 # ======================================
-# KPI DISPLAY (Redesigned Version)
+# KPI DISPLAY
 # ======================================
 st.markdown("### 📊 Speed – Performance Overview")
 
@@ -227,70 +227,8 @@ with col_ov:
         overall_speed_time
     ), unsafe_allow_html=True)
 
-st.divider()
-
 # ======================================
-# Charts Row 1
-# ======================================
-colA, colB = st.columns(2)
-
-with colA:
-    st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาวแยกตามเครื่องจักร")
-    if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
-        bar_df = filtered_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
-        bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: (x / x.sum() * 100).round(1))
-        
-        fig_bar = px.bar(
-            bar_df, 
-            x="Percent", 
-            y="เครื่องจักร", 
-            color="ลักษณะ Order ความยาว", 
-            orientation="h",
-            text=bar_df.apply(lambda row: f"{row['Order Count']} ({row['Percent']}%)", axis=1),
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
-        
-        fig_bar.update_layout(
-            barmode="stack", 
-            xaxis=dict(title="สัดส่วนเปอร์เซ็นต์ (%)", range=[0, 105]),
-            yaxis=dict(title=None),
-            height=400, 
-            margin=dict(l=10, r=10, t=10, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            hovermode="closest",
-            template="plotly_white"
-        )
-        fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-with colB:
-    st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
-    if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
-        stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
-        
-        fig_pie = px.pie(
-            stop_sum, 
-            names="ลักษณะ เวลาหยุดเครื่อง", 
-            values="จำนวนครั้ง", 
-            hole=0.5,
-            color_discrete_sequence=px.colors.qualitative.Safe
-        )
-        
-        fig_pie.update_layout(
-            height=400,
-            margin=dict(l=10, r=10, t=10, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
-            template="plotly_white"
-        )
-        fig_pie.update_traces(
-            textinfo='percent+label',
-            pull=[0.05] * len(stop_sum),
-            marker=dict(line=dict(color='#FFFFFF', width=2))
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-# ======================================
-# TREND CHART: OVERALL SPEED (WEEKISO)
+# MOVED TREND CHART: OVERALL SPEED (Right after KPI Cards)
 # ======================================
 st.markdown("---")
 st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (Time Trend Analysis)")
@@ -357,8 +295,71 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
         template="plotly_white",
         showlegend=False
     )
-
     st.plotly_chart(fig_trend, use_container_width=True)
+else:
+    st.info("ไม่มีข้อมูลเพียงพอสำหรับสร้างกราฟแนวโน้ม")
+
+st.divider()
+
+# ======================================
+# Charts Row 2 (Bar & Pie)
+# ======================================
+colA, colB = st.columns(2)
+
+with colA:
+    st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาวแยกตามเครื่องจักร")
+    if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
+        bar_df = filtered_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
+        bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: (x / x.sum() * 100).round(1))
+        
+        fig_bar = px.bar(
+            bar_df, 
+            x="Percent", 
+            y="เครื่องจักร", 
+            color="ลักษณะ Order ความยาว", 
+            orientation="h",
+            text=bar_df.apply(lambda row: f"{row['Order Count']} ({row['Percent']}%)", axis=1),
+            color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+        
+        fig_bar.update_layout(
+            barmode="stack", 
+            xaxis=dict(title="สัดส่วนเปอร์เซ็นต์ (%)", range=[0, 105]),
+            yaxis=dict(title=None),
+            height=400, 
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            hovermode="closest",
+            template="plotly_white"
+        )
+        fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+with colB:
+    st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
+    if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
+        stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
+        
+        fig_pie = px.pie(
+            stop_sum, 
+            names="ลักษณะ เวลาหยุดเครื่อง", 
+            values="จำนวนครั้ง", 
+            hole=0.5,
+            color_discrete_sequence=px.colors.qualitative.Safe
+        )
+        
+        fig_pie.update_layout(
+            height=400,
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            template="plotly_white"
+        )
+        fig_pie.update_traces(
+            textinfo='percent+label',
+            pull=[0.05] * len(stop_sum),
+            marker=dict(line=dict(color='#FFFFFF', width=2))
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
 
 # ======================================
 # Detail Table
