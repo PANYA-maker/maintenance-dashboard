@@ -5,23 +5,29 @@ import plotly.graph_objects as go
 from urllib.parse import quote
 
 # ======================================
-# 1. Page Config
+# Page Config
 # ======================================
 st.set_page_config(
-    page_title="Speed Performance Dashboard",
+    page_title="Speed – Interactive Dashboard",
     page_icon="📉",
     layout="wide"
 )
 
 # ======================================
-# 2. Google Sheet Config & Loading
+# Google Sheet Config
 # ======================================
 SHEET_ID = "1Dd1PkTf2gW8tGSXVlr6WXgA974wcvySZTnVgv2G-7QU"
 SHEET_NAME = "DATA-SPEED"
 
+# ======================================
+# Load Data
+# ======================================
 @st.cache_data(ttl=300)
 def load_data():
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={quote(SHEET_NAME)}"
+    url = (
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq"
+        f"?tqx=out:csv&sheet={quote(SHEET_NAME)}"
+    )
     try:
         df = pd.read_csv(url)
         return df
@@ -32,196 +38,403 @@ def load_data():
 df = load_data()
 
 if df.empty:
-    st.warning("ไม่พบข้อมูล กรุณาตรวจสอบการเชื่อมต่อ Google Sheets")
+    st.warning("ไม่พบข้อมูล กรุณาตรวจสอบ Google Sheet")
     st.stop()
 
 # ======================================
-# 3. Data Cleaning (จัดการข้อความและตัวเลข)
+# Clean column names & Data
 # ======================================
 df.columns = df.columns.str.strip()
 
-# จัดการวันที่
+# ======================================
+# Convert Date / Time
+# ======================================
 df["วันที่"] = pd.to_datetime(df["วันที่"], format="%d/%m/%y", errors="coerce")
 if df["วันที่"].isna().all():
-    df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
+     df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
 
-# จัดการตัวเลข (ปัดเศษเบื้องต้นและจัดการค่าว่าง)
+df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
+df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
+
+# แปลงตัวเลข
 numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง", "Diff เวลา"]
 for col in numeric_cols:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-# จัดการข้อความ (ป้องกันข้อมูลหายหลังจากปรับ Google Sheet เป็น Text)
-text_cols = ["เครื่องจักร", "กะ", "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด", "Checked-2"]
-for col in text_cols:
-    if col in df.columns:
-        # บังคับเป็น String และลบคำขยะ
-        df[col] = df[col].fillna("").astype(str).str.strip()
-        df[col] = df[col].apply(lambda x: "" if x.lower() in ['nan', 'none', 'null'] else x)
+# ลบช่องว่างในข้อความ และจัดการค่าว่าง (nan) ให้เป็นค่าว่างจริงเพื่อการแสดงผล
+for col in df.select_dtypes(include=['object']).columns:
+    df[col] = df[col].fillna("").astype(str).str.strip()
+    df[col] = df[col].replace(['nan', 'NaN', 'None'], '')
 
 # ======================================
-# 4. Filters (Sidebar)
+# Default Date
 # ======================================
-st.sidebar.header("🔎 Filters")
-if st.sidebar.button("🔄 Refresh Data"):
+if df["วันที่"].notna().any():
+    max_date = df["วันที่"].max()
+    min_7days = max_date - pd.Timedelta(days=6)
+else:
+    max_date = pd.Timestamp.today()
+    min_7days = max_date
+
+# ======================================
+# Sidebar Filters
+# ======================================
+st.sidebar.header("🔎 ตัวกรองข้อมูล")
+
+if st.sidebar.button("🔄 รีโหลดข้อมูลใหม่"):
     st.cache_data.clear()
     st.rerun()
 
-max_date = df["วันที่"].max() if df["วันที่"].notna().any() else pd.Timestamp.today()
-min_date = max_date - pd.Timedelta(days=6)
-date_range = st.sidebar.date_input("📅 ช่วงวันที่", [min_date, max_date])
+date_range = st.sidebar.date_input(
+    "📅 เลือกช่วงวันที่",
+    [min_7days, max_date]
+)
 
-def get_options(col):
-    return sorted([opt for opt in df[col].unique() if opt != ""])
+def multi_filter(label, col):
+    if col in df.columns:
+        return st.sidebar.multiselect(
+            label,
+            sorted([o for o in df[col].unique() if o != ""])
+        )
+    return []
 
-f_machines = st.sidebar.multiselect("🏭 เครื่องจักร", get_options("เครื่องจักร"))
-f_shifts = st.sidebar.multiselect("⏱ กะ", get_options("กะ"))
-f_stop_types = st.sidebar.multiselect("🛑 ลักษณะเวลาหยุดเครื่อง", get_options("ลักษณะ เวลาหยุดเครื่อง"))
+machines = multi_filter("🏭 เครื่องจักร", "เครื่องจักร")
+shifts = multi_filter("⏱ กะ", "กะ")
+speed_status = multi_filter("📊 Speed เทียบแผน", "Speed เทียบแผน")
+stop_types = multi_filter("🛑 ลักษณะเวลาหยุดเครื่อง", "ลักษณะ เวลาหยุดเครื่อง")
+order_lengths = multi_filter("📦 ลักษณะ Order ความยาว", "ลักษณะ Order ความยาว")
 
-# Apply Filtering
+# ======================================
+# Apply Filters
+# ======================================
 if len(date_range) == 2:
-    mask = (df["วันที่"] >= pd.to_datetime(date_range[0])) & (df["วันที่"] <= pd.to_datetime(date_range[1]))
-    f_df = df.loc[mask].copy()
+    start_dt = pd.to_datetime(date_range[0])
+    end_dt = pd.to_datetime(date_range[1])
+    filtered_df = df[
+        (df["วันที่"] >= start_dt) &
+        (df["วันที่"] <= end_dt)
+    ].copy()
 else:
-    f_df = df.copy()
+    filtered_df = df.copy()
 
-if f_machines: f_df = f_df[f_df["เครื่องจักร"].isin(f_machines)]
-if f_shifts: f_df = f_df[f_df["กะ"].isin(f_shifts)]
-if f_stop_types: f_df = f_df[f_df["ลักษณะ เวลาหยุดเครื่อง"].isin(f_stop_types)]
-
-# ======================================
-# 5. KPI Calculation (Rounding to Int)
-# ======================================
-# Non-Stop
-ns_cond = (f_df["Checked-2"].str.upper() == "YES") & (f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
-ns_count = len(f_df[ns_cond])
-ns_time_raw = f_df.loc[f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง", "Diff เวลา"].sum()
-
-# Stop Orders
-so_cond = (f_df["Checked-2"].str.upper() == "YES") & (f_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
-so_count = len(f_df[so_cond])
-so_time_raw = f_df.loc[f_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง", ["Diff เวลา", "เวลาหยุดข้อมูลเครื่อง"]].sum().sum()
-
-# Overall
-overall_time = int(round(ns_time_raw + so_time_raw))
+if machines:
+    filtered_df = filtered_df[filtered_df["เครื่องจักร"].isin(machines)]
+if shifts:
+    filtered_df = filtered_df[filtered_df["กะ"].isin(shifts)]
+if speed_status:
+    filtered_df = filtered_df[filtered_df["Speed เทียบแผน"].isin(speed_status)]
+if stop_types:
+    filtered_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"].isin(stop_types)]
+if order_lengths:
+    filtered_df = filtered_df[filtered_df["ลักษณะ Order ความยาว"].isin(order_lengths)]
 
 # ======================================
-# 6. KPI Display (UI)
+# KPI CALCULATION
+# ======================================
+
+# 1. NON-STOP Calculation
+non_stop_order = 0
+raw_non_stop_minute = 0.0
+if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
+    cond_ns_count = (
+        (filtered_df["Checked-2"].str.upper() == "YES") & 
+        (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
+    )
+    non_stop_order = len(filtered_df[cond_ns_count])
+    
+    cond_ns_time = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง")
+    if "Diff เวลา" in filtered_df.columns:
+        raw_non_stop_minute = filtered_df.loc[cond_ns_time, "Diff เวลา"].sum()
+
+# 2. STOP ORDERS Calculation
+stop_orders_count = 0
+raw_stop_orders_time_sum = 0.0
+if "Checked-2" in filtered_df.columns and "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
+    cond_stop_mask = (filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "จอดเครื่อง")
+    cond_stop_yes = (filtered_df["Checked-2"].str.upper() == "YES") & cond_stop_mask
+    stop_orders_count = len(filtered_df[cond_stop_yes])
+
+    diff_val = filtered_df.loc[cond_stop_mask, "Diff เวลา"].sum() if "Diff เวลา" in filtered_df.columns else 0
+    stop_info_val = filtered_df.loc[cond_stop_mask, "เวลาหยุดข้อมูลเครื่อง"].sum() if "เวลาหยุดข้อมูลเครื่อง" in filtered_df.columns else 0
+    raw_stop_orders_time_sum = diff_val + stop_info_val
+
+# 3. OVERALL Calculation
+overall_speed_time = int(round(raw_non_stop_minute + raw_stop_orders_time_sum))
+
+# สำหรับแสดงในการ์ดแยก
+non_stop_minute_display = int(round(raw_non_stop_minute))
+stop_orders_time_sum_display = int(round(raw_stop_orders_time_sum))
+
+# ======================================
+# KPI DISPLAY (Redesigned Version)
 # ======================================
 st.markdown("### 📊 Speed – Performance Overview")
 
-def kpi_card(title, bg, order, time, label_t="Time Min"):
+def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#fff", order_label="Order", minute_label="Time Min"):
     return f"""
-    <div style="background:{bg}; padding:20px; border-radius:15px; color:#fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom:10px;">
-        <h4 style="text-align:center; margin:0 0 15px 0; font-weight:800; text-transform:uppercase; font-size:16px;">{title}</h4>
+    <div style="
+        background:{bg_color};
+        padding:20px 15px;
+        border-radius:15px;
+        color:{text_color};
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        margin-bottom: 10px;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    ">
+        <h4 style="text-align:center; margin:0 0 15px 0; font-size:18px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">{title}</h4>
         <div style="display:flex; gap:10px; justify-content:space-between;">
-            <div style="background:rgba(255,255,255,0.2); padding:10px; border-radius:10px; flex:1; text-align:center;">
-                <div style="font-size:11px; opacity:0.8;">Order</div>
-                <div style="font-size:22px; font-weight:800;">{order:,}</div>
+            <div style="
+                background:rgba(255,255,255,0.2);
+                padding:12px 8px;
+                border-radius:12px;
+                flex:1;
+                text-align:center;
+                backdrop-filter: blur(4px);
+            ">
+                <div style="font-size:12px; font-weight: 500; opacity:0.85; margin-bottom: 4px;">{order_label}</div>
+                <div style="font-size:24px; font-weight:800;">{order_val:,}</div>
             </div>
-            <div style="background:rgba(255,255,255,0.2); padding:10px; border-radius:10px; flex:1; text-align:center;">
-                <div style="font-size:11px; opacity:0.8;">{label_t}</div>
-                <div style="font-size:22px; font-weight:800;">{time:+,}</div>
+            <div style="
+                background:rgba(255,255,255,0.2);
+                padding:12px 8px;
+                border-radius:12px;
+                flex:1;
+                text-align:center;
+                backdrop-filter: blur(4px);
+            ">
+                <div style="font-size:12px; font-weight: 500; opacity:0.85; margin-bottom: 4px;">{minute_label}</div>
+                <div style="font-size:24px; font-weight:800;">{minute_val:+,}</div>
             </div>
         </div>
     </div>
     """
 
-c1, c2, c3 = st.columns(3)
-with c1: st.markdown(kpi_card("NON-STOP", "#8e44ad", ns_count, int(round(ns_time_raw))), unsafe_allow_html=True)
-with c2: st.markdown(kpi_card("STOP ORDERS", "#d35400", so_count, int(round(so_time_raw))), unsafe_allow_html=True)
-with c3:
-    ov_color = "#27ae60" if overall_time >= 0 else "#c0392b"
-    st.markdown(kpi_card("OVERALL SPEED", ov_color, ns_count + so_count, overall_time), unsafe_allow_html=True)
+# แสดง 3 คอลัมน์หลัก
+col_ns, col_so, col_ov = st.columns(3)
+
+with col_ns:
+    st.markdown(kpi_card_compact("NON-STOP", "#8e44ad", non_stop_order, non_stop_minute_display), unsafe_allow_html=True)
+
+with col_so:
+    st.markdown(kpi_card_compact("STOP ORDERS", "#d35400", stop_orders_count, stop_orders_time_sum_display), unsafe_allow_html=True)
+
+with col_ov:
+    overall_bg_color = "#27ae60" if overall_speed_time >= 0 else "#c0392b"
+    st.markdown(kpi_card_compact(
+        "OVERALL SPEED", 
+        overall_bg_color, 
+        non_stop_order + stop_orders_count, 
+        overall_speed_time
+    ), unsafe_allow_html=True)
 
 st.divider()
 
 # ======================================
-# 7. Trend Chart (ISO Week)
+# Charts Row 1
 # ======================================
-st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (Time Trend Analysis)")
-trend_data = f_df.copy()
-# คำนวณค่ารวมของแต่ละแถว (ช้า/เร็ว)
-trend_data['Val'] = trend_data.apply(lambda r: r['Diff เวลา'] if r['ลักษณะ เวลาหยุดเครื่อง'] == "ไม่จอดเครื่อง" else r['Diff เวลา'] + r['เวลาหยุดข้อมูลเครื่อง'], axis=1)
+colA, colB = st.columns(2)
 
-freq = st.selectbox("เลือกความถี่:", ["รายวัน", "รายสัปดาห์", "รายเดือน"])
-
-if freq == "รายสัปดาห์":
-    trend_data['ISO_Week'] = trend_data['วันที่'].dt.isocalendar().week
-    res = trend_data.groupby('ISO_Week')['Val'].sum().reset_index()
-    res['Label'] = res['ISO_Week'].apply(lambda x: f"WEEK {x}")
-else:
-    mode = {"รายวัน": "D", "รายเดือน": "MS"}
-    res = trend_data.set_index('วันที่')['Val'].resample(mode[freq]).sum().reset_index()
-    res['Label'] = res['วันที่'].dt.strftime("%d/%m/%Y" if freq == "รายวัน" else "%m/%Y")
-
-fig_trend = go.Figure(go.Bar(
-    x=res['Label'], y=res['Val'],
-    marker_color=['#2ecc71' if v >= 0 else '#e74c3c' for v in res['Val']],
-    text=res['Val'].round(0).astype(int), textposition='outside'
-))
-fig_trend.update_layout(height=400, template="plotly_white", margin=dict(l=20, r=20, t=20, b=20))
-st.plotly_chart(fig_trend, use_container_width=True)
-
-st.divider()
-
-# ======================================
-# 8. Top 10 Loss & Insights
-# ======================================
-st.markdown("#### 🚩 10 อันดับออเดอร์ไม่จอดเครื่องที่ช้ากว่าแผนมากที่สุด")
-
-ns_loss = f_df[f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง"].copy()
-
-if not ns_loss.empty:
-    # ช้ากว่าแผนคือค่าติดลบมากที่สุด (Ascending=True)
-    top_10 = ns_loss.sort_values(by="Diff เวลา", ascending=True).head(10)
-
-    # Executive Insights (ด้านบน)
-    total_lost = abs(top_10["Diff เวลา"].sum())
-    # หาค่าฐานนิยม (Mode) ของปัญหา
-    common_probs = top_10[top_10["กรุ๊ปปัญหา"] != ""]["กรุ๊ปปัญหา"].value_counts()
-    main_prob = common_probs.idxmax() if not common_probs.empty else "ไม่ระบุ"
-    
-    st.error(f"""
-    **💡 Executive Insights (สรุปข้อมูล 10 อันดับที่ช้าที่สุด)**
-    * **⚠️ วิกฤตเวลาสูญเสีย:** พบเวลาที่ล่าช้ากว่าแผนรวม **{total_lost:,.0f} นาที** จากเพียง 10 รายการนี้
-    * **🏭 สาเหตุหลักที่ต้องแก้ไข:** ปัญหาส่วนใหญ่จัดอยู่ในกลุ่ม **"{main_prob}"** ซึ่งควรได้รับการตรวจสอบอย่างเร่งด่วน
-    * **📉 ผลกระทบ:** ความเร็วในการผลิตจริง (Actual Speed) ต่ำกว่าเป้าหมายอย่างชัดเจนในกลุ่มรายการเหล่านี้
-    * **🔍 ข้อเสนอแนะ:** ฝ่ายบริหารควรตรวจสอบช่อง "รายละเอียด" เพื่อวิเคราะห์หาสาเหตุเชิงลึก (Root Cause) ร่วมกับทีมเทคนิค
-    """)
-
-    # ตารางข้อมูล
-    show_cols = ["Speed Plan", "Actual Speed", "Diff เวลา", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
-    display_top_10 = top_10[show_cols].copy()
-    for c in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
-        display_top_10[c] = display_top_10[c].round(0).astype(int)
-    
-    st.dataframe(display_top_10, use_container_width=True, hide_index=True)
-else:
-    st.info("ไม่พบข้อมูลออเดอร์ 'ไม่จอดเครื่อง' ในช่วงที่เลือก")
-
-st.divider()
-
-# ======================================
-# 9. Other Charts & Logs
-# ======================================
-c_a, c_b = st.columns(2)
-with c_a:
-    st.markdown("#### 🏭 ประสิทธิภาพแยกตามเครื่องจักร")
-    if "Speed เทียบแผน" in f_df.columns:
-        bar_data = f_df.groupby(["เครื่องจักร", "Speed เทียบแผน"]).size().reset_index(name="C")
-        fig_bar = px.bar(bar_data, x="C", y="เครื่องจักร", color="Speed เทียบแผน", orientation="h", barmode="stack", color_discrete_sequence=px.colors.qualitative.Safe)
-        fig_bar.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
+with colA:
+    st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาวแยกตามเครื่องจักร")
+    if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
+        bar_df = filtered_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
+        bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: (x / x.sum() * 100).round(1))
+        
+        fig_bar = px.bar(
+            bar_df, 
+            x="Percent", 
+            y="เครื่องจักร", 
+            color="ลักษณะ Order ความยาว", 
+            orientation="h",
+            text=bar_df.apply(lambda row: f"{row['Order Count']} ({row['Percent']}%)", axis=1),
+            color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+        
+        fig_bar.update_layout(
+            barmode="stack", 
+            xaxis=dict(title="สัดส่วนเปอร์เซ็นต์ (%)", range=[0, 105]),
+            yaxis=dict(title=None),
+            height=400, 
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            hovermode="closest",
+            template="plotly_white"
+        )
+        fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
         st.plotly_chart(fig_bar, use_container_width=True)
 
-with c_b:
-    st.markdown("#### 🛑 สัดส่วนการหยุดเครื่อง")
-    pie_data = f_df[f_df["ลักษณะ เวลาหยุดเครื่อง"] != ""].groupby("ลักษณะ เวลาหยุดเครื่อง").size().reset_index(name="C")
-    fig_pie = px.pie(pie_data, names="ลักษณะ เวลาหยุดเครื่อง", values="C", hole=0.5)
-    fig_pie.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig_pie, use_container_width=True)
+with colB:
+    st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
+    if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
+        stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
+        
+        fig_pie = px.pie(
+            stop_sum, 
+            names="ลักษณะ เวลาหยุดเครื่อง", 
+            values="จำนวนครั้ง", 
+            hole=0.5,
+            color_discrete_sequence=px.colors.qualitative.Safe
+        )
+        
+        fig_pie.update_layout(
+            height=400,
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            template="plotly_white"
+        )
+        fig_pie.update_traces(
+            textinfo='percent+label',
+            pull=[0.05] * len(stop_sum),
+            marker=dict(line=dict(color='#FFFFFF', width=2))
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
 
+# ======================================
+# TREND CHART: OVERALL SPEED (WEEKISO)
+# ======================================
+st.markdown("---")
+st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (Time Trend Analysis)")
+
+if not filtered_df.empty and "วันที่" in filtered_df.columns:
+    trend_data = filtered_df.copy()
+    
+    def calc_row_overall(row):
+        val = 0.0
+        if row['ลักษณะ เวลาหยุดเครื่อง'] == "ไม่จอดเครื่อง":
+            val = row['Diff เวลา']
+        elif row['ลักษณะ เวลาหยุดเครื่อง'] == "จอดเครื่อง":
+            val = row['Diff เวลา'] + row['เวลาหยุดข้อมูลเครื่อง']
+        return val
+
+    trend_data['Overall_Contribution'] = trend_data.apply(calc_row_overall, axis=1)
+
+    freq_col1, freq_col2 = st.columns([1, 4])
+    with freq_col1:
+        freq_option = st.selectbox(
+            "เลือกความถี่ของกราฟ:",
+            options=["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"],
+            index=0
+        )
+
+    if freq_option == "รายสัปดาห์":
+        trend_data['ISO_Year'] = trend_data['วันที่'].dt.isocalendar().year
+        trend_data['ISO_Week'] = trend_data['วันที่'].dt.isocalendar().week
+        trend_resampled = trend_data.groupby(['ISO_Year', 'ISO_Week'])['Overall_Contribution'].sum().reset_index()
+        trend_resampled['Date_Label'] = trend_resampled.apply(
+            lambda x: f"WEEK {x['ISO_Week']}" if trend_resampled['ISO_Year'].nunique() == 1 
+            else f"{x['ISO_Year']}-W{x['ISO_Week']:02d}", axis=1
+        )
+        trend_resampled = trend_resampled.sort_values(['ISO_Year', 'ISO_Week'])
+    else:
+        freq_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
+        trend_resampled = trend_data.set_index('วันที่')['Overall_Contribution'].resample(freq_map[freq_option]).sum().reset_index()
+        
+        if freq_option == "รายวัน":
+            trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%d/%m/%Y')
+        elif freq_option == "รายเดือน":
+            trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%m/%Y')
+        else:
+            trend_resampled['Date_Label'] = trend_resampled['วันที่'].dt.strftime('%Y')
+
+    fig_trend = go.Figure()
+    colors = ['#2ecc71' if val >= 0 else '#e74c3c' for val in trend_resampled['Overall_Contribution']]
+
+    fig_trend.add_trace(go.Bar(
+        x=trend_resampled['Date_Label'],
+        y=trend_resampled['Overall_Contribution'],
+        marker_color=colors,
+        text=trend_resampled['Overall_Contribution'].round(0).astype(int), 
+        textposition='outside',
+        hovertemplate="ช่วงเวลา: %{x}<br>Overall Speed: %{y:.1f} Min<extra></extra>"
+    ))
+
+    fig_trend.update_layout(
+        title=f"แนวโน้มประสิทธิภาพเวลา ({freq_option})",
+        xaxis_title="ช่วงเวลา",
+        yaxis_title="Overall Speed (Min)",
+        height=450,
+        margin=dict(l=20, r=20, t=50, b=20),
+        template="plotly_white",
+        showlegend=False
+    )
+
+    st.plotly_chart(fig_trend, use_container_width=True)
+
+# ======================================
+# NEW SECTION: TOP 10 LOSS & EXECUTIVE INSIGHTS
+# ======================================
+st.markdown("---")
+st.markdown("#### 🚩 10 อันดับออเดอร์ไม่จอดเครื่องที่ช้ากว่าแผนมากที่สุด")
+
+# กรองเฉพาะ "ไม่จอดเครื่อง"
+ns_loss_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง"].copy()
+
+if not ns_loss_df.empty:
+    # เลือก 10 อันดับที่ติดลบมากที่สุด (ช้าที่สุด)
+    top_10_worst = ns_loss_df.sort_values(by="Diff เวลา", ascending=True).head(10)
+
+    # --- Executive Insights Block ---
+    try:
+        total_loss_top_10 = abs(top_10_worst["Diff เวลา"].sum())
+        
+        # ค้นหากรุ๊ปปัญหาที่พบมากที่สุดใน 10 อันดับนี้
+        common_probs = top_10_worst[top_10_worst["กรุ๊ปปัญหา"] != ""]["กรุ๊ปปัญหา"].value_counts()
+        main_prob_str = common_probs.idxmax() if not common_probs.empty else "ไม่ระบุ"
+        
+        # ค้นหาประเภทงานที่พบมากที่สุด
+        common_len_types = top_10_worst["ลักษณะ Order ความยาว"].value_counts()
+        main_len_str = common_len_types.idxmax() if not common_len_types.empty else "ไม่ระบุ"
+
+        st.error(f"""
+        **💡 Executive Insights (สรุปข้อมูล 10 อันดับที่สร้างความล่าช้าสูงสุด)**
+        * **⚠️ วิกฤตเวลาสูญเสีย:** พบออเดอร์ที่ไม่จอดเครื่องแต่ทำเวลาช้ากว่าแผนรวมถึง **{total_loss_top_10:,.0f} นาที** จากเพียง 10 รายการนี้
+        * **🏭 สาเหตุหลักที่ต้องเร่งแก้ไข:** ปัญหาหลักส่วนใหญ่เกิดจากกลุ่ม **"{main_prob_str}"** ซึ่งส่งผลกระทบโดยตรงต่อความต่อเนื่องของสปีด
+        * **📦 กลุ่มงานที่มีความเสี่ยงสูง:** ออเดอร์ลักษณะความยาว **"{main_len_str}"** เป็นกลุ่มที่ทำความเร็วได้ต่ำกว่าเป้าหมายอย่างชัดเจน
+        * **🔍 ข้อแนะนำ:** ควรตรวจสอบบันทึกในช่อง "รายละเอียด" ของรายการเหล่านี้ เพื่อวิเคราะห์หาวิธีป้องกันเชิงเทคนิคร่วมกับทีมซ่อมบำรุงหรือฝ่ายผลิต
+        """)
+    except:
+        st.info("ระบบกำลังสรุปบทวิเคราะห์จากข้อมูลที่มีอยู่...")
+
+    # --- Data Table Block ---
+    target_cols = ["Speed Plan", "Actual Speed", "Diff เวลา", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
+    display_top_10 = top_10_worst[target_cols].copy()
+    
+    # ปัดเศษทศนิยมออก
+    for col in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
+        display_top_10[col] = display_top_10[col].round(0).astype(int)
+
+    st.dataframe(display_top_10, use_container_width=True, hide_index=True)
+else:
+    st.info("ℹ️ ไม่พบออเดอร์ประเภท 'ไม่จอดเครื่อง' ที่ล่าช้าในช่วงเวลานี้")
+
+# ======================================
+# Detail Table
+# ======================================
+st.markdown("---")
 st.subheader("📋 รายละเอียดรายการ Order (Data Logs)")
-logs_cols = ["วันที่", "เครื่องจักร", "กะ", "PDR", "Speed Plan", "Actual Speed", "Diff เวลา", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
-existing = [c for c in logs_cols if c in f_df.columns]
-st.dataframe(f_df[existing].sort_values("วันที่", ascending=False), use_container_width=True, height=450)
+
+full_cols_list = [
+    "วันที่", "เครื่องจักร", "กะ", 
+    "ลำดับที่", "PDR", "Flute", 
+    "M5", "M4", "M3", "M2", "M1", 
+    "หน้ากว้าง (W) PLAN", "ความยาว (L) PLAN", "T", 
+    "ความยาวเมตร PLAN", "ความยาวเมตร MC", 
+    "Speed Plan", "Actual Speed", "Speed เทียบแผน", 
+    "เวลา Plan", "เวลา Actual", "Diff เวลา", 
+    "เวลาหยุดเครื่องจากผลิต", "เวลาหยุดข้อมูลเครื่อง", 
+    "Checked-1", "Checked-2", 
+    "Start Time", "Stop Time", 
+    "ลักษณะ Order PLAN", "ลักษณะ Order MC", 
+    "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", 
+    "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"
+]
+
+existing_cols = [col for col in full_cols_list if col in filtered_df.columns]
+
+if existing_cols:
+    st.dataframe(
+        filtered_df[existing_cols].sort_values("วันที่", ascending=False),
+        use_container_width=True,
+        height=520
+    )
