@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from urllib.parse import quote
 
 # ======================================
-# 1. Page Config & Professional Styling
+# 1. Page Config & Premium CSS
 # ======================================
 st.set_page_config(
     page_title="Speed Analytics Executive Dashboard",
@@ -13,7 +13,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for Premium Design
 st.markdown("""
 <style>
     .main { background-color: #f4f7f9; }
@@ -37,6 +36,13 @@ st.markdown("""
         border-radius: 12px;
         margin-bottom: 25px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .side-summary {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -127,7 +133,7 @@ raw_so_min = f_df.loc[f_df["ลักษณะ เวลาหยุดเคร
 overall_time = int(round(raw_ns_min + raw_so_min))
 
 # ======================================
-# 5. Dashboard Layout (3 Tabs)
+# 5. Tabs Layout
 # ======================================
 tab_overview, tab_analysis, tab_logs = st.tabs([
     "📊 Executive Overview", 
@@ -142,14 +148,14 @@ with tab_overview:
     def kpi_card(title, bg, order, time):
         return f"""
         <div style="background:{bg}; padding:20px; border-radius:15px; color:#fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 10px;">
-            <h4 style="text-align:center; margin:0 0 15px 0; font-size:18px; font-weight:800; text-transform:uppercase; letter-spacing: 1px;">{title}</h4>
-            <div style="display:flex; gap:15px; justify-content:space-between;">
-                <div style="background:rgba(255,255,255,0.25); padding:10px; border-radius:12px; flex:1; text-align:center; backdrop-filter: blur(5px);">
-                    <div style="font-size:11px; opacity:0.9; font-weight: 500;">Order</div>
+            <h4 style="text-align:center; margin:0 0 15px 0; font-size:18px; font-weight:800; text-transform:uppercase;">{title}</h4>
+            <div style="display:flex; gap:10px; justify-content:space-between;">
+                <div style="background:rgba(255,255,255,0.25); padding:10px; border-radius:12px; flex:1; text-align:center;">
+                    <div style="font-size:11px; opacity:0.85;">Order</div>
                     <div style="font-size:24px; font-weight:800;">{order:,}</div>
                 </div>
-                <div style="background:rgba(255,255,255,0.25); padding:10px; border-radius:12px; flex:1; text-align:center; backdrop-filter: blur(5px);">
-                    <div style="font-size:11px; opacity:0.9; font-weight: 500;">Time Min</div>
+                <div style="background:rgba(255,255,255,0.25); padding:10px; border-radius:12px; flex:1; text-align:center;">
+                    <div style="font-size:11px; opacity:0.85;">Time Min</div>
                     <div style="font-size:24px; font-weight:800;">{time:+,}</div>
                 </div>
             </div>
@@ -165,7 +171,7 @@ with tab_overview:
 
     st.markdown("---")
     
-    # Trend Chart
+    # Trend Chart (Full Width)
     st.markdown("#### 📈 แนวโน้ม OVERALL SPEED")
     freq = st.selectbox("เลือกความถี่กราฟ:", options=["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"], index=1)
     
@@ -173,11 +179,9 @@ with tab_overview:
     trend_df['Val'] = trend_df.apply(lambda r: r['Diff เวลา'] if r['ลักษณะ เวลาหยุดเครื่อง'] == "ไม่จอดเครื่อง" else r['Diff เวลา'] + r['เวลาหยุดข้อมูลเครื่อง'], axis=1)
     
     if freq == "รายสัปดาห์":
-        trend_df['ISO_Year'] = trend_df['วันที่'].dt.isocalendar().year
         trend_df['ISO_Week'] = trend_df['วันที่'].dt.isocalendar().week
-        res = trend_df.groupby(['ISO_Year', 'ISO_Week'])['Val'].sum().reset_index()
-        res['Label'] = res.apply(lambda x: f"WEEK {x['ISO_Week']}", axis=1)
-        res = res.sort_values(['ISO_Year', 'ISO_Week'])
+        res = trend_df.groupby('ISO_Week')['Val'].sum().reset_index()
+        res['Label'] = res['ISO_Week'].apply(lambda x: f"WEEK {x}")
     else:
         m_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
         res = trend_df.set_index('วันที่')['Val'].resample(m_map[freq]).sum().reset_index()
@@ -193,97 +197,90 @@ with tab_overview:
     st.plotly_chart(fig_t, use_container_width=True)
 
     st.markdown("---")
-    # Speed Distribution
-    st.markdown("#### 📊 Speed Performance Distribution")
-    if "Speed เทียบแผน" in f_df.columns:
-        status_summary = f_df["Speed เทียบแผน"].value_counts().reset_index()
-        fig_pie = px.pie(status_summary, names="Speed เทียบแผน", values="count", hole=0.6, color_discrete_sequence=px.colors.qualitative.Pastel)
-        fig_pie.update_layout(height=450, margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5))
-        fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)))
-        st.plotly_chart(fig_pie, use_container_width=True)
-
+    # Speed Distribution Side-by-Side with Summary
+    col_pie, col_sum = st.columns([1.5, 1])
+    
+    with col_pie:
+        st.markdown("#### 📊 Speed Performance Distribution")
+        if "Speed เทียบแผน" in f_df.columns:
+            status_summary = f_df["Speed เทียบแผน"].value_counts().reset_index()
+            fig_pie = px.pie(status_summary, names="Speed เทียบแผน", values="count", hole=0.6, color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig_pie.update_layout(height=400, margin=dict(l=0, r=0, t=0, b=0), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5))
+            fig_pie.update_traces(textinfo='percent', marker=dict(line=dict(color='#ffffff', width=2)))
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+    with col_sum:
+        st.markdown("#### 📝 สรุปสัดส่วนประสิทธิภาพ")
+        if not f_df.empty:
+            total = len(f_df)
+            for _, row in status_summary.iterrows():
+                pct = (row['count'] / total) * 100
+                st.write(f"**{row['Speed เทียบแผน']}:** {row['count']:,} ออเดอร์ ({pct:.1f}%)")
+            
+            st.info(f"รวมทั้งสิ้น: {total:,} รายการในช่วงเวลาที่เลือก")
+            
 # --- TAB 2: LOSS & ROOT CAUSE ---
 with tab_analysis:
-    # 1. --- EXECUTIVE SUMMARY: LOSS ANALYTICS (MODIFIED) ---
+    # 1. --- EXECUTIVE SUMMARY (MODIFIED & AT TOP) ---
     ns_loss_all = f_df[(f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง") & (f_df["Diff เวลา"] < 0)].copy()
     
     if not ns_loss_all.empty:
-        # Core Stats
         total_loss_all_min = int(round(abs(ns_loss_all["Diff เวลา"].sum())))
         num_late_orders = len(ns_loss_all)
         
-        # Pareto Summary Data
         pareto_full = ns_loss_all.groupby("กรุ๊ปปัญหา")["Diff เวลา"].sum().abs().reset_index()
         top_problem_group = pareto_full.sort_values(by="Diff เวลา", ascending=False).iloc[0]
         top_prob_name = top_problem_group["กรุ๊ปปัญหา"] if top_problem_group["กรุ๊ปปัญหา"] != "" else "ไม่ระบุ"
         top_prob_val = int(round(top_problem_group["Diff เวลา"]))
         
-        # Additional Insights
         worst_machine = ns_loss_all.groupby("เครื่องจักร")["Diff เวลา"].sum().abs().idxmax()
-        worst_machine_val = int(round(abs(ns_loss_all.groupby("เครื่องจักร")["Diff เวลา"].sum().abs().max())))
         
-        # Top 10 Data
         top_10 = ns_loss_all.sort_values(by="Diff เวลา", ascending=True).head(10)
         total_lost_top10 = int(round(abs(top_10["Diff เวลา"].sum())))
         
-        # Display Box (Executive Summary)
         st.markdown(f"""
         <div class="insight-box">
-            <h4 style="color:#c0392b; margin-top:0; font-weight:800;">💡 Executive Summary: บทวิเคราะห์ความสูญเสียเชิงบริหาร</h4>
+            <h4 style="color:#c0392b; margin-top:0; font-weight:800;">💡 Executive Summary: บทวิเคราะห์ความสูญเสียสปีด</h4>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <p style="margin-bottom:8px;"><b>📉 ภาพรวมประสิทธิภาพและผลกระทบ:</b></p>
+                    <p style="margin-bottom:8px;"><b>📉 ผลกระทบเชิงแผนงาน:</b></p>
                     <ul style="margin-bottom:0; font-size:15px;">
-                        <li>พบออเดอร์ที่ทำเวลาช้ากว่าแผนสะสม <b>{num_late_orders:,} รายการ</b> คิดเป็นความสูญเสียเวลารวม <b>{total_loss_all_min:,} นาที</b></li>
-                        <li><b>ประสิทธิภาพที่หายไป:</b> กลุ่มออเดอร์วิกฤต (Top 10) เพียงกลุ่มเดียว สร้างความสูญเสียถึง <b>{total_lost_top10:,} นาที</b> หรือประมาณ <b>{int(round(total_lost_top10/total_loss_all_min*100))}%</b> ของความสูญเสียทั้งหมด</li>
-                        <li><b>จุดเสี่ยงต่อแผนงาน:</b> ความล่าช้านี้ส่งผลกระทบโดยตรงต่อรอบการส่งมอบ และเพิ่มต้นทุนค่าแรงต่อหน่วย (Utility Cost)</li>
+                        <li>พบออเดอร์ล่าช้าสะสม <b>{num_late_orders:,} รายการ</b> สูญเสียเวลารวม <b>{total_loss_all_min:,} นาที</b></li>
+                        <li>กลุ่มวิกฤต (Top 10) สร้างความสูญเสียถึง <b>{total_lost_top10:,} นาที</b> ({int(round(total_lost_top10/total_loss_all_min*100))}% ของทั้งหมด)</li>
+                        <li><b>ความเสี่ยง:</b> ความล่าช้านี้ส่งผลกระทบต่อรอบการผลิตถัดไปประมาณ {total_loss_all_min/60:.1f} ชั่วโมง</li>
                     </ul>
                 </div>
                 <div>
-                    <p style="margin-bottom:8px;"><b>🏭 สาเหตุวิกฤตที่ต้องเร่งแก้ไข (Root Cause):</b></p>
+                    <p style="margin-bottom:8px;"><b>🏭 สาเหตุและจุดวิกฤต (Root Cause):</b></p>
                     <ul style="margin-bottom:0; font-size:15px;">
-                        <li><b>คอขวดหลัก:</b> ปัญหา <b>"{top_prob_name}"</b> สร้างความสูญเสียสูงสุดที่ <b>{top_prob_val:,} นาที</b></li>
-                        <li><b>เครื่องจักรที่วิกฤตที่สุด:</b> เครื่อง <b>"{worst_machine}"</b> พบการล่าช้าสะสมสูงสุดที่ <b>{worst_machine_val:,} นาที</b> ในช่วงเวลานี้</li>
-                        <li><b>ข้อเสนอแนะ:</b> ควรจัดลำดับความสำคัญในการซ่อมบำรุงหรือปรับจูนสปีดที่เครื่องจักรและกลุ่มปัญหาดังกล่าวเป็นอันดับแรก</li>
+                        <li><b>ปัญหาหลัก:</b> <b>"{top_prob_name}"</b> กินเวลาการผลิตไป <b>{top_prob_val:,} นาที</b></li>
+                        <li><b>เครื่องจักรเป้าหมาย:</b> เครื่อง <b>"{worst_machine}"</b> คือจุดที่พบการสูญเสียเวลาสูงสุด</li>
+                        <li><b>ข้อเสนอแนะ:</b> ควรจัดลำดับความสำคัญในการปรับจูนสปีดที่กลุ่มปัญหา "{top_prob_name}" เป็นอันดับแรก</li>
                     </ul>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-    else:
-        st.info("ℹ️ ไม่พบออเดอร์ที่มีความล่าช้าในช่วงเวลาที่เลือก")
 
-    st.markdown("### 🚩 เจาะลึกรายละเอียดความสูญเสีย (Loss Details)")
+    st.markdown("### 🚩 เจาะลึกรายละเอียดความสูญเสีย")
     
     if not ns_loss_all.empty:
-        # 2. --- PARETO CHART (SORTED DESCENDING: MAX AT TOP) ---
+        # 2. Pareto Chart (Largest at TOP)
         st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
-        # Sort ascending for the Chart (Plotly horizontal bar plots the end of the list at the top)
+        # Sort ascending for plotly's bottom-up horizontal bar rendering
         pareto_data = pareto_full[pareto_full["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=True).tail(8)
         
         if not pareto_data.empty:
             fig_pareto = px.bar(
-                pareto_data, 
-                x="Diff เวลา", 
-                y="กรุ๊ปปัญหา", 
-                orientation='h', 
+                pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", orientation='h', 
                 text=pareto_data["Diff เวลา"].round(0).astype(int),
-                color="Diff เวลา", 
-                color_continuous_scale="Reds"
+                color="Diff เวลา", color_continuous_scale="Reds"
             )
-            # Ensure the order in the chart matches the sort (biggest at top)
-            fig_pareto.update_layout(
-                height=450, 
-                template="plotly_white", 
-                showlegend=False, 
-                xaxis_title="นาทีสะสม (ปัดเศษ)", 
-                yaxis_title=None,
-                coloraxis_showscale=False
-            )
+            fig_pareto.update_layout(height=450, template="plotly_white", showlegend=False, xaxis_title="นาทีสะสม", yaxis_title=None, coloraxis_showscale=False)
             fig_pareto.update_traces(textposition='outside')
             st.plotly_chart(fig_pareto, use_container_width=True)
             
-        # 3. --- TOP 10 TABLE ---
+        # 3. Top 10 Table
         st.markdown("#### 📋 10 รายการออเดอร์ที่มีความล่าช้าสูงสุด (Critical Loss)")
         show_cols = ["Speed Plan", "Actual Speed", "Diff เวลา", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
         display_top = top_10[show_cols].copy()
@@ -293,13 +290,13 @@ with tab_analysis:
                 display_top[c] = display_top[c].round(0).astype(int)
         
         st.dataframe(display_top, use_container_width=True, hide_index=True)
-    
+
 # --- TAB 3: DATA LOGS ---
 with tab_logs:
-    st.markdown("### 📋 ข้อมูลรายออเดอร์แบบละเอียด (Data Logs)")
+    st.markdown("### 📋 ข้อมูลรายออเดอร์แบบละเอียด")
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาว")
+        st.markdown("#### 📦 สัดส่วนออเดอร์แยกตามเครื่องจักร")
         bar_df = f_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="C")
         fig_bar = px.bar(bar_df, x="C", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h", barmode="stack", color_discrete_sequence=px.colors.qualitative.Pastel)
         fig_bar.update_layout(height=350, template="plotly_white")
