@@ -209,7 +209,6 @@ def kpi_card_compact(title, bg_color, order_val, minute_val, text_color="#fff", 
     </div>
     """
 
-# แสดง 3 คอลัมน์หลัก
 col_ns, col_so, col_ov = st.columns(3)
 
 with col_ns:
@@ -228,7 +227,7 @@ with col_ov:
     ), unsafe_allow_html=True)
 
 # ======================================
-# MOVED TREND CHART: OVERALL SPEED (Right after KPI Cards)
+# TREND CHART: OVERALL SPEED
 # ======================================
 st.markdown("---")
 st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (Time Trend Analysis)")
@@ -288,25 +287,82 @@ if not filtered_df.empty and "วันที่" in filtered_df.columns:
 
     fig_trend.update_layout(
         title=f"แนวโน้มประสิทธิภาพเวลา ({freq_option})",
-        xaxis_title="สัปดาห์ (ISO Standard)",
+        xaxis_title="ช่วงเวลา",
         yaxis_title="Overall Speed (Min)",
-        height=450,
+        height=400,
         margin=dict(l=20, r=20, t=50, b=20),
         template="plotly_white",
         showlegend=False
     )
     st.plotly_chart(fig_trend, use_container_width=True)
-else:
-    st.info("ไม่มีข้อมูลเพียงพอสำหรับสร้างกราฟแนวโน้ม")
+
+st.divider()
+
+# ======================================
+# NEW SECTION: TOP 10 NON-STOP LOSS & INSIGHTS
+# ======================================
+col_ins1, col_ins2 = st.columns([1, 1])
+
+with col_ins1:
+    st.markdown("#### ⚠️ 10 อันดับออเดอร์ไม่จอดเครื่องที่มีเวลาสูญเสียมากที่สุด")
+    
+    # Filter only "ไม่จอดเครื่อง"
+    non_stop_loss_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง"].copy()
+    
+    if not non_stop_loss_df.empty:
+        # Sort by Diff เวลา descending (Highest loss first)
+        top_10_loss = non_stop_loss_df.sort_values(by="Diff เวลา", ascending=False).head(10)
+        
+        # Select specified columns
+        display_top_10 = top_10_loss[[
+            "Speed Plan", "Actual Speed", "Diff เวลา",
+            "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"
+        ]].copy()
+        
+        # Format Diff เวลา to integer
+        display_top_10["Diff เวลา"] = display_top_10["Diff เวลา"].round(0).astype(int)
+        display_top_10["Speed Plan"] = display_top_10["Speed Plan"].round(0).astype(int)
+        display_top_10["Actual Speed"] = display_top_10["Actual Speed"].round(0).astype(int)
+        
+        st.dataframe(display_top_10, use_container_width=True, hide_index=True)
+    else:
+        st.info("ไม่มีข้อมูลออเดอร์ไม่จอดเครื่องในช่วงเวลาที่เลือก")
+
+with col_ins2:
+    st.markdown("#### 💡 Executive Insights (สรุปเชิงลึกสำหรับผู้บริหาร)")
+    
+    if not non_stop_loss_df.empty:
+        top_10_data = non_stop_loss_df.sort_values(by="Diff เวลา", ascending=False).head(10)
+        
+        # 1. ค้นหาคอขวดจากกรุ๊ปปัญหา
+        common_problem_group = top_10_data["กรุ๊ปปัญหา"].value_counts().idxmax()
+        count_group = top_10_data["กรุ๊ปปัญหา"].value_counts().max()
+        
+        # 2. วิเคราะห์ลักษณะออเดอร์
+        common_order_type = top_10_data["ลักษณะ Order ความยาว"].value_counts().idxmax()
+        
+        # 3. คำนวณความสูญเสียรวมของ Top 10
+        total_top_10_loss = top_10_data["Diff เวลา"].sum()
+        
+        st.markdown(f"""
+        จากการวิเคราะห์ข้อมูลออเดอร์ที่มีความล่าช้าสูงสุด 10 อันดับ พบประเด็นสำคัญดังนี้:
+        
+        * **🚩 สาเหตุหลักที่พบบ่อย:** พบปัญหาในกลุ่ม **"{common_problem_group}"** มากที่สุด (จำนวน {count_group} รายการ) ซึ่งเป็นจุดที่ควรเร่งตรวจสอบกระบวนการทำงานหรือเครื่องจักรในส่วนนี้
+        * **📦 ลักษณะออเดอร์ที่มีความเสี่ยง:** ออเดอร์ประเภท **"{common_order_type}"** มักเกิดความล่าช้าสะสมสูงกว่าปกติ ควรมีการทบทวนค่า Speed Plan หรือเทคนิคการเดินงานเฉพาะกลุ่มนี้
+        * **⏳ ผลกระทบต่อเวลา:** เฉพาะออเดอร์ 10 อันดับนี้ สร้างความสูญเสียเวลารวมกว่า **{total_top_10_loss:,.0f} นาที** หากลดความล่าช้าในกลุ่มนี้ได้เพียง 50% จะช่วยเพิ่มประสิทธิภาพภาพรวมได้อย่างมีนัยสำคัญ
+        * **🔍 ข้อเสนอแนะ:** ฝ่ายผลิตควรตรวจสอบรายละเอียดในคอลัมน์ "รายละเอียด" ของรายการเหล่านี้เพื่อหามาตรการป้องกันเชิงรุก (Root Cause Analysis)
+        """)
+    else:
+        st.write("กรุณาเลือกช่วงเวลาที่มีข้อมูลเพื่อแสดงบทวิเคราะห์")
 
 st.divider()
 
 # ======================================
 # Charts Row 2 (Bar & Pie)
 # ======================================
-colA, colB = st.columns(2)
+col_ch1, col_ch2 = st.columns(2)
 
-with colA:
+with col_ch1:
     st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาวแยกตามเครื่องจักร")
     if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
         bar_df = filtered_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
@@ -329,36 +385,16 @@ with colA:
             height=400, 
             margin=dict(l=10, r=10, t=10, b=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            hovermode="closest",
             template="plotly_white"
         )
-        fig_bar.update_traces(textposition='inside', insidetextanchor='middle')
         st.plotly_chart(fig_bar, use_container_width=True)
 
-with colB:
+with col_ch2:
     st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
     if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
         stop_sum = filtered_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
-        
-        fig_pie = px.pie(
-            stop_sum, 
-            names="ลักษณะ เวลาหยุดเครื่อง", 
-            values="จำนวนครั้ง", 
-            hole=0.5,
-            color_discrete_sequence=px.colors.qualitative.Safe
-        )
-        
-        fig_pie.update_layout(
-            height=400,
-            margin=dict(l=10, r=10, t=10, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
-            template="plotly_white"
-        )
-        fig_pie.update_traces(
-            textinfo='percent+label',
-            pull=[0.05] * len(stop_sum),
-            marker=dict(line=dict(color='#FFFFFF', width=2))
-        )
+        fig_pie = px.pie(stop_sum, names="ลักษณะ เวลาหยุดเครื่อง", values="จำนวนครั้ง", hole=0.5, color_discrete_sequence=px.colors.qualitative.Safe)
+        fig_pie.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5), template="plotly_white")
         st.plotly_chart(fig_pie, use_container_width=True)
 
 # ======================================
