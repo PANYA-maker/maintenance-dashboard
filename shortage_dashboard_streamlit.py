@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Added Machine Performance Stacked Bar Chart
+# UPDATED: Machine Performance Chart to Horizontal Stacked Bar
 # =====================================
 
 import streamlit as st
@@ -248,7 +248,7 @@ if not trend.empty:
     st.plotly_chart(fig_trend, use_container_width=True)
 
 # =========================
-# SECTION 5: MACHINE PERFORMANCE (NEW SECTION)
+# SECTION 5: MACHINE PERFORMANCE (UPDATED TO HORIZONTAL)
 # =========================
 st.markdown('<div class="section-header">🖥️ ประสิทธิภาพรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
 mc_perf = fdf.copy()
@@ -259,9 +259,11 @@ if not mc_perf.empty:
     mc_summary['label_display'] = mc_summary.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
     
     # Sort MC by name to keep it consistent
-    mc_summary = mc_summary.sort_values('MC')
+    mc_summary = mc_summary.sort_values('MC', ascending=False)
     
-    fig_mc = px.bar(mc_summary, x="MC", y="%", color="สถานะผลิต", 
+    # Changed to Horizontal: x="%", y="MC", orientation="h"
+    fig_mc = px.bar(mc_summary, x="%", y="MC", color="สถานะผลิต", 
+                    orientation="h",
                     title="สัดส่วนสถานะการผลิตแยกตามเครื่องจักร (Compare MC Performance)",
                     text="label_display",
                     barmode="stack", 
@@ -269,8 +271,8 @@ if not mc_perf.empty:
                     color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
     
     fig_mc.update_traces(textposition="inside", textfont=dict(size=11, color="white"))
-    fig_mc.update_layout(yaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', 
-                         xaxis_title="รหัสเครื่องจักร (MC)", yaxis_title="สัดส่วน (%)",
+    fig_mc.update_layout(xaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', 
+                         xaxis_title="สัดส่วน (%)", yaxis_title="รหัสเครื่องจักร (MC)",
                          legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     st.plotly_chart(fig_mc, use_container_width=True)
 
