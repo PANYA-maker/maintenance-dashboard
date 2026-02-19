@@ -30,6 +30,14 @@ st.markdown("""
         color: #ff4b4b;
         border-bottom: 3px solid #ff4b4b;
     }
+    .insight-box {
+        background-color: #fff5f5;
+        border-left: 5px solid #ff4b4b;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -194,52 +202,70 @@ with tab_overview:
 
 # --- TAB 2: LOSS & ROOT CAUSE ---
 with tab_analysis:
-    st.markdown("### 🚩 วิเคราะห์ความสูญเสียสปีด (Loss Analysis)")
-    ns_loss = f_df[f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง"].copy()
+    # --- EXECUTIVE INSIGHTS SUMMARY (NEW & AT TOP) ---
+    ns_loss_all = f_df[(f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง") & (f_df["Diff เวลา"] < 0)].copy()
     
-    if not ns_loss.empty:
-        # Pareto Chart (Sum of Loss by Problem Group)
+    if not ns_loss_all.empty:
+        # Calculations for Summary
+        total_loss_all_min = int(round(abs(ns_loss_all["Diff เวลา"].sum())))
+        num_late_orders = len(ns_loss_all)
+        
+        # Pareto Summary Data
+        pareto_full = ns_loss_all.groupby("กรุ๊ปปัญหา")["Diff เวลา"].sum().abs().reset_index()
+        top_problem_group = pareto_full.sort_values(by="Diff เวลา", ascending=False).iloc[0]
+        top_prob_name = top_problem_group["กรุ๊ปปัญหา"] if top_problem_group["กรุ๊ปปัญหา"] != "" else "ไม่ระบุ"
+        top_prob_val = int(round(top_problem_group["Diff เวลา"]))
+        
+        # Top 10 Data
+        top_10 = ns_loss_all.sort_values(by="Diff เวลา", ascending=True).head(10)
+        total_lost_top10 = int(round(abs(top_10["Diff เวลา"].sum())))
+        
+        # Display Box
+        st.markdown(f"""
+        <div class="insight-box">
+            <h4 style="color:#c0392b; margin-top:0;">💡 Executive Summary: การวิเคราะห์ความสูญเสีย (Loss Analytics)</h4>
+            <ul style="margin-bottom:0;">
+                <li><b>ภาพรวมความล่าช้า:</b> พบออเดอร์ที่ไม่จอดเครื่องแต่ช้ากว่าแผนรวม <b>{num_late_orders:,} ออเดอร์</b> สร้างความสูญเสียเวลารวม <b>{total_loss_all_min:,} นาที</b></li>
+                <li><b>สาเหตุวิกฤต (Root Cause):</b> กลุ่มปัญหา <b>"{top_prob_name}"</b> เป็นตัวการใหญ่ที่สุดที่ทำให้เสียเวลาไปถึง <b>{top_prob_val:,} นาที</b> (คิดเป็นประมาณ {int(round(top_prob_val/total_loss_all_min*100))}% ของเวลาที่เสียทั้งหมด)</li>
+                <li><b>จุดวิกฤตสูงสุด (Top 10):</b> เฉพาะออเดอร์ที่วิกฤตที่สุด 10 รายการแรก มีเวลาสูญเสียรวม <b>{total_lost_top10:,} นาที</b> ซึ่งเป็นจุดที่ควรได้รับการแก้ไขเชิงเทคนิคโดยเร่งด่วน</li>
+                <li><b>หมายเหตุ:</b> ข้อมูลในกราฟ Pareto ด้านล่างเป็นยอดรวมสะสมของแต่ละปัญหา ส่วนในตารางคือข้อมูลดิบรายออเดอร์ที่ช้าที่สุดครับ</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("ℹ️ ไม่พบออเดอร์ที่มีความล่าช้าในช่วงเวลาที่เลือก")
+
+    st.markdown("### 🚩 เจาะลึกความสูญเสียสปีด (Loss Details)")
+    
+    if not ns_loss_all.empty:
+        # Pareto Chart
         st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
-        pareto_data = ns_loss[ns_loss["Diff เวลา"] < 0].groupby("กรุ๊ปปัญหา")["Diff เวลา"].sum().abs().reset_index()
-        pareto_data = pareto_data[pareto_data["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=False).head(8)
+        pareto_data = pareto_full[pareto_full["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=False).head(8)
         
         if not pareto_data.empty:
-            # ใช้จำนวนเต็มในกราฟ Pareto เพื่อความสอดคล้อง
             fig_pareto = px.bar(
                 pareto_data, 
                 x="Diff เวลา", 
                 y="กรุ๊ปปัญหา", 
                 orientation='h', 
-                text=pareto_data["Diff เวลา"].round(0).astype(int), # แสดงตัวเลขปัดเศษ
+                text=pareto_data["Diff เวลา"].round(0).astype(int),
                 color="Diff เวลา", 
                 color_continuous_scale="Reds"
             )
             fig_pareto.update_layout(height=400, template="plotly_white", showlegend=False, xaxis_title="นาทีสะสม (ปัดเศษ)", yaxis_title=None)
             st.plotly_chart(fig_pareto, use_container_width=True)
             
-        # Top 10 Critical Table (Individual Orders)
+        # Top 10 Table
         st.markdown("#### 📋 10 รายการออเดอร์ที่มีความล่าช้าสูงสุด (Critical Loss)")
-        top_10 = ns_loss.sort_values(by="Diff เวลา", ascending=True).head(10)
         show_cols = ["Speed Plan", "Actual Speed", "Diff เวลา", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
         display_top = top_10[show_cols].copy()
         
-        # ปัดเศษเป็นจำนวนเต็ม
         for c in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
             if c in display_top.columns:
                 display_top[c] = display_top[c].round(0).astype(int)
         
         st.dataframe(display_top, use_container_width=True, hide_index=True)
-        
-        # Executive Insights
-        total_lost_min = int(round(abs(top_10["Diff เวลา"].sum())))
-        st.error(f"""
-        **💡 Executive Insights (สรุปข้อมูล 10 อันดับวิกฤต)**
-        * ในออเดอร์ 10 รายการที่ช้าที่สุดนี้ มีเวลาที่สูญเสียรวมทั้งสิ้น **{total_lost_min:,} นาที**
-        * ตัวเลขในกราฟ Pareto ด้านบนแสดง **"ผลรวมสะสม"** ของปัญหาทั้งหมดในช่วงเวลาที่เลือก ส่วนตารางด้านบนแสดง **"รายการเดี่ยว"** ที่วิกฤตที่สุดครับ
-        """)
-    else:
-        st.info("ℹ️ ไม่พบออเดอร์ประเภท 'ไม่จอดเครื่อง' ที่ล่าช้าในช่วงเวลานี้")
-
+    
 # --- TAB 3: DATA LOGS ---
 with tab_logs:
     st.markdown("### 📋 ข้อมูลรายออเดอร์แบบละเอียด (Data Logs)")
