@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Reordered Sections & Enhanced Machine Performance Visuals
+# UPDATED: Adjusted Week Numbering (Offset +1) to match User Expectation
 # =====================================
 
 import streamlit as st
@@ -184,22 +184,19 @@ else:
     st.info("กรุณาเลือกช่วงเวลาที่มีข้อมูล")
 
 # =========================
-# SECTION 4: MACHINE PERFORMANCE (MOVED UP & ENHANCED)
+# SECTION 4: MACHINE PERFORMANCE
 # =========================
 st.markdown('<div class="section-header">🖥️ ประสิทธิภาพรายเครื่องจักร (Machine Performance Analysis)</div>', unsafe_allow_html=True)
 mc_perf = fdf.copy()
 if not mc_perf.empty:
-    # 1. คำนวณพื้นฐาน
     mc_summary = mc_perf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวน')
     mc_total = mc_summary.groupby('MC')['จำนวน'].transform('sum')
     mc_summary['%'] = (mc_summary['จำนวน'] / mc_total * 100).round(1)
     mc_summary['label_display'] = mc_summary.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
     
-    # 2. การจัดเรียงข้อมูลแบบ Intelligence (เรียงตามเครื่องที่ "ขาดจำนวน" สูงสุดไว้บน)
-    # คัดเฉพาะแถว "ขาดจำนวน" มาหาค่า % เพื่อใช้จัดลำดับ
     sort_helper = mc_summary[mc_summary['สถานะผลิต'] == 'ขาดจำนวน'][['MC', '%']].rename(columns={'%': 'sort_pct'})
     mc_summary = mc_summary.merge(sort_helper, on='MC', how='left').fillna({'sort_pct': 0})
-    mc_summary = mc_summary.sort_values(['sort_pct', 'MC'], ascending=[True, True]) # True เพราะกราฟ Plotly Horizontal แสดงจากล่างขึ้นบน
+    mc_summary = mc_summary.sort_values(['sort_pct', 'MC'], ascending=[True, True])
     
     fig_mc = px.bar(mc_summary, x="%", y="MC", color="สถานะผลิต", 
                     orientation="h",
@@ -214,25 +211,21 @@ if not mc_perf.empty:
         textfont=dict(size=12, color="white", family="Arial Black"),
         marker_line_width=0
     )
-    
     fig_mc.update_layout(
         xaxis_range=[0, 105], 
         plot_bgcolor='rgba(0,0,0,0)', 
         xaxis_title="เปอร์เซ็นต์สะสม (%)", 
         yaxis_title=None,
-        height=min(400 + (len(mc_summary['MC'].unique()) * 30), 800), # ปรับความสูงตามจำนวนเครื่อง
+        height=min(400 + (len(mc_summary['MC'].unique()) * 30), 800),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=0, r=10, t=50, b=0)
     )
-    
-    # ลบเส้นตารางแนวตั้งเพื่อความคลีน
     fig_mc.update_xaxes(showgrid=False, zeroline=False)
     fig_mc.update_yaxes(tickfont=dict(size=13, color="#1e293b"))
-    
     st.plotly_chart(fig_mc, use_container_width=True)
 
 # =========================
-# SECTION 5: ROOT CAUSE & TREND (MOVED DOWN)
+# SECTION 5: ROOT CAUSE & TREND
 # =========================
 st.markdown('<div class="section-header">🔍 วิเคราะห์สาเหตุและแนวโน้ม (Root Cause & Trend)</div>', unsafe_allow_html=True)
 col_left, col_right = st.columns([2, 1])
@@ -267,8 +260,14 @@ if not trend.empty:
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         title_suffix = ""
     elif period == "รายสัปดาห์": 
+        # คำนวณหา "วันอาทิตย์" ล่าสุดของแต่ละวันที่
         trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
-        trend["ช่วง"] = "Week " + trend["วันที่"].dt.strftime("%U")
+        
+        # ปรับแก้สูตรการนับสัปดาห์ (Sunday-start) โดยบวก 1 เพื่อให้ Feb 1 เริ่มที่ Week 6
+        # %U คือการนับสัปดาห์เริ่มที่วันอาทิตย์ (0-53) -> แปลงเป็น int แล้ว +1
+        week_nums = trend["วันที่"].dt.strftime("%U").astype(int) + 1
+        trend["ช่วง"] = "Week " + week_nums.apply(lambda x: f"{x:02d}")
+        
         title_suffix = " - เริ่มต้นสัปดาห์ที่วันอาทิตย์"
     elif period == "รายเดือน": 
         trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
