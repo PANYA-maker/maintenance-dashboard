@@ -29,6 +29,7 @@ def load_data():
         f"?tqx=out:csv&sheet={quote(SHEET_NAME)}"
     )
     try:
+        # โหลดข้อมูลเบื้องต้น
         df = pd.read_csv(url)
         return df
     except Exception as e:
@@ -46,30 +47,24 @@ if df.empty:
 # ======================================
 df.columns = df.columns.str.strip()
 
-# ======================================
-# Convert Date / Time
-# ======================================
-df["วันที่"] = pd.to_datetime(df["วันที่"], format="%d/%m/%y", errors="coerce")
-if df["วันที่"].isna().all():
-     df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
-
-df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
-df["Stop Time"] = pd.to_datetime(df["Stop Time"], errors="coerce")
-
-# แปลงตัวเลข (เฉพาะคอลัมน์ที่จำเป็น)
+# จัดการข้อมูลประเภทตัวเลข
 numeric_cols = ["Speed Plan", "Actual Speed", "เวลา Plan", "เวลา Actual", "เวลาหยุดข้อมูลเครื่อง", "Diff เวลา"]
 for col in numeric_cols:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-# ลบช่องว่างในข้อความและจัดการค่าว่าง (ป้องกันการเกิด "None" หรือ "nan")
+# จัดการข้อมูลประเภทข้อความ (เน้นส่วนที่มักจะหาย)
 text_cols = ["เครื่องจักร", "กะ", "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด", "Checked-2"]
 for col in text_cols:
     if col in df.columns:
-        # แทนที่ NaN ด้วยช่องว่างเปล่า และกำจัดช่องว่างส่วนเกิน
-        df[col] = df[col].fillna("").astype(str).str.strip()
-        # ถ้าค่าเป็น "None", "nan", "0", "0.0" ให้เคลียร์เป็นช่องว่าง (กรณีข้อมูลต้นทางมาไม่สะอาด)
-        df[col] = df[col].replace(["None", "nan", "0", "0.0", "None", "nan"], "")
+        # แปลงเป็น String และจัดการค่าว่าง nan ให้เป็นค่าว่างจริง
+        df[col] = df[col].astype(str).replace(['nan', 'NaN', 'None', '0', '0.0'], '')
+        df[col] = df[col].str.strip()
+
+# แปลงวันที่
+df["วันที่"] = pd.to_datetime(df["วันที่"], format="%d/%m/%y", errors="coerce")
+if df["วันที่"].isna().all():
+     df["วันที่"] = pd.to_datetime(df["วันที่"], errors="coerce")
 
 # ======================================
 # Default Date
@@ -97,6 +92,7 @@ date_range = st.sidebar.date_input(
 
 def multi_filter(label, col):
     if col in df.columns:
+        # กรองเอาเฉพาะค่าที่ไม่ว่างมาให้เลือก
         options = sorted([opt for opt in df[col].unique() if opt != ""])
         return st.sidebar.multiselect(label, options)
     return []
@@ -316,15 +312,12 @@ if not non_stop_loss_df.empty:
     
     # --- Executive Insights Block (ด้านบนของตาราง) ---
     try:
-        # วิเคราะห์กรุ๊ปปัญหาหลักที่เจอใน 10 อันดับนี้
+        # วิเคราะห์คัดกรองเฉพาะตัวที่มีข้อมูลจริง
         problem_stats = top_10_loss[top_10_loss["กรุ๊ปปัญหา"] != ""]["กรุ๊ปปัญหา"].value_counts()
-        worst_problem_group = problem_stats.idxmax() if not problem_stats.empty else "ไม่ระบุ"
+        worst_problem_group = problem_stats.idxmax() if not problem_stats.empty else "ข้อมูลไม่ระบุ"
         problem_count = problem_stats.max() if not problem_stats.empty else 0
         
-        # วิเคราะห์ลักษณะออเดอร์ที่ช้าที่สุด
-        order_type_stats = top_10_loss["ลักษณะ Order ความยาว"].value_counts()
-        worst_order_type = order_type_stats.idxmax() if not order_type_stats.empty else "ไม่ระบุ"
-        
+        worst_order_type = top_10_loss["ลักษณะ Order ความยาว"].value_counts().idxmax()
         total_lost_time = abs(top_10_loss["Diff เวลา"].sum())
         avg_speed_drop = (top_10_loss["Speed Plan"] - top_10_loss["Actual Speed"]).mean()
 
@@ -335,10 +328,10 @@ if not non_stop_loss_df.empty:
         * **🏭 สาเหตุหลักที่พบ:** ปัญหาในกลุ่ม **"{worst_problem_group}"** ปรากฏบ่อยที่สุด ({problem_count} ครั้ง)
         * **📦 กลุ่มงานวิกฤต:** ออเดอร์ลักษณะความยาว **"{worst_order_type}"** เป็นกลุ่มที่ทำความเร็วได้ต่ำกว่าแผนอย่างมีนัยสำคัญ
         * **📉 ประสิทธิภาพความเร็ว:** ความเร็วเฉลี่ยลดลงจากเป้าหมายประมาณ **{avg_speed_drop:,.0f} unit/hr** ในกลุ่มงานเหล่านี้
-        * **🔍 ข้อเสนอแนะ:** ฝ่ายผลิตควรตรวจสอบความพร้อมของเครื่องจักรหรือวัตถุดิบที่เกี่ยวข้องกับกลุ่มปัญหา "{worst_problem_group}" เพื่อลดคอขวดในกระบวนการไม่จอดเครื่อง
+        * **🔍 ข้อเสนอแนะ:** ฝ่ายผลิตควรตรวจสอบความพร้อมของเครื่องจักรหรือวัตถุดิบที่เกี่ยวข้องกับกลุ่มปัญหา "{worst_problem_group}" เพื่อลดคอขวด
         """)
     except:
-        st.warning("ระบบไม่สามารถสรุป Insights ได้เนื่องจากข้อมูลรายละเอียดในบางคอลัมน์ไม่เพียงพอ")
+        st.warning("ระบบไม่สามารถสรุป Insights ได้ครบถ้วนเนื่องจากข้อมูลใน Google Sheet บางส่วนว่างเปล่า")
 
     # --- Data Table Block ---
     display_top_10 = top_10_loss[[
@@ -346,13 +339,13 @@ if not non_stop_loss_df.empty:
         "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"
     ]].copy()
     
-    # ปัดเศษตัวเลข
+    # ปัดเศษตัวเลขสำหรับการแสดงผล
     for c in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
         display_top_10[c] = display_top_10[c].round(0).astype(int)
     
     st.dataframe(display_top_10, use_container_width=True, hide_index=True)
 else:
-    st.info("ℹ️ ไม่พบออเดอร์ประเภท 'ไม่จอดเครื่อง' ที่ล่าช้ากว่าแผนในช่วงเวลาหรือฟิลเตอร์ที่เลือก")
+    st.info("ℹ️ ไม่พบออเดอร์ประเภท 'ไม่จอดเครื่อง' ที่ล่าช้ากว่าแผนในช่วงเวลาหรือตัวกรองที่เลือก")
 
 st.divider()
 
@@ -364,27 +357,23 @@ col_ch1, col_ch2 = st.columns(2)
 with col_ch1:
     st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาวแยกตามเครื่องจักร")
     if "เครื่องจักร" in filtered_df.columns and "ลักษณะ Order ความยาว" in filtered_df.columns:
-        # กรองเอาค่าว่างออกก่อนทำกราฟ
         chart_df = filtered_df[filtered_df["ลักษณะ Order ความยาว"] != ""].copy()
-        bar_df = chart_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
-        bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: (x / x.sum() * 100).round(1))
-        
-        fig_bar = px.bar(
-            bar_df, x="Percent", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h",
-            text=bar_df.apply(lambda row: f"{row['Order Count']} ({row['Percent']}%)", axis=1),
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
-        fig_bar.update_layout(barmode="stack", xaxis=dict(title="สัดส่วนเปอร์เซ็นต์ (%)", range=[0, 105]), yaxis=dict(title=None), height=400, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), template="plotly_white")
-        st.plotly_chart(fig_bar, use_container_width=True)
+        if not chart_df.empty:
+            bar_df = chart_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="Order Count")
+            bar_df["Percent"] = bar_df.groupby("เครื่องจักร")["Order Count"].transform(lambda x: (x / x.sum() * 100).round(1))
+            fig_bar = px.bar(bar_df, x="Percent", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h", text=bar_df.apply(lambda row: f"{row['Order Count']} ({row['Percent']}%)", axis=1), color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig_bar.update_layout(barmode="stack", xaxis=dict(title="สัดส่วนเปอร์เซ็นต์ (%)", range=[0, 105]), yaxis=dict(title=None), height=400, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), template="plotly_white")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
 with col_ch2:
     st.markdown("#### 🛑 วิเคราะห์ลักษณะการหยุดเครื่อง (Machine Stop)")
     if "ลักษณะ เวลาหยุดเครื่อง" in filtered_df.columns:
         chart_pie_df = filtered_df[filtered_df["ลักษณะ เวลาหยุดเครื่อง"] != ""].copy()
-        stop_sum = chart_pie_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
-        fig_pie = px.pie(stop_sum, names="ลักษณะ เวลาหยุดเครื่อง", values="จำนวนครั้ง", hole=0.5, color_discrete_sequence=px.colors.qualitative.Safe)
-        fig_pie.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5), template="plotly_white")
-        st.plotly_chart(fig_pie, use_container_width=True)
+        if not chart_pie_df.empty:
+            stop_sum = chart_pie_df.groupby("ลักษณะ เวลาหยุดเครื่อง", as_index=False).size().rename(columns={"size": "จำนวนครั้ง"})
+            fig_pie = px.pie(stop_sum, names="ลักษณะ เวลาหยุดเครื่อง", values="จำนวนครั้ง", hole=0.5, color_discrete_sequence=px.colors.qualitative.Safe)
+            fig_pie.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5), template="plotly_white")
+            st.plotly_chart(fig_pie, use_container_width=True)
 
 # ======================================
 # Detail Table
