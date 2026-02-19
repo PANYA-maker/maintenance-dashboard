@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Adjusted Week Numbering (Offset +1) to match User Expectation
+# UPDATED: Added Order Count to Production Status Pie Chart
 # =====================================
 
 import streamlit as st
@@ -248,7 +248,8 @@ with col_right:
     fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", 
                        title="สัดส่วนสถานะการผลิต",
                        color="สถานะ", color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-    fig_status.update_traces(textinfo="percent")
+    # แก้ไข: เพิ่มจำนวนออเดอร์ (value) เข้าไปแสดงคู่กับเปอร์เซ็นต์ (percent)
+    fig_status.update_traces(textinfo="value+percent", textfont_size=12)
     fig_status.update_layout(margin=dict(t=40, b=0), showlegend=True)
     st.plotly_chart(fig_status, use_container_width=True)
 
@@ -260,14 +261,9 @@ if not trend.empty:
         trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         title_suffix = ""
     elif period == "รายสัปดาห์": 
-        # คำนวณหา "วันอาทิตย์" ล่าสุดของแต่ละวันที่
         trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
-        
-        # ปรับแก้สูตรการนับสัปดาห์ (Sunday-start) โดยบวก 1 เพื่อให้ Feb 1 เริ่มที่ Week 6
-        # %U คือการนับสัปดาห์เริ่มที่วันอาทิตย์ (0-53) -> แปลงเป็น int แล้ว +1
         week_nums = trend["วันที่"].dt.strftime("%U").astype(int) + 1
         trend["ช่วง"] = "Week " + week_nums.apply(lambda x: f"{x:02d}")
-        
         title_suffix = " - เริ่มต้นสัปดาห์ที่วันอาทิตย์"
     elif period == "รายเดือน": 
         trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
