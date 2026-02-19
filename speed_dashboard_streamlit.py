@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from urllib.parse import quote
 
 # ======================================
-# 1. Page Config & Style
+# 1. Page Config & Professional Styling
 # ======================================
 st.set_page_config(
     page_title="Speed Analytics Executive Dashboard",
@@ -60,12 +60,12 @@ def load_and_clean_data():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # Text Logic
+    # Text Logic (Keep original content from GS)
     text_cols = ["เครื่องจักร", "กะ", "ลักษณะ เวลาหยุดเครื่อง", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด", "Checked-2", "Speed เทียบแผน"]
     for col in text_cols:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str).str.strip()
-            df[col] = df[col].replace(['nan', 'NaN', 'None', 'null', '0', '0.0'], '')
+            df[col] = df[col].replace(['nan', 'NaN', 'None', 'null'], '')
             
     return df
 
@@ -157,7 +157,7 @@ with tab_overview:
 
     st.markdown("---")
     
-    # 1. Trend Chart (Full Width)
+    # Trend Chart
     st.markdown("#### 📈 แนวโน้ม OVERALL SPEED")
     freq = st.selectbox("เลือกความถี่กราฟ:", options=["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"], index=1)
     
@@ -183,7 +183,7 @@ with tab_overview:
     st.plotly_chart(fig_t, use_container_width=True)
 
     st.markdown("---")
-    # 2. Speed Distribution
+    # Speed Distribution
     st.markdown("#### 📊 Speed Performance Distribution")
     if "Speed เทียบแผน" in f_df.columns:
         status_summary = f_df["Speed เทียบแผน"].value_counts().reset_index()
@@ -198,39 +198,45 @@ with tab_analysis:
     ns_loss = f_df[f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง"].copy()
     
     if not ns_loss.empty:
-        top_10 = ns_loss.sort_values(by="Diff เวลา", ascending=True).head(10)
-        
-        # Insights
-        total_lost_min = abs(top_10["Diff เวลา"].sum())
-        prob_stats = top_10[top_10["กรุ๊ปปัญหา"] != ""]["กรุ๊ปปัญหา"].value_counts()
-        main_prob = prob_stats.idxmax() if not prob_stats.empty else "ไม่ระบุ"
-        
-        st.error(f"""
-        **💡 Executive Insights (สรุป 10 อันดับที่ช้าที่สุด)**
-        * **⚠️ วิกฤตสูญเสียเวลา:** ในรายการที่ไม่จอดเครื่องพบความล่าช้าสะสมรวมถึง **{total_lost_min:,.0f} นาที** จากเพียง 10 ออเดอร์วิกฤต
-        * **🏭 Root Cause หลัก:** ปัญหาในกลุ่ม **"{main_prob}"** เป็นสาเหตุที่พบบ่อยที่สุด
-        * **🔍 คำแนะนำ:** ตรวจสอบช่องรายละเอียดของออเดอร์เหล่านี้เพื่อหาวิธีป้องกันเชิงเทคนิค
-        """)
-
-        # Pareto Chart
-        st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสูงสุด (นาที)")
+        # Pareto Chart (Sum of Loss by Problem Group)
+        st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
         pareto_data = ns_loss[ns_loss["Diff เวลา"] < 0].groupby("กรุ๊ปปัญหา")["Diff เวลา"].sum().abs().reset_index()
         pareto_data = pareto_data[pareto_data["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=False).head(8)
         
         if not pareto_data.empty:
-            fig_pareto = px.bar(pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", orientation='h', text_auto='.0f', color="Diff เวลา", color_continuous_scale="Reds")
-            fig_pareto.update_layout(height=400, template="plotly_white", showlegend=False, xaxis_title="นาทีสะสม", yaxis_title=None)
+            # ใช้จำนวนเต็มในกราฟ Pareto เพื่อความสอดคล้อง
+            fig_pareto = px.bar(
+                pareto_data, 
+                x="Diff เวลา", 
+                y="กรุ๊ปปัญหา", 
+                orientation='h', 
+                text=pareto_data["Diff เวลา"].round(0).astype(int), # แสดงตัวเลขปัดเศษ
+                color="Diff เวลา", 
+                color_continuous_scale="Reds"
+            )
+            fig_pareto.update_layout(height=400, template="plotly_white", showlegend=False, xaxis_title="นาทีสะสม (ปัดเศษ)", yaxis_title=None)
             st.plotly_chart(fig_pareto, use_container_width=True)
-        
-        # Top 10 Table (Rounded to Integer)
+            
+        # Top 10 Critical Table (Individual Orders)
         st.markdown("#### 📋 10 รายการออเดอร์ที่มีความล่าช้าสูงสุด (Critical Loss)")
+        top_10 = ns_loss.sort_values(by="Diff เวลา", ascending=True).head(10)
         show_cols = ["Speed Plan", "Actual Speed", "Diff เวลา", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
         display_top = top_10[show_cols].copy()
+        
+        # ปัดเศษเป็นจำนวนเต็ม
         for c in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
             if c in display_top.columns:
                 display_top[c] = display_top[c].round(0).astype(int)
         
         st.dataframe(display_top, use_container_width=True, hide_index=True)
+        
+        # Executive Insights
+        total_lost_min = int(round(abs(top_10["Diff เวลา"].sum())))
+        st.error(f"""
+        **💡 Executive Insights (สรุปข้อมูล 10 อันดับวิกฤต)**
+        * ในออเดอร์ 10 รายการที่ช้าที่สุดนี้ มีเวลาที่สูญเสียรวมทั้งสิ้น **{total_lost_min:,} นาที**
+        * ตัวเลขในกราฟ Pareto ด้านบนแสดง **"ผลรวมสะสม"** ของปัญหาทั้งหมดในช่วงเวลาที่เลือก ส่วนตารางด้านบนแสดง **"รายการเดี่ยว"** ที่วิกฤตที่สุดครับ
+        """)
     else:
         st.info("ℹ️ ไม่พบออเดอร์ประเภท 'ไม่จอดเครื่อง' ที่ล่าช้าในช่วงเวลานี้")
 
@@ -239,7 +245,7 @@ with tab_logs:
     st.markdown("### 📋 ข้อมูลรายออเดอร์แบบละเอียด (Data Logs)")
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown("#### 📦 สัดส่วนออเดอร์แยกตามเครื่องจักร")
+        st.markdown("#### 📦 สัดส่วนลักษณะ Order ความยาว")
         bar_df = f_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="C")
         fig_bar = px.bar(bar_df, x="C", y="เครื่องจักร", color="ลักษณะ Order ความยาว", orientation="h", barmode="stack", color_discrete_sequence=px.colors.qualitative.Pastel)
         fig_bar.update_layout(height=350, template="plotly_white")
@@ -252,7 +258,6 @@ with tab_logs:
         st.plotly_chart(fig_stop, use_container_width=True)
 
     st.markdown("---")
-    st.markdown("#### 📋 รายการออเดอร์ทั้งหมด (พร้อมระบบไฮไลท์สี)")
     log_cols = ["วันที่", "เครื่องจักร", "กะ", "PDR", "Speed Plan", "Actual Speed", "Diff เวลา", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
     display_df = f_df[[c for c in log_cols if c in f_df.columns]].sort_values("วันที่", ascending=False).copy()
     
