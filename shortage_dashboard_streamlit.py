@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Machine Performance Chart to Horizontal Stacked Bar
+# UPDATED: Reordered Sections & Enhanced Machine Performance Visuals
 # =====================================
 
 import streamlit as st
@@ -184,7 +184,55 @@ else:
     st.info("กรุณาเลือกช่วงเวลาที่มีข้อมูล")
 
 # =========================
-# SECTION 4: ROOT CAUSE & TREND
+# SECTION 4: MACHINE PERFORMANCE (MOVED UP & ENHANCED)
+# =========================
+st.markdown('<div class="section-header">🖥️ ประสิทธิภาพรายเครื่องจักร (Machine Performance Analysis)</div>', unsafe_allow_html=True)
+mc_perf = fdf.copy()
+if not mc_perf.empty:
+    # 1. คำนวณพื้นฐาน
+    mc_summary = mc_perf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวน')
+    mc_total = mc_summary.groupby('MC')['จำนวน'].transform('sum')
+    mc_summary['%'] = (mc_summary['จำนวน'] / mc_total * 100).round(1)
+    mc_summary['label_display'] = mc_summary.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
+    
+    # 2. การจัดเรียงข้อมูลแบบ Intelligence (เรียงตามเครื่องที่ "ขาดจำนวน" สูงสุดไว้บน)
+    # คัดเฉพาะแถว "ขาดจำนวน" มาหาค่า % เพื่อใช้จัดลำดับ
+    sort_helper = mc_summary[mc_summary['สถานะผลิต'] == 'ขาดจำนวน'][['MC', '%']].rename(columns={'%': 'sort_pct'})
+    mc_summary = mc_summary.merge(sort_helper, on='MC', how='left').fillna({'sort_pct': 0})
+    mc_summary = mc_summary.sort_values(['sort_pct', 'MC'], ascending=[True, True]) # True เพราะกราฟ Plotly Horizontal แสดงจากล่างขึ้นบน
+    
+    fig_mc = px.bar(mc_summary, x="%", y="MC", color="สถานะผลิต", 
+                    orientation="h",
+                    title="เปรียบเทียบสัดส่วนประสิทธิภาพแยกตามเครื่องจักร (Sorted by Shortage Rate)",
+                    text="label_display",
+                    barmode="stack", 
+                    category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
+                    color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
+    
+    fig_mc.update_traces(
+        textposition="inside", 
+        textfont=dict(size=12, color="white", family="Arial Black"),
+        marker_line_width=0
+    )
+    
+    fig_mc.update_layout(
+        xaxis_range=[0, 105], 
+        plot_bgcolor='rgba(0,0,0,0)', 
+        xaxis_title="เปอร์เซ็นต์สะสม (%)", 
+        yaxis_title=None,
+        height=min(400 + (len(mc_summary['MC'].unique()) * 30), 800), # ปรับความสูงตามจำนวนเครื่อง
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=0, r=10, t=50, b=0)
+    )
+    
+    # ลบเส้นตารางแนวตั้งเพื่อความคลีน
+    fig_mc.update_xaxes(showgrid=False, zeroline=False)
+    fig_mc.update_yaxes(tickfont=dict(size=13, color="#1e293b"))
+    
+    st.plotly_chart(fig_mc, use_container_width=True)
+
+# =========================
+# SECTION 5: ROOT CAUSE & TREND (MOVED DOWN)
 # =========================
 st.markdown('<div class="section-header">🔍 วิเคราะห์สาเหตุและแนวโน้ม (Root Cause & Trend)</div>', unsafe_allow_html=True)
 col_left, col_right = st.columns([2, 1])
@@ -246,35 +294,6 @@ if not trend.empty:
     fig_trend.update_traces(textposition="auto")
     fig_trend.update_layout(yaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', legend=dict(orientation="h", y=-0.2))
     st.plotly_chart(fig_trend, use_container_width=True)
-
-# =========================
-# SECTION 5: MACHINE PERFORMANCE (UPDATED TO HORIZONTAL)
-# =========================
-st.markdown('<div class="section-header">🖥️ ประสิทธิภาพรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
-mc_perf = fdf.copy()
-if not mc_perf.empty:
-    mc_summary = mc_perf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวน')
-    mc_total = mc_summary.groupby('MC')['จำนวน'].transform('sum')
-    mc_summary['%'] = (mc_summary['จำนวน'] / mc_total * 100).round(1)
-    mc_summary['label_display'] = mc_summary.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
-    
-    # Sort MC by name to keep it consistent
-    mc_summary = mc_summary.sort_values('MC', ascending=False)
-    
-    # Changed to Horizontal: x="%", y="MC", orientation="h"
-    fig_mc = px.bar(mc_summary, x="%", y="MC", color="สถานะผลิต", 
-                    orientation="h",
-                    title="สัดส่วนสถานะการผลิตแยกตามเครื่องจักร (Compare MC Performance)",
-                    text="label_display",
-                    barmode="stack", 
-                    category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
-                    color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-    
-    fig_mc.update_traces(textposition="inside", textfont=dict(size=11, color="white"))
-    fig_mc.update_layout(xaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', 
-                         xaxis_title="สัดส่วน (%)", yaxis_title="รหัสเครื่องจักร (MC)",
-                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    st.plotly_chart(fig_mc, use_container_width=True)
 
 # =========================
 # SECTION 6: REPAIR & DATA EXPLORER
