@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from urllib.parse import quote
 
 # ======================================
-# 1. Page Config & Premium CSS
+# 1. Page Config & Professional Styling
 # ======================================
 st.set_page_config(
     page_title="Speed Analytics Executive Dashboard",
@@ -13,6 +13,7 @@ st.set_page_config(
     layout="wide"
 )
 
+# Custom CSS for Premium Design
 st.markdown("""
 <style>
     .main { background-color: #f4f7f9; }
@@ -36,13 +37,6 @@ st.markdown("""
         border-radius: 12px;
         margin-bottom: 25px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-    .filter-section {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -99,7 +93,7 @@ if st.sidebar.button("🔄 รีโหลดข้อมูลใหม่"):
 
 max_date = df["วันที่"].max() if df["วันที่"].notna().any() else pd.Timestamp.today()
 min_date = max_date - pd.Timedelta(days=6)
-date_range = st.sidebar.date_input("📅 ช่วงวันที่", [min_date, max_date])
+date_range = st.sidebar.date_input("📅 เลือกช่วงวันที่", [min_date, max_date])
 
 def get_opts(col):
     return sorted([o for o in df[col].unique() if o != ""])
@@ -167,24 +161,44 @@ with tab_overview:
         st.markdown(kpi_card("OVERALL SPEED", color, ns_count + so_count, overall_time), unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("#### 📈 แนวโน้ม OVERALL SPEED")
-    freq = st.selectbox("เลือกความถี่กราฟ:", options=["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"], index=1)
+    st.markdown("#### 📈 แนวโน้ม OVERALL SPEED (แยกตามเครื่องจักร)")
+    freq_opt = st.selectbox("เลือกความถี่กราฟ:", options=["รายวัน", "รายสัปดาห์", "รายเดือน", "รายปี"], index=1)
     
     trend_df = f_df.copy()
     trend_df['Val'] = trend_df.apply(lambda r: r['Diff เวลา'] if r['ลักษณะ เวลาหยุดเครื่อง'] == "ไม่จอดเครื่อง" else r['Diff เวลา'] + r['เวลาหยุดข้อมูลเครื่อง'], axis=1)
     
-    if freq == "รายสัปดาห์":
+    if freq_opt == "รายสัปดาห์":
         trend_df['ISO_Week'] = trend_df['วันที่'].dt.isocalendar().week
-        res = trend_df.groupby('ISO_Week')['Val'].sum().reset_index()
+        res = trend_df.groupby(['ISO_Week', 'เครื่องจักร'])['Val'].sum().reset_index()
         res['Label'] = res['ISO_Week'].apply(lambda x: f"WEEK {x}")
+        res = res.sort_values(['ISO_Week', 'เครื่องจักร'])
     else:
         m_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
-        res = trend_df.set_index('วันที่')['Val'].resample(m_map[freq]).sum().reset_index()
+        # Grouping by machine and frequency
+        res = trend_df.groupby(['เครื่องจักร', pd.Grouper(key='วันที่', freq=m_map[freq_opt])])['Val'].sum().reset_index()
         fmt = {"รายวัน": "%d/%m/%y", "รายเดือน": "%m/%Y", "รายปี": "%Y"}
-        res['Label'] = res['วันที่'].dt.strftime(fmt[freq])
+        res['Label'] = res['วันที่'].dt.strftime(fmt[freq_opt])
 
-    fig_t = go.Figure(go.Bar(x=res['Label'], y=res['Val'], marker_color=['#55efc4' if v >= 0 else '#ff7675' for v in res['Val']], text=res['Val'].round(0).astype(int), textposition='outside'))
-    fig_t.update_layout(height=400, template="plotly_white", margin=dict(l=20, r=20, t=10, b=20), xaxis_title=None)
+    # กราฟแท่งแยกตามเครื่องจักร
+    fig_t = px.bar(
+        res, 
+        x='Label', 
+        y='Val', 
+        color='เครื่องจักร', 
+        barmode='group',
+        text_auto='.0f',
+        color_discrete_sequence=px.colors.qualitative.Bold
+    )
+    
+    fig_t.update_layout(
+        height=450, 
+        template="plotly_white", 
+        margin=dict(l=20, r=20, t=10, b=20), 
+        xaxis_title="ช่วงเวลา",
+        yaxis_title="Minutes (Overall Speed)",
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
+    )
+    fig_t.update_traces(textposition='outside')
     st.plotly_chart(fig_t, use_container_width=True)
 
     st.markdown("---")
@@ -240,8 +254,15 @@ with tab_analysis:
         """, unsafe_allow_html=True)
 
         st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
+        # Sort ascending for plotly's bottom-up bar chart order
         pareto_data = pareto_full[pareto_full["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=True).tail(8)
-        fig_pareto = px.bar(pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", orientation='h', text=pareto_data["Diff เวลา"].round(0).astype(int), color="Diff เวลา", color_continuous_scale="Reds")
+        fig_pareto = px.bar(
+            pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", 
+            orientation='h', 
+            text=pareto_data["Diff เวลา"].round(0).astype(int), 
+            color="Diff เวลา", 
+            color_continuous_scale="Reds"
+        )
         fig_pareto.update_layout(height=450, template="plotly_white", showlegend=False, xaxis_title="นาทีสะสม", yaxis_title=None, coloraxis_showscale=False)
         st.plotly_chart(fig_pareto, use_container_width=True)
             
@@ -252,7 +273,7 @@ with tab_analysis:
             display_top[c] = display_top[c].round(0).astype(int)
         st.dataframe(display_top, use_container_width=True, hide_index=True)
 
-# --- TAB 3: DATA LOGS & ENHANCED CHARTS ---
+# --- TAB 3: DATA LOGS ---
 with tab_logs:
     st.markdown("### 📋 วิเคราะห์รายละเอียดรายเครื่องจักรและออเดอร์")
     
@@ -260,18 +281,16 @@ with tab_logs:
     with col_a:
         st.markdown("#### 📦 สัดส่วนออเดอร์แยกตามเครื่องจักร")
         if "เครื่องจักร" in f_df.columns:
-            # 1. คำนวณจำนวนและเปอร์เซ็นต์
             bar_df = f_df.groupby(["เครื่องจักร", "ลักษณะ Order ความยาว"]).size().reset_index(name="C")
             bar_df['Total'] = bar_df.groupby('เครื่องจักร')['C'].transform('sum')
             bar_df['Pct'] = (bar_df['C'] / bar_df['Total'] * 100).round(1)
-            # สร้าง Label ข้อความ (จำนวน และ เปอร์เซ็นต์)
             bar_df['Label'] = bar_df.apply(lambda r: f"{int(r['C'])} ({r['Pct']}%)", axis=1)
 
             fig_bar = px.bar(
                 bar_df, x="C", y="เครื่องจักร", color="ลักษณะ Order ความยาว", 
                 orientation="h", barmode="stack",
                 color_discrete_sequence=px.colors.qualitative.Pastel,
-                text='Label' # ใช้ Label ที่สร้างขึ้น
+                text='Label'
             )
             fig_bar.update_layout(
                 height=400, template="plotly_white", 
@@ -279,72 +298,40 @@ with tab_logs:
                 legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
                 xaxis_title="จำนวนออเดอร์",
                 yaxis_title=None,
-                # ป้องกันข้อความทับกันโดยซ่อนอันที่เล็กเกินไป
-                uniformtext_minsize=8,
-                uniformtext_mode='hide'
+                uniformtext_minsize=8, uniformtext_mode='hide'
             )
-            fig_bar.update_traces(
-                textposition='inside', 
-                insidetextanchor='middle',
-                marker_line_color='white', 
-                marker_line_width=1.5, 
-                opacity=0.9
-            )
+            fig_bar.update_traces(textposition='inside', insidetextanchor='middle', marker_line_color='white', marker_line_width=1.5)
             st.plotly_chart(fig_bar, use_container_width=True)
 
     with col_b:
         st.markdown("#### 🛑 สาเหตุการจอดเครื่องสะสม")
         if "ลักษณะ เวลาหยุดเครื่อง" in f_df.columns:
             pie_stop = f_df[f_df["ลักษณะ เวลาหยุดเครื่อง"] != ""].groupby("ลักษณะ เวลาหยุดเครื่อง").size().reset_index(name="C")
-            fig_stop = px.pie(
-                pie_stop, names="ลักษณะ เวลาหยุดเครื่อง", values="C", 
-                hole=0.6, color_discrete_sequence=px.colors.qualitative.Safe
-            )
-            fig_stop.update_layout(
-                height=400, margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5)
-            )
-            fig_stop.update_traces(
-                textinfo='percent+label', 
-                marker=dict(line=dict(color='#ffffff', width=2)),
-                pull=[0.05, 0, 0] # ดึงเซกเมนต์ออกมาเล็กน้อยเพื่อความสวยงาม
-            )
+            fig_stop = px.pie(pie_stop, names="ลักษณะ เวลาหยุดเครื่อง", values="C", hole=0.6, color_discrete_sequence=px.colors.qualitative.Safe)
+            fig_stop.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5))
+            fig_stop.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)))
             st.plotly_chart(fig_stop, use_container_width=True)
 
     st.markdown("---")
     st.markdown("#### 🔍 ตัวกรองและรายการออเดอร์ (Data Logs)")
     
-    # --- TABLE FILTER SECTION ---
     with st.expander("🛠 เครื่องมือกรองตาราง (Table Filters)", expanded=True):
         c1, c2, c3 = st.columns(3)
-        with c1:
-            search_pdr = st.text_input("ค้นหา PDR (พิมพ์รหัส):", placeholder="เช่น PDR2602...")
-        with c2:
-            filter_prob = st.multiselect("กรองตามกรุ๊ปปัญหา:", options=get_opts("กรุ๊ปปัญหา"))
-        with c3:
-            # ใช้คอลัมน์ Speed เทียบแผน ถ้ามี
-            s_opts = get_opts("Speed เทียบแผน") if "Speed เทียบแผน" in f_df.columns else []
-            filter_speed = st.multiselect("กรองตาม Speed เทียบแผน:", options=s_opts)
+        with c1: search_pdr = st.text_input("ค้นหา PDR:", placeholder="เช่น PDR2602...")
+        with c2: filter_prob = st.multiselect("กรองตามกรุ๊ปปัญหา:", options=get_opts("กรุ๊ปปัญหา"))
+        with c3: filter_speed = st.multiselect("กรองตาม Speed เทียบแผน:", options=get_opts("Speed เทียบแผน") if "Speed เทียบแผน" in f_df.columns else [])
 
-    # Apply Table Filters
     log_df = f_df.copy()
-    if search_pdr:
-        log_df = log_df[log_df["PDR"].str.contains(search_pdr, case=False, na=False)]
-    if filter_prob:
-        log_df = log_df[log_df["กรุ๊ปปัญหา"].isin(filter_prob)]
-    if filter_speed:
-        log_df = log_df[log_df["Speed เทียบแผน"].isin(filter_speed)]
+    if search_pdr: log_df = log_df[log_df["PDR"].str.contains(search_pdr, case=False, na=False)]
+    if filter_prob: log_df = log_df[log_df["กรุ๊ปปัญหา"].isin(filter_prob)]
+    if filter_speed: log_df = log_df[log_df["Speed เทียบแผน"].isin(filter_speed)]
 
-    # Final Data Preparation
     log_cols = ["วันที่", "เครื่องจักร", "กะ", "PDR", "Speed Plan", "Actual Speed", "Diff เวลา", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
     display_df = log_df[[c for c in log_cols if c in log_df.columns]].sort_values("วันที่", ascending=False).copy()
     
-    # ปัดเศษ
     for c in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
-        if c in display_df.columns:
-            display_df[c] = display_df[c].round(0).astype(int)
+        if c in display_df.columns: display_df[c] = display_df[c].round(0).astype(int)
 
-    # Styling Table
     def highlight_rows(row):
         color = 'background-color: #ffebee' if row['Diff เวลา'] < -5 else ''
         return [color] * len(row)
