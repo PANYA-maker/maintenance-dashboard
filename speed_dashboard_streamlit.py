@@ -174,31 +174,51 @@ with tab_overview:
         res = res.sort_values(['ISO_Week', 'เครื่องจักร'])
     else:
         m_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
-        # Grouping by machine and frequency
         res = trend_df.groupby(['เครื่องจักร', pd.Grouper(key='วันที่', freq=m_map[freq_opt])])['Val'].sum().reset_index()
         fmt = {"รายวัน": "%d/%m/%y", "รายเดือน": "%m/%Y", "รายปี": "%Y"}
         res['Label'] = res['วันที่'].dt.strftime(fmt[freq_opt])
 
-    # กราฟแท่งแยกตามเครื่องจักร
-    fig_t = px.bar(
-        res, 
-        x='Label', 
-        y='Val', 
-        color='เครื่องจักร', 
-        barmode='group',
-        text_auto='.0f',
-        color_discrete_sequence=px.colors.qualitative.Bold
-    )
+    # กราฟแท่งแยกตามเครื่องจักร 
+    fig_t = go.Figure()
+    
+    # กำหนดชุดสีมาตรฐานสำหรับเครื่องจักร (เพื่อให้แท่งกราฟแยกตามเครื่อง ไม่ใช่ตามค่า)
+    colors_palette = px.colors.qualitative.Bold
+    machine_list = res['เครื่องจักร'].unique()
+    
+    for i, machine in enumerate(machine_list):
+        m_data = res[res['เครื่องจักร'] == machine]
+        
+        # คำนวณสีสำหรับตัวเลข (Text Labels) เฉพาะจุด: บวกเขียว ลบแดง
+        text_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
+        
+        fig_t.add_trace(go.Bar(
+            x=m_data['Label'],
+            y=m_data['Val'],
+            name=machine,
+            # สีแท่งกราฟใช้สีตามเครื่องจักร
+            marker_color=colors_palette[i % len(colors_palette)],
+            # ตั้งค่าตัวเลขโชว์
+            text=m_data['Val'].round(0).astype(int),
+            textposition='outside',
+            # ปรับสีเฉพาะที่ Label Visibility
+            textfont=dict(
+                size=14, 
+                color=text_colors, # ใส่เป็นลิสต์สีตามเงื่อนไข
+                family="Arial Black"
+            ),
+            hovertemplate="เครื่องจักร: " + machine + "<br>ช่วงเวลา: %{x}<br>ค่า: %{y}<extra></extra>"
+        ))
     
     fig_t.update_layout(
-        height=450, 
+        height=500, 
+        barmode='group',
         template="plotly_white", 
-        margin=dict(l=20, r=20, t=10, b=20), 
+        margin=dict(l=20, r=20, t=30, b=20), 
         xaxis_title="ช่วงเวลา",
         yaxis_title="Minutes (Overall Speed)",
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+        yaxis=dict(range=[res['Val'].min() * 1.3 if res['Val'].min() < 0 else -10, res['Val'].max() * 1.4])
     )
-    fig_t.update_traces(textposition='outside')
     st.plotly_chart(fig_t, use_container_width=True)
 
     st.markdown("---")
@@ -254,7 +274,6 @@ with tab_analysis:
         """, unsafe_allow_html=True)
 
         st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
-        # Sort ascending for plotly's bottom-up bar chart order
         pareto_data = pareto_full[pareto_full["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=True).tail(8)
         fig_pareto = px.bar(
             pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", 
