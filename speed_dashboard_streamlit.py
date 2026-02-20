@@ -181,9 +181,16 @@ with tab_overview:
     # กราฟแท่งแยกตามเครื่องจักร 
     fig_t = go.Figure()
     
-    # กำหนดชุดสีมาตรฐานสำหรับเครื่องจักร (เพื่อให้แท่งกราฟแยกตามเครื่อง ไม่ใช่ตามค่า)
-    colors_palette = px.colors.qualitative.Bold
-    machine_list = res['เครื่องจักร'].unique()
+    # 1. กำหนดคู่สีสำหรับแต่ละเครื่องจักรตามที่ระบุ
+    machine_color_map = {
+        "BSH": "#F1C40F",    # Yellow
+        "YUELI": "#2ECC71",  # Green
+        "ISOWA": "#3498DB"   # Blue
+    }
+    
+    # ชุดสีสำรองสำหรับกรณีมีเครื่องจักรอื่นเพิ่มขึ้นมา
+    backup_colors = px.colors.qualitative.Pastel
+    machine_list = sorted(res['เครื่องจักร'].unique())
     
     for i, machine in enumerate(machine_list):
         m_data = res[res['เครื่องจักร'] == machine]
@@ -191,19 +198,22 @@ with tab_overview:
         # คำนวณสีสำหรับตัวเลข (Text Labels) เฉพาะจุด: บวกเขียว ลบแดง
         text_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
         
+        # เลือกสีแท่งกราฟ (ถ้าไม่อยู่ใน map ให้ใช้สีจาก backup)
+        m_color = machine_color_map.get(machine.upper(), backup_colors[i % len(backup_colors)])
+        
         fig_t.add_trace(go.Bar(
             x=m_data['Label'],
             y=m_data['Val'],
             name=machine,
-            # สีแท่งกราฟใช้สีตามเครื่องจักร
-            marker_color=colors_palette[i % len(colors_palette)],
+            # สีแท่งกราฟคงที่ตามเครื่องจักร
+            marker_color=m_color,
             # ตั้งค่าตัวเลขโชว์
             text=m_data['Val'].round(0).astype(int),
             textposition='outside',
             # ปรับสีเฉพาะที่ Label Visibility
             textfont=dict(
                 size=14, 
-                color=text_colors, # ใส่เป็นลิสต์สีตามเงื่อนไข
+                color=text_colors, # ตัวเลขสีเขียว/แดงตามค่า
                 family="Arial Black"
             ),
             hovertemplate="เครื่องจักร: " + machine + "<br>ช่วงเวลา: %{x}<br>ค่า: %{y}<extra></extra>"
