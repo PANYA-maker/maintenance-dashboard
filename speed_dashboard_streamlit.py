@@ -89,11 +89,9 @@ if st.sidebar.button("🔄 รีโหลดข้อมูลใหม่"):
     st.cache_data.clear()
     st.rerun()
 
-# --- แก้ไขส่วนตัวกรองวันที่ให้เลือกเดือนได้ ---
 if df["วันที่"].notna().any():
     absolute_min_date = df["วันที่"].min().date()
     absolute_max_date = df["วันที่"].max().date()
-    # ค่าเริ่มต้นให้โชว์ 7 วันล่าสุดของข้อมูล
     default_start = absolute_max_date - pd.Timedelta(days=6)
     if default_start < absolute_min_date:
         default_start = absolute_min_date
@@ -105,8 +103,8 @@ else:
 date_range = st.sidebar.date_input(
     "📅 เลือกช่วงวันที่",
     value=[default_start, absolute_max_date],
-    min_value=absolute_min_date, # อนุญาตให้เลือกย้อนหลังได้ถึงวันแรกที่มีข้อมูล
-    max_value=absolute_max_date  # ไม่ให้เลือกเกินวันสุดท้ายที่มีข้อมูล
+    min_value=absolute_min_date,
+    max_value=absolute_max_date
 )
 
 def get_opts(col):
@@ -192,23 +190,21 @@ with tab_overview:
         fmt = {"รายวัน": "%d/%m/%y", "รายเดือน": "%m/%Y", "รายปี": "%Y"}
         res_trend['Label'] = res_trend['วันที่'].dt.strftime(fmt[freq_opt])
 
-    # กราฟแท่งแยกเครื่องจักร: BHS(เหลือง), YUELI(เขียว), ISOWA(น้ำเงิน)
+    # กราฟแนวโน้ม: ปรับสีแท่งตามค่า (บวกเขียว/ลบแดง)
     fig_trend = go.Figure()
-    machine_colors = {"BHS": "#F1C40F", "BSH": "#F1C40F", "YUELI": "#2ECC71", "ISOWA": "#3498DB"}
-    backup_pal = px.colors.qualitative.Pastel
-    
     m_list = sorted(res_trend['เครื่องจักร'].unique())
-    for i, m in enumerate(m_list):
+    
+    for m in m_list:
         m_data = res_trend[res_trend['เครื่องจักร'] == m]
-        # สี Label: บวกเขียว ลบแดง
-        text_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
+        # สีสำหรับแท่งกราฟและตัวเลข: บวกเขียว ลบแดง
+        colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
         
         fig_trend.add_trace(go.Bar(
             x=m_data['Label'], y=m_data['Val'], name=m,
-            marker_color=machine_colors.get(m.upper(), backup_pal[i % len(backup_pal)]),
+            marker_color=colors, # สีแท่งกราฟเปลี่ยนตามค่า
             text=m_data['Val'].round(0).astype(int),
             textposition='outside',
-            textfont=dict(size=14, color=text_colors, family="Arial Black"),
+            textfont=dict(size=14, color=colors, family="Arial Black"),
             hovertemplate="เครื่อง: " + m + "<br>เวลา: %{x}<br>ค่า: %{y}<extra></extra>"
         ))
     
@@ -239,7 +235,6 @@ with tab_overview:
 with tab_analysis:
     ns_loss_all = f_df[(f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง") & (f_df["Diff เวลา"] < 0)].copy()
     if not ns_loss_all.empty:
-        # 1. Executive Summary
         total_loss_min = int(round(abs(ns_loss_all["Diff เวลา"].sum())))
         num_late_orders = len(ns_loss_all)
         pareto_full = ns_loss_all.groupby("กรุ๊ปปัญหา")["Diff เวลา"].sum().abs().reset_index()
@@ -262,14 +257,13 @@ with tab_analysis:
                     <p style="margin-bottom:8px;"><b>🏭 สาเหตุวิกฤต (Root Cause):</b></p>
                     <ul style="margin-bottom:0; font-size:15px;">
                         <li><b>ปัญหาหลัก:</b> <b>"{top_prob['กรุ๊ปปัญหา'] if top_prob['กรุ๊ปปัญหา'] != '' else 'ไม่ระบุ'}"</b> กินเวลาไปถึง <b>{int(round(top_prob['Diff เวลา'])):,} นาที</b></li>
-                        <li><b>ข้อเสนอแนะ:</b> ควรจัดลำดับความสำคัญในการตรวจสอบปัญหาที่ส่งผลต่อการสูญเสียเวลาสะสมสูงสุด</li>
+                        <li><b>ข้อเสนอแนะ:</b> ควรตรวจสอบคอขวดในกลุ่มปัญหานี้เป็นอันดับแรกเพื่อดึงประสิทธิภาพกลับมา</li>
                     </ul>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. Pareto Chart
         st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
         pareto_data = pareto_full[pareto_full["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=True).tail(10)
         fig_pareto = px.bar(pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", orientation='h', 
@@ -278,7 +272,6 @@ with tab_analysis:
         fig_pareto.update_layout(height=450, template="plotly_white", showlegend=False, xaxis_title="นาทีสะสม", yaxis_title=None, coloraxis_showscale=False)
         st.plotly_chart(fig_pareto, use_container_width=True)
             
-        # 3. Top 10 Table
         st.markdown("#### 📋 10 รายการออเดอร์ที่มีความล่าช้าสูงสุด (Critical Loss)")
         show_cols = ["Speed Plan", "Actual Speed", "Diff เวลา", "ลักษณะ Order ความยาว", "สาเหตุจาก", "กรุ๊ปปัญหา", "รายละเอียด"]
         display_top = top_10[show_cols].copy()
