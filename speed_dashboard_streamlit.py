@@ -181,11 +181,15 @@ with tab_overview:
     
     if freq_opt == "รายสัปดาห์":
         # logic: Sunday as the first day of the week
-        # Use %U for Sunday-start week number (00-53)
+        # (วันที่.weekday + 1) % 7 หาวันย้อนหลังไปถึงวันอาทิตย์ (Mon=0...Sun=6)
         trend_df['Week_Start'] = trend_df['วันที่'] - pd.to_timedelta((trend_df['วันที่'].dt.weekday + 1) % 7, unit='D')
         res_trend = trend_df.groupby(['Week_Start', 'เครื่องจักร'])['Val'].sum().reset_index()
-        # Create label format like W08, W09
-        res_trend['Label'] = 'W' + res_trend['Week_Start'].dt.strftime('%U')
+        
+        # ปรับตรรกะเลขสัปดาห์: %U เริ่ม 0 ดังนั้น +1 เพื่อให้สัปดาห์แรกของปีเป็น W1
+        # และใช้ .astype(int) เพื่อกำจัดเลข 0 ข้างหน้า
+        res_trend['Week_Num'] = res_trend['Week_Start'].dt.strftime('%U').astype(int) + 1
+        res_trend['Label'] = 'W' + res_trend['Week_Num'].astype(str)
+        
         res_trend = res_trend.sort_values(['Week_Start', 'เครื่องจักร'])
     else:
         m_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
