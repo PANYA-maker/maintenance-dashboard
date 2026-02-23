@@ -178,29 +178,26 @@ with tab_overview:
         fmt = {"รายวัน": "%d/%m/%y", "รายเดือน": "%m/%Y", "รายปี": "%Y"}
         res_trend['Label'] = res_trend['วันที่'].dt.strftime(fmt[freq_opt])
 
-    # กราฟแท่งแยกเครื่องจักร: BHS(เหลือง), YUELI(เขียว), ISOWA(น้ำเงิน)
+    # กราฟแท่งแยกเครื่องจักร พร้อมปรับสีแท่งอัตโนมัติ (บวกเขียว ลบแดง)
     fig_trend = go.Figure()
-    machine_colors = {
-        "BHS": "#F1C40F",    # Yellow
-        "BSH": "#F1C40F",    # Yellow (Fallback)
-        "YUELI": "#2ECC71",  # Green
-        "ISOWA": "#3498DB"   # Blue
-    }
     
     unique_machines = sorted(res_trend['เครื่องจักร'].unique())
-    backup_pal = px.colors.qualitative.Pastel
     
     for i, m in enumerate(unique_machines):
         m_data = res_trend[res_trend['เครื่องจักร'] == m]
-        # สีตัวเลข Label: บวกเขียว ลบแดง
-        text_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
+        
+        # สีสำหรับตัวเลข Label และสีแท่งกราฟ: บวกเขียว ลบแดง อัตโนมัติ
+        perf_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
         
         fig_trend.add_trace(go.Bar(
-            x=m_data['Label'], y=m_data['Val'], name=m,
-            marker_color=machine_colors.get(m.upper(), backup_pal[i % len(backup_pal)]),
+            x=m_data['Label'], 
+            y=m_data['Val'], 
+            name=m,
+            # ปรับสีแท่งกราฟตามประสิทธิภาพ (ตามที่ขอใหม่)
+            marker_color=perf_colors,
             text=m_data['Val'].round(0).astype(int),
             textposition='outside',
-            textfont=dict(size=14, color=text_colors, family="Arial Black"),
+            textfont=dict(size=14, color=perf_colors, family="Arial Black"),
             hovertemplate="เครื่อง: " + m + "<br>ช่วงเวลา: %{x}<br>ค่า: %{y}<extra></extra>"
         ))
     
@@ -265,7 +262,6 @@ with tab_analysis:
         """, unsafe_allow_html=True)
 
         st.markdown("#### 📈 Pareto: กลุ่มปัญหาที่สร้างความสูญเสียสะสม (นาที)")
-        # Highest loss at the top
         pareto_data = pareto_full[pareto_full["กรุ๊ปปัญหา"] != ""].sort_values(by="Diff เวลา", ascending=True).tail(10)
         fig_pareto = px.bar(pareto_data, x="Diff เวลา", y="กรุ๊ปปัญหา", orientation='h', 
                             text=pareto_data["Diff เวลา"].round(0).astype(int), 
@@ -279,6 +275,8 @@ with tab_analysis:
         for c in ["Speed Plan", "Actual Speed", "Diff เวลา"]:
             display_top[c] = display_top[c].round(0).astype(int)
         st.dataframe(display_top, use_container_width=True, hide_index=True)
+    else:
+        st.info("ℹ️ ไม่พบออเดอร์ที่มีความล่าช้าในช่วงเวลานี้")
 
 # --- TAB 3: DATA LOGS ---
 with tab_logs:
