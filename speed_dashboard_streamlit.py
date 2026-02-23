@@ -181,9 +181,11 @@ with tab_overview:
     
     if freq_opt == "รายสัปดาห์":
         # logic: Sunday as the first day of the week
+        # Use %U for Sunday-start week number (00-53)
         trend_df['Week_Start'] = trend_df['วันที่'] - pd.to_timedelta((trend_df['วันที่'].dt.weekday + 1) % 7, unit='D')
         res_trend = trend_df.groupby(['Week_Start', 'เครื่องจักร'])['Val'].sum().reset_index()
-        res_trend['Label'] = res_trend['Week_Start'].dt.strftime('%d/%m (Sun)')
+        # Create label format like W08, W09
+        res_trend['Label'] = 'W' + res_trend['Week_Start'].dt.strftime('%U')
         res_trend = res_trend.sort_values(['Week_Start', 'เครื่องจักร'])
     else:
         m_map = {"รายวัน": "D", "รายเดือน": "MS", "รายปี": "YS"}
@@ -202,7 +204,7 @@ with tab_overview:
         
         fig_trend.add_trace(go.Bar(
             x=m_data['Label'], y=m_data['Val'], name=m,
-            marker_color=dynamic_colors, # ปรับสีแท่งกราฟอัตโนมัติ
+            marker_color=dynamic_colors,
             text=m_data['Val'].round(0).astype(int),
             textposition='outside',
             textfont=dict(size=14, color=dynamic_colors, family="Arial Black"),
