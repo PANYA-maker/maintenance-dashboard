@@ -181,7 +181,6 @@ with tab_overview:
     
     if freq_opt == "รายสัปดาห์":
         # logic: Sunday as the first day of the week
-        # (dt.weekday + 1) % 7 calculates how many days back to get to Sunday (Monday=0...Sunday=6)
         trend_df['Week_Start'] = trend_df['วันที่'] - pd.to_timedelta((trend_df['วันที่'].dt.weekday + 1) % 7, unit='D')
         res_trend = trend_df.groupby(['Week_Start', 'เครื่องจักร'])['Val'].sum().reset_index()
         res_trend['Label'] = res_trend['Week_Start'].dt.strftime('%d/%m (Sun)')
@@ -192,24 +191,22 @@ with tab_overview:
         fmt = {"รายวัน": "%d/%m/%y", "รายเดือน": "%m/%Y", "รายปี": "%Y"}
         res_trend['Label'] = res_trend['วันที่'].dt.strftime(fmt[freq_opt])
 
-    # Trend Chart: Grouped bar by machine, colors based on values
+    # กราฟแนวโน้ม: ปรับสีแท่งกราฟอัตโนมัติ (บวกเขียว ลบแดง)
     fig_trend = go.Figure()
-    machine_colors_fixed = {"BHS": "#F1C40F", "BSH": "#F1C40F", "YUELI": "#2ECC71", "ISOWA": "#3498DB"}
-    backup_pal = px.colors.qualitative.Pastel
-    
     m_list_final = sorted(res_trend['เครื่องจักร'].unique())
-    for i, m in enumerate(m_list_final):
+    
+    for m in m_list_final:
         m_data = res_trend[res_trend['เครื่องจักร'] == m]
-        # Label colors: Green if positive, Red if negative
-        text_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
+        # คำนวณสี: บวกเขียว ลบแดง
+        dynamic_colors = m_data['Val'].apply(lambda x: '#2ecc71' if x >= 0 else '#e74c3c').tolist()
         
         fig_trend.add_trace(go.Bar(
             x=m_data['Label'], y=m_data['Val'], name=m,
-            marker_color=machine_colors_fixed.get(m.upper(), backup_pal[i % len(backup_pal)]),
+            marker_color=dynamic_colors, # ปรับสีแท่งกราฟอัตโนมัติ
             text=m_data['Val'].round(0).astype(int),
             textposition='outside',
-            textfont=dict(size=14, color=text_colors, family="Arial Black"),
-            hovertemplate="เครื่อง: " + m + "<br>เวลา: %{x}<br>ค่า: %{y}<extra></extra>"
+            textfont=dict(size=14, color=dynamic_colors, family="Arial Black"),
+            hovertemplate="เครื่อง: " + m + "<br>ช่วงเวลา: %{x}<br>ค่า: %{y}<extra></extra>"
         ))
     
     fig_trend.update_layout(height=500, barmode='group', template="plotly_white", margin=dict(l=20, r=20, t=30, b=20),
@@ -239,7 +236,6 @@ with tab_overview:
 with tab_analysis:
     ns_loss_all = f_df[(f_df["ลักษณะ เวลาหยุดเครื่อง"] == "ไม่จอดเครื่อง") & (f_df["Diff เวลา"] < 0)].copy()
     if not ns_loss_all.empty:
-        # Executive Summary Calculation
         total_loss_exec = int(round(abs(ns_loss_all["Diff เวลา"].sum())))
         num_late_exec = len(ns_loss_all)
         pareto_full_exec = ns_loss_all.groupby("กรุ๊ปปัญหา")["Diff เวลา"].sum().abs().reset_index()
