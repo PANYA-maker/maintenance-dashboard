@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Added Stop/Non-stop Status Chart for Shortage Orders
+# UPDATED: Added Stop/Non-stop Status Filter in Sidebar
 # =====================================
 
 import streamlit as st
@@ -102,6 +102,14 @@ with st.sidebar:
     shift_filter = st.multiselect("กะ (Shift)", sorted(df["กะ"].dropna().unique()))
     status_filter = st.multiselect("สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique()))
     customer_filter = st.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
+    
+    # เพิ่มตัวกรองสถานะการจอดเครื่อง
+    stop_status_col = "สถานะ ORDER จอดหรือไม่จอด"
+    if stop_status_col in df.columns:
+        stop_status_filter = st.multiselect("สถานะการจอดเครื่อง", sorted(df[stop_status_col].dropna().unique()))
+    else:
+        stop_status_filter = []
+
     period = st.selectbox("มุมมองแนวโน้ม", ["รายสัปดาห์", "รายวัน", "รายเดือน", "รายปี"])
 
 # ---------------- Apply Filter Logic ----------------
@@ -112,6 +120,7 @@ if mc_filter: fdf = fdf[fdf["MC"].isin(mc_filter)]
 if shift_filter: fdf = fdf[fdf["กะ"].isin(shift_filter)]
 if status_filter: fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
 if customer_filter: fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
+if stop_status_filter: fdf = fdf[fdf[stop_status_col].isin(stop_status_filter)]
 
 # ---------------- Header Analytics ----------------
 st.markdown(f"""
@@ -243,7 +252,6 @@ with col_left:
         st.plotly_chart(fig_top10, use_container_width=True)
 
 with col_mid:
-    # กราฟเดิม: สัดส่วนสถานะการผลิตทั้งหมด
     status_df = fdf["สถานะผลิต"].value_counts().reset_index()
     status_df.columns = ["สถานะ", "จำนวน"]
     fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", 
@@ -254,7 +262,6 @@ with col_mid:
     st.plotly_chart(fig_status, use_container_width=True)
 
 with col_right:
-    # กราฟใหม่: สัดส่วนการจอดเครื่อง เฉพาะงานที่ขาดจำนวน
     short_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
     stop_col = "สถานะ ORDER จอดหรือไม่จอด"
     if stop_col in short_df.columns:
