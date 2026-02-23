@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Added Column-specific Filtering for Data Explorer
+# UPDATED: Added Stop/Non-stop Status Chart for Shortage Orders
 # =====================================
 
 import streamlit as st
@@ -225,10 +225,10 @@ if not mc_perf.empty:
     st.plotly_chart(fig_mc, use_container_width=True)
 
 # =========================
-# SECTION 5: ROOT CAUSE & TREND
+# SECTION 5: ROOT CAUSE & TREND ANALYSIS
 # =========================
-st.markdown('<div class="section-header">🔍 วิเคราะห์สาเหตุและแนวโน้ม (Root Cause & Trend)</div>', unsafe_allow_html=True)
-col_left, col_right = st.columns([2, 1])
+st.markdown('<div class="section-header">🔍 วิเคราะห์สาเหตุและเจาะลึกงานขาดจำนวน (Deep Dive Analysis)</div>', unsafe_allow_html=True)
+col_left, col_mid, col_right = st.columns([2, 1, 1])
 
 with col_left:
     top10 = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
@@ -242,17 +242,36 @@ with col_left:
         fig_top10.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=40, b=0))
         st.plotly_chart(fig_top10, use_container_width=True)
 
-with col_right:
+with col_mid:
+    # กราฟเดิม: สัดส่วนสถานะการผลิตทั้งหมด
     status_df = fdf["สถานะผลิต"].value_counts().reset_index()
     status_df.columns = ["สถานะ", "จำนวน"]
     fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", 
-                       title="สัดส่วนสถานะการผลิต",
+                       title="สัดส่วนสถานะผลิต (Overall)",
                        color="สถานะ", color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-    fig_status.update_traces(textinfo="value+percent", textfont_size=12)
-    fig_status.update_layout(margin=dict(t=40, b=0), showlegend=True)
+    fig_status.update_traces(textinfo="value+percent", textfont_size=11)
+    fig_status.update_layout(margin=dict(t=40, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.1))
     st.plotly_chart(fig_status, use_container_width=True)
 
+with col_right:
+    # กราฟใหม่: สัดส่วนการจอดเครื่อง เฉพาะงานที่ขาดจำนวน
+    short_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
+    stop_col = "สถานะ ORDER จอดหรือไม่จอด"
+    if stop_col in short_df.columns:
+        stop_summary = short_df[stop_col].value_counts().reset_index()
+        stop_summary.columns = ["สถานะจอด", "จำนวน"]
+        
+        fig_stop = px.pie(stop_summary, names="สถานะจอด", values="จำนวน",
+                         title="สัดส่วนการจอดเครื่อง (เฉพาะงานขาด)",
+                         color_discrete_sequence=px.colors.qualitative.Safe)
+        fig_stop.update_traces(textinfo="value+percent", textfont_size=11)
+        fig_stop.update_layout(margin=dict(t=40, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.1))
+        st.plotly_chart(fig_stop, use_container_width=True)
+    else:
+        st.warning(f"ไม่พบคอลัมน์ '{stop_col}'")
+
 # Trend Analysis
+st.markdown("#### 📈 แนวโน้มประสิทธิภาพตามช่วงเวลา")
 trend = fdf.copy()
 if not trend.empty:
     if period == "รายวัน": 
@@ -315,22 +334,17 @@ if "สถานะซ่อมสรุป" in fdf.columns:
 
 # ---------------- DATA EXPLORER WITH COLUMN FILTERS ----------------
 with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
-    # Create Filter Row inside Expander
     st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
     f_c1, f_c2, f_c3 = st.columns(3)
     
-    # Pre-display clean columns list
-    target_columns = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป"]
+    target_columns = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป", "สถานะ ORDER จอดหรือไม่จอด"]
     
-    # Filter inputs
     search_pdr = f_c1.text_input("ค้นหา PDR No.", placeholder="พิมพ์เลข PDR...")
     search_cust = f_c2.text_input("ค้นหาชื่อลูกค้า", placeholder="พิมพ์ชื่อลูกค้า...")
     search_detail = f_c3.text_input("ค้นหา Detail/สาเหตุ", placeholder="พิมพ์สาเหตุ...")
 
-    # Build filtered display dataframe
     fdf_table = fdf.copy()
     
-    # Apply text filters if provided
     if search_pdr:
         fdf_table = fdf_table[fdf_table["PDR No."].astype(str).str.contains(search_pdr, case=False, na=False)]
     if search_cust:
@@ -338,10 +352,7 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
     if search_detail:
         fdf_table = fdf_table[fdf_table["Detail"].astype(str).str.contains(search_detail, case=False, na=False)]
 
-    # Format date for display
     fdf_table["วันที่"] = fdf_table["วันที่"].dt.strftime("%d/%m/%Y")
-    
-    # Final filter for selected columns only
     available_cols = [c for c in target_columns if c in fdf_table.columns]
     
     st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
@@ -351,4 +362,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
         hide_index=True
     )
 
-st.caption("Shortage Intelligence Dashboard | Machine Performance Analysis Included | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Stop Status Analysis Added | ข้อมูลครบถ้วน 100%")
