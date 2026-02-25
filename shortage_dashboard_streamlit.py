@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Dynamic Customer Title for Trend Chart
+# UPDATED: Fixed Label Overflow & X-Axis Sorting Issue
 # =====================================
 
 import streamlit as st
@@ -302,6 +302,8 @@ if not trend.empty:
     total_in_period = sum_trend.groupby("ช่วง_dt")["จำนวน"].transform("sum")
     sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1)
     sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
+    
+    # บังคับการจัดเรียงตามเวลา (Chronological Sort)
     sum_trend = sum_trend.sort_values("ช่วง_dt")
     
     # คำนวณชื่อลูกค้าสำหรับชื่อกราฟ
@@ -318,8 +320,23 @@ if not trend.empty:
                       barmode="stack", 
                       category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
                       color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-    fig_trend.update_traces(textposition="auto")
-    fig_trend.update_layout(yaxis_range=[0, 105], plot_bgcolor='rgba(0,0,0,0)', legend=dict(orientation="h", y=-0.2))
+    
+    # ตั้งค่า X-axis ให้รักษาระดับการเรียงลำดับตามข้อมูลที่ผ่านการ sort มาแล้ว (CategoryOrder)
+    fig_trend.update_layout(
+        xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend['ช่วง'].unique()},
+        yaxis_range=[0, 115], # ขยายขอบบนเพื่อไม่ให้ตัวเลขล้น
+        plot_bgcolor='rgba(0,0,0,0)', 
+        legend=dict(orientation="h", y=-0.2),
+        margin=dict(t=50)
+    )
+    
+    # ปรับให้ตัวเลขพยายามอยู่ในแท่งกราฟ และลดขนาด font หากพื้นที่แคบ
+    fig_trend.update_traces(
+        textposition="inside", 
+        textfont=dict(size=10, color="white"),
+        insidetextanchor="middle"
+    )
+    
     st.plotly_chart(fig_trend, use_container_width=True)
 
 # =========================
@@ -376,4 +393,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
         hide_index=True
     )
 
-st.caption("Shortage Intelligence Dashboard | Context-Aware Customer Titles Added | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Fixed Overflow & Sorting | ข้อมูลครบถ้วน 100%")
