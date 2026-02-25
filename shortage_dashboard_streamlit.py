@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Added Stop/Non-stop Status Filter in Sidebar
+# UPDATED: Dynamic Customer Title for Trend Chart
 # =====================================
 
 import streamlit as st
@@ -103,7 +103,6 @@ with st.sidebar:
     status_filter = st.multiselect("สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique()))
     customer_filter = st.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
     
-    # เพิ่มตัวกรองสถานะการจอดเครื่อง
     stop_status_col = "สถานะ ORDER จอดหรือไม่จอด"
     if stop_status_col in df.columns:
         stop_status_filter = st.multiselect("สถานะการจอดเครื่อง", sorted(df[stop_status_col].dropna().unique()))
@@ -305,8 +304,16 @@ if not trend.empty:
     sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
     sum_trend = sum_trend.sort_values("ช่วง_dt")
     
+    # คำนวณชื่อลูกค้าสำหรับชื่อกราฟ
+    cust_display = ""
+    if customer_filter:
+        if len(customer_filter) > 3:
+            cust_display = f" | ลูกค้า {len(customer_filter)} ราย"
+        else:
+            cust_display = f" | ลูกค้า: {', '.join(customer_filter)}"
+
     fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", 
-                      title=f"แนวโน้มประสิทธิภาพการผลิต ({period}{title_suffix})",
+                      title=f"แนวโน้มประสิทธิภาพการผลิต ({period}{title_suffix}){cust_display}",
                       text="label_display",
                       barmode="stack", 
                       category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
@@ -369,4 +376,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
         hide_index=True
     )
 
-st.caption("Shortage Intelligence Dashboard | Stop Status Analysis Added | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Context-Aware Customer Titles Added | ข้อมูลครบถ้วน 100%")
