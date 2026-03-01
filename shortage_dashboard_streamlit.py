@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# FIX: Enhanced Top 10 Chart readability
+# FIX: Converted all Pie charts to Donut charts and resolved Title Clipping
 # =====================================
 
 import streamlit as st
@@ -225,54 +225,57 @@ with tab1:
     col_left, col_mid, col_right = st.columns([2, 1, 1])
     
     with col_left:
-        # Top 10 Causes Chart - IMPROVED READABILITY
+        # Top 10 Causes Chart - Readability remains same as ordered
         top10 = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
         if not top10.empty:
             top10["%"] = (top10["จำนวน"] / order_total * 100).round(1)
-            # Formatting with commas and bold text for clarity
             top10["label_with_pct"] = "<b>" + top10["จำนวน"].map('{:,}'.format) + "</b> (" + top10["%"].astype(str) + "%)"
             
             fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", 
                               title="TOP 10 สาเหตุงานขาดจำนวน", color="จำนวน", 
                               color_continuous_scale="Reds", text="label_with_pct")
-            
-            # Position text outside for much better contrast against dark red bars
-            fig_top10.update_traces(
-                textposition="outside", 
-                textfont=dict(size=13, color="#1e293b"),
-                cliponaxis=False
-            )
-            
-            fig_top10.update_layout(
-                plot_bgcolor='white', 
-                paper_bgcolor='white',
-                margin=dict(t=50, b=0, r=80), # Increased right margin so labels don't cut off
-                coloraxis_colorbar=dict(title="จำนวน"),
-                xaxis=dict(showgrid=True, gridcolor='lightgrey', zeroline=False),
-                yaxis=dict(showgrid=False, title=None)
-            )
+            fig_top10.update_traces(textposition="outside", textfont=dict(size=13, color="#1e293b"), cliponaxis=False)
+            fig_top10.update_layout(plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=50, b=0, r=80),
+                                    coloraxis_colorbar=dict(title="จำนวน"), xaxis=dict(showgrid=True, gridcolor='lightgrey', zeroline=False),
+                                    yaxis=dict(showgrid=False, title=None))
             st.plotly_chart(fig_top10, use_container_width=True)
 
     with col_mid:
+        # Donut Chart 1: Overall Production Status
         status_df = fdf["สถานะผลิต"].value_counts().reset_index(); status_df.columns = ["สถานะ", "จำนวน"]
-        fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", title="สัดส่วนสถานะผลิต (Overall)",
+        fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", hole=0.5,
+                           title="สัดส่วนสถานะการผลิต (Overall)",
                            color="สถานะ", color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-        fig_status.update_traces(textinfo="value+percent", textfont_size=11); fig_status.update_layout(margin=dict(t=40, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.1))
+        fig_status.update_traces(textinfo="percent", textfont_size=12)
+        fig_status.update_layout(
+            margin=dict(t=100, b=20, l=10, r=10),
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5),
+            title=dict(y=0.95, x=0.5, xanchor='center', yanchor='top', font=dict(size=16))
+        )
         st.plotly_chart(fig_status, use_container_width=True)
         
     with col_right:
+        # Donut Chart 2: Stop/Non-stop Status (Only for Shortage)
         short_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]; stop_col = "สถานะ ORDER จอดหรือไม่จอด"
         if stop_col in short_df.columns:
             stop_summary = short_df[stop_col].value_counts().reset_index(); stop_summary.columns = ["สถานะจอด", "จำนวน"]
-            fig_stop = px.pie(stop_summary, names="สถานะจอด", values="จำนวน", title="สัดส่วนการจอดเครื่อง (เฉพาะงานขาด)", color_discrete_sequence=px.colors.qualitative.Safe)
-            fig_stop.update_traces(textinfo="value+percent", textfont_size=11); fig_stop.update_layout(margin=dict(t=40, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.1))
+            fig_stop = px.pie(stop_summary, names="สถานะจอด", values="จำนวน", hole=0.5,
+                             title="สัดส่วนการจอดเครื่อง (เฉพาะงานขาด)",
+                             color_discrete_sequence=px.colors.qualitative.Safe)
+            fig_stop.update_traces(textinfo="value+percent", textfont_size=12)
+            fig_stop.update_layout(
+                margin=dict(t=100, b=20, l=10, r=10),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5),
+                title=dict(y=0.95, x=0.5, xanchor='center', yanchor='top', font=dict(size=16))
+            )
             st.plotly_chart(fig_stop, use_container_width=True)
 
     st.markdown("#### 📈 แนวโน้มประสิทธิภาพตามช่วงเวลา")
     trend = fdf.copy()
     if not trend.empty:
         title_suffix = "" 
-        
         if period == "รายวัน": 
             trend["ช่วง_dt"] = trend["วันที่"].dt.normalize(); trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         elif period == "รายสัปดาห์": 
@@ -288,7 +291,6 @@ with tab1:
         sum_trend = trend.groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
         total_in_period = sum_trend.groupby("ช่วง_dt")["จำนวน"].transform("sum")
         sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1); sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
-        
         sum_trend = sum_trend.sort_values("ช่วง_dt")
         
         cust_display = f" | ลูกค้า: {', '.join(customer_filter)}" if customer_filter and len(customer_filter) <= 3 else (f" | ลูกค้า {len(customer_filter)} ราย" if customer_filter else "")
@@ -347,9 +349,14 @@ with tab2:
                 use_container_width=True, hide_index=True)
         with t2:
             issue_df_pie = issue_df[issue_df["หมวดหมู่งานซ่อม"] != "ผลรวมทั้งหมด"]
+            # Donut Chart 3: Repair Categories
             fig_repair = px.pie(issue_df_pie, names="หมวดหมู่งานซ่อม", values="จำนวนออเดอร์", hole=0.5, title="สัดส่วนออเดอร์ตามงานซ่อม")
             fig_repair.update_traces(textinfo="label+percent", textposition="inside", textfont_size=11, textfont_color="white")
-            fig_repair.update_layout(margin=dict(t=30, b=0), showlegend=False)
+            fig_repair.update_layout(
+                margin=dict(t=80, b=20, l=10, r=10), 
+                showlegend=False,
+                title=dict(y=0.95, x=0.5, xanchor='center', yanchor='top', font=dict(size=16))
+            )
             st.plotly_chart(fig_repair, use_container_width=True)
 
     with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
@@ -365,4 +372,4 @@ with tab2:
         st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
         st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
 
-st.caption("Shortage Intelligence Dashboard | Improved Chart Labels | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Improved Donut Charts & Layout | ข้อมูลครบถ้วน 100%")
