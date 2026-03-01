@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# FIX: HTML Rendering issue, NameError, and Re-added Detailed Logs
+# UPDATED: Added Strategic Analysis for Repair Tab & Fixed Rendering
 # =====================================
 
 import streamlit as st
@@ -35,12 +35,12 @@ st.markdown("""
         color: #1e293b; font-weight: 700; font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 1rem;
         border-left: 4px solid #6366f1; padding-left: 10px;
     }
-    .analysis-container {
+    .analysis-card {
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 10px;
-        padding: 25px;
-        margin-bottom: 25px;
+        padding: 20px;
+        margin-bottom: 20px;
     }
     /* Styling for Tabs */
     .stTabs [data-baseweb="tab-list"] {
@@ -199,7 +199,7 @@ with tab1:
             fig_stop_pie.update_layout(margin=dict(t=80, b=20, l=10, r=10), showlegend=True, legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5), title=dict(y=0.9, x=0.5, xanchor='center'))
             st.plotly_chart(fig_stop_pie, use_container_width=True)
 
-    # Section 5: Trend Analysis (Kept Chart, NameError Fixed)
+    # Section 5: Trend Analysis
     st.markdown('<div class="section-header">📈 แนวโน้มประสิทธิภาพตามช่วงเวลา</div>', unsafe_allow_html=True)
     trend_df = fdf.copy()
     trend_df = trend_df.dropna(subset=["วันที่"])
@@ -230,10 +230,9 @@ with tab1:
         fig_trend_chart.update_layout(xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend_data['ช่วง'].unique()}, yaxis_range=[0, 115], plot_bgcolor='white', legend=dict(orientation="h", y=-0.2))
         st.plotly_chart(fig_trend_chart, use_container_width=True)
 
-    # Section 6: Strategic Analysis & Action Plan (Fixed HTML Rendering)
+    # Section 6: Strategic Analysis & Action Plan
     st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และแนวทางดำเนินงาน (Strategic Analysis & Action Plan)</div>', unsafe_allow_html=True)
     if not fdf.empty and order_total > 0:
-        # Data calculations for analysis
         status_label = "🔴 วิกฤต" if short_pct > 15 else "🟡 ควรเฝ้าระวัง" if short_pct > 8 else "🟢 ปกติ"
         intensity_label = "สูง" if missing_meters > 1000 else "ปกติ"
         mc_analysis = fdf.groupby('MC')['สถานะผลิต'].apply(lambda x: (x == 'ขาดจำนวน').mean() * 100).sort_values(ascending=False)
@@ -242,28 +241,22 @@ with tab1:
         top_causes = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]["Detail"].value_counts().head(3)
         causes_summary = ", ".join([f"{idx} ({val} ใบงาน)" for idx, val in top_causes.items()])
         
-        # Use Markdown and Containers to avoid raw HTML display issues
         with st.container():
             st.markdown(f"### 🎯 บทสรุปผู้บริหาร (Executive Intelligence)")
-            
             col_a, col_b = st.columns(2)
             with col_a:
                 st.write(f"**1. สรุปการดำเนินงาน (Operational Summary)**")
                 st.write(f"- สถานะปัจจุบัน: **{status_label}**")
                 st.write(f"- สัดส่วนงานขาดจำนวน: **{short_pct:.1f}%** จากทั้งหมด {order_total:,} ใบงาน")
-                
                 st.write(f"**2. ความสูญเสียเชิงกายภาพ (Physical Loss Impact)**")
                 st.write(f"- ระดับความรุนแรง: **{intensity_label}**")
                 st.write(f"- เมตรที่ขาดสะสม: **{missing_meters:,.0f} เมตร**")
                 st.write(f"- ของเหลือ PDW สะสม: **{pdw_scrap_val:,.0f} กก.**")
-
             with col_b:
                 st.write(f"**3. ประสิทธิภาพเครื่องจักร (Machine Performance)**")
                 st.write(f"- เครื่องที่ต้องจับตา: **{top_mc}** (Shortage Rate: {top_mc_pct:.1f}%)")
-                
                 st.write(f"**4. วิเคราะห์รายสาเหตุ (Deep Dive Analysis)**")
                 st.write(f"- สาเหตุหลัก 3 อันดับแรก: {causes_summary}")
-
             st.markdown("---")
             st.info(f"""
             **🚀 สรุปแผนปฏิบัติการแบบบูรณาการ (Integrated Action Plan)**
@@ -281,12 +274,10 @@ with tab1:
         search_pdr_input = f_c1.text_input("ค้นหา PDR No.", placeholder="พิมพ์เลข PDR...")
         search_cust_input = f_c2.text_input("ค้นหาชื่อลูกค้า", placeholder="พิมพ์ชื่อลูกค้า...")
         search_detail_input = f_c3.text_input("ค้นหา Detail/สาเหตุ", placeholder="พิมพ์สาเหตุ...")
-        
         display_df = fdf.copy()
         if search_pdr_input: display_df = display_df[display_df["PDR No."].astype(str).str.contains(search_pdr_input, case=False, na=False)]
         if search_cust_input: display_df = display_df[display_df["ชื่อลูกค้า"].astype(str).str.contains(search_cust_input, case=False, na=False)]
         if search_detail_input: display_df = display_df[display_df["Detail"].astype(str).str.contains(search_detail_input, case=False, na=False)]
-        
         if not display_df.empty:
             display_df["วันที่"] = display_df["วันที่"].dt.strftime("%d/%m/%Y")
             target_cols = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป", "สถานะ ORDER จอดหรือไม่จอด"]
@@ -324,10 +315,8 @@ with tab2:
         r_c1, r_c2 = st.columns([1.8, 1])
         with r_c1:
             st.markdown("**ตารางวิเคราะห์หมวดหมู่งานซ่อมเชิงลึก**")
-            # Create a localized display dataframe
             display_repair = repair_summary.copy()
             display_repair.columns = ["หมวดหมู่งานซ่อม", "จำนวนออเดอร์", "รวมเมตร (m)", "รวม ตร.ม.", "รวมน้ำหนัก (kg)"]
-            # Add total row
             total_row_df = pd.DataFrame([["ผลรวมทั้งหมด", total_o, total_m, total_s, total_w]], columns=display_repair.columns)
             display_repair = pd.concat([display_repair, total_row_df], ignore_index=True)
             st.dataframe(display_repair.style.format({"จำนวนออเดอร์": "{:,}", "รวมเมตร (m)": "{:,.0f}", "รวม ตร.ม.": "{:,.0f}", "รวมน้ำหนัก (kg)": "{:,.0f}"}), use_container_width=True, hide_index=True)
@@ -338,4 +327,49 @@ with tab2:
             fig_repair_donut.update_layout(margin=dict(t=50, b=0), showlegend=False)
             st.plotly_chart(fig_repair_donut, use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Fixed HTML Display & Returned Data Explorer | ข้อมูลครบถ้วน 100%")
+        # ----------------------------------------------------------------------
+        # NEW SECTION: Strategic Analysis for Repair Tab
+        # ----------------------------------------------------------------------
+        st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และการจัดการงานซ่อม (Strategic Repair Analysis)</div>', unsafe_allow_html=True)
+        
+        # Calculate key metrics for repair analysis
+        done_repair = repair_summary[repair_summary[repair_col].isin(["ตัดจบ", "ซ่อมเสร็จแล้ว"])]
+        pending_repair = repair_summary[~repair_summary[repair_col].isin(["ตัดจบ", "ซ่อมเสร็จแล้ว"])]
+        
+        total_pending_qty = pending_repair["จำนวนออเดอร์"].sum()
+        total_pending_meters = pending_repair["จำนวนเมตรขาดจำนวน"].sum()
+        
+        main_pending_type = pending_repair.iloc[0][repair_col] if not pending_repair.empty else "N/A"
+        cut_off_qty = repair_summary[repair_summary[repair_col] == "ตัดจบ"]["จำนวนออเดอร์"].sum()
+        cut_off_pct = (cut_off_qty / total_o * 100) if total_o > 0 else 0
+        
+        with st.container():
+            st.markdown(f"### 🛠️ บทสรุปการจัดการงานซ่อมและ PDW")
+            
+            ra_col1, ra_col2 = st.columns(2)
+            with ra_col1:
+                st.write("**1. สถานะงานซ่อมสะสม (Pending Repair Status)**")
+                st.write(f"- งานที่รอการจัดการทั้งหมด: **{total_pending_qty:,} ออเดอร์**")
+                st.write(f"- ปริมาณเมตรที่รอซ่อม: **{total_pending_meters:,.0f} เมตร**")
+                st.write(f"- กลุ่มงานที่ค้างสูงสุด: **{main_pending_type}**")
+                
+                st.write("**2. วิเคราะห์ความสูญเสียถาวร (Permanent Loss Analysis)**")
+                st.write(f"- จำนวนงานที่ 'ตัดจบ' (ซ่อมไม่ได้/ไม่ซ่อม): **{cut_off_qty:,} ออเดอร์**")
+                st.write(f"- สัดส่วนการตัดจบเทียบงานขาด: **{cut_off_pct:.1f}%**")
+
+            with ra_col2:
+                st.write("**3. การบริหารจัดการของเหลือ (PDW Management)**")
+                st.write(f"- น้ำหนักของเหลือ PDW สะสมปัจจุบัน: **{pdw_scrap_val:,.0f} กก.**")
+                pdw_status = "🔴 สูงเกินเกณฑ์" if pdw_scrap_val > 1500 else "🟡 เริ่มสะสม" if pdw_scrap_val > 500 else "🟢 ปกติ"
+                st.write(f"- การประเมินพื้นที่จัดเก็บ: **{pdw_status}**")
+
+            st.markdown("---")
+            # Action Plan for Repair
+            st.success(f"""
+            **🚀 แผนปฏิบัติการจัดการงานซ่อม (Repair Action Plan)**
+            1. **Clear Pending {main_pending_type}:** เร่งรัดการตัดสินใจในกลุ่มที่มียอดค้างสูงสุด เพื่อลดปริมาณออเดอร์ที่ค้างในระบบ
+            2. **Reduce 'ตัดจบ' Rate:** ตรวจสอบงานในกลุ่มที่ถูกตัดจบว่าสามารถป้องกันได้จากหน้างาน (เช่น ลดรอยยับ/รอยกด) หรือไม่ เพื่อลด Loss ถาวรลงให้ต่ำกว่า 20%
+            3. **PDW Clearance Plan:** หากน้ำหนัก PDW สะสม ({pdw_scrap_val:,.0f} กก.) อยู่ในเกณฑ์สูง ให้จัดตารางการผลิตงานพ่วง (Combine Order) เพื่อระบาย Stock ทันที
+            """)
+
+st.caption("Shortage Intelligence Dashboard | Strategic Repair Analysis Added | ข้อมูลครบถ้วน 100%")
