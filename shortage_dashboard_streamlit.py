@@ -1,7 +1,7 @@
 # =====================================
-# Shortage Dashboard : EXECUTIVE VERSION (MULTI-PAGE)
+# Shortage Dashboard : EXECUTIVE VERSION (TOP NAVIGATION)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Split Repair Workstream to a Dedicated Page
+# UPDATED: Moved Navigation to Top Tabs as requested
 # =====================================
 
 import streamlit as st
@@ -48,6 +48,25 @@ st.markdown("""
         border-left: 4px solid #6366f1;
         padding-left: 10px;
     }
+    /* Styling for Tabs to look more like the reference image */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border-radius: 4px 4px 0 0;
+        gap: 1px;
+        padding-top: 10px;
+        color: #64748b;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #ef4444 !important;
+        border-bottom: 2px solid #ef4444 !important;
+        font-weight: 700;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -81,12 +100,8 @@ if df.empty:
 
 # ---------------- Sidebar Filter Suite ----------------
 with st.sidebar:
-    st.title("⚙️ แผงควบคุม")
+    st.title("⚙️ แผงควบคุมตัวกรอง")
     
-    # NAVIGATION SELECTBOX
-    app_page = st.selectbox("เลือกหน้าการแสดงผล", ["ภาพรวมแดชบอร์ด", "วิเคราะห์งานซ่อม (Repair)"])
-    
-    st.markdown("---")
     if st.button("🔄 อัปเดตข้อมูลล่าสุด", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
@@ -128,9 +143,8 @@ if stop_status_filter: fdf = fdf[fdf[stop_status_col].isin(stop_status_filter)]
 
 # ---------------- Header Analytics ----------------
 st.markdown(f"""
-    <div style="margin-bottom: 25px;">
+    <div style="margin-bottom: 5px;">
         <h1 style="margin:0; color:#1e293b; font-size:2.2rem;">Shortage Performance Intelligence</h1>
-        <p style="color:#64748b; font-size:1.1rem;">{app_page} | Week Cycle: อาทิตย์ - เสาร์</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -141,10 +155,16 @@ missing_meters = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "�
 missing_weight = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักงานขาดจำนวน"], errors="coerce").sum()
 pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
 
+# ---------------- TOP NAVIGATION TABS ----------------
+# Use emoji to match the reference image style if desired
+tab1, tab2 = st.tabs(["📊 ภาพรวมแดชบอร์ด", "🛠️ วิเคราะห์งานซ่อม (Repair)"])
+
 # ==============================================================================
-# PAGE 1: DASHBOARD OVERVIEW
+# TAB 1: DASHBOARD OVERVIEW
 # ==============================================================================
-if app_page == "ภาพรวมแดชบอร์ด":
+with tab1:
+    st.markdown('<p style="color:#64748b; font-size:1.1rem; margin-bottom:20px;">Executive Overview | Week Cycle: อาทิตย์ - เสาร์</p>', unsafe_allow_html=True)
+    
     # Section 1: Operational Summary
     complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
     short_pct = (short_qty / order_total * 100) if order_total > 0 else 0
@@ -268,7 +288,7 @@ if app_page == "ภาพรวมแดชบอร์ด":
         fig_trend.update_traces(textposition="inside", textfont=dict(size=10, color="white"), insidetextanchor="middle")
         st.plotly_chart(fig_trend, use_container_width=True)
 
-    # Data Explorer Expander (Shared in Main Page)
+    # Data Explorer Expander
     with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
         st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
         f_c1, f_c2, f_c3 = st.columns(3)
@@ -283,9 +303,9 @@ if app_page == "ภาพรวมแดชบอร์ด":
         st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
 
 # ==============================================================================
-# PAGE 2: REPAIR ANALYSIS (Section 6)
+# TAB 2: REPAIR ANALYSIS
 # ==============================================================================
-elif app_page == "วิเคราะห์งานซ่อม (Repair)":
+with tab2:
     st.markdown('<div class="section-header">🛠️ งานซ่อมและการจัดการ PDW (Repair Workstream)</div>', unsafe_allow_html=True)
     
     if "สถานะซ่อมสรุป" in fdf.columns:
@@ -352,4 +372,4 @@ elif app_page == "วิเคราะห์งานซ่อม (Repair)":
     else:
         st.info("ไม่พบข้อมูลคอลัมน์ 'สถานะซ่อมสรุป' ในช่วงเวลาที่เลือก")
 
-st.caption("Shortage Intelligence Dashboard | Multi-page Navigation Enabled | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Top Navigation Enabled | ข้อมูลครบถ้วน 100%")
