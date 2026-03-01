@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Reordered sections & Added Machine Comparison Bar Chart
+# UPDATED: Moved Physical Loss Impact cards to follow Operational Summary
 # =====================================
 
 import streamlit as st
@@ -143,7 +143,16 @@ with tab1:
     with c3: kpi_box("Shortage", f"{short_qty:,}", "ผลิตไม่ครบ (Order)", "#ef4444")
     with c4: kpi_box("Shortage Rate", f"{short_pct:.1f}%", "สัดส่วนงานขาดจำนวน", "#ef4444" if short_pct > 15 else "#f59e0b" if short_pct > 10 else "#10b981")
 
-    # Section 2: Machine Comparison Analysis (NEW CHART)
+    # Section 2: Physical Loss Impact (MOVED HERE)
+    st.markdown('<div class="section-header">📏 ความสูญเสียเชิงกายภาพ (Physical Loss Impact)</div>', unsafe_allow_html=True)
+    missing_sqm = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ตารางเมตรขาดจำนวน"], errors="coerce").sum()
+    m1, m2, m3, m4 = st.columns(4)
+    with m1: kpi_box("Missing Meters", f"{missing_meters:,.0f}", "หน่วย: เมตร")
+    with m2: kpi_box("Missing Area", f"{missing_sqm:,.0f}", "หน่วย: ตารางเมตร")
+    with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
+    with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
+
+    # Section 3: Machine Comparison Analysis
     st.markdown('<div class="section-header">📊 เปรียบเทียบประสิทธิภาพการผลิตแยกรายเครื่องจักร (Machine Comparison)</div>', unsafe_allow_html=True)
     if not fdf.empty:
         # Group by MC and Status
@@ -166,15 +175,6 @@ with tab1:
             margin=dict(t=80, b=0)
         )
         st.plotly_chart(fig_mc_compare, use_container_width=True)
-
-    # Section 3: Physical Loss Impact
-    st.markdown('<div class="section-header">📏 ความสูญเสียเชิงกายภาพ (Physical Loss Impact)</div>', unsafe_allow_html=True)
-    missing_sqm = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ตารางเมตรขาดจำนวน"], errors="coerce").sum()
-    m1, m2, m3, m4 = st.columns(4)
-    with m1: kpi_box("Missing Meters", f"{missing_meters:,.0f}", "หน่วย: เมตร")
-    with m2: kpi_box("Missing Area", f"{missing_sqm:,.0f}", "หน่วย: ตารางเมตร")
-    with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
-    with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
 
     # Section 4: Deep Dive Analysis
     st.markdown('<div class="section-header">🔍 วิเคราะห์เจาะลึกรายสาเหตุ (Deep Dive Analysis)</div>', unsafe_allow_html=True)
@@ -234,7 +234,7 @@ with tab1:
         st.plotly_chart(fig_trend, use_container_width=True)
 
     # =========================
-    # SECTION 6: STRATEGIC ANALYSIS & ACTION PLAN (MOVED TO END)
+    # SECTION 6: STRATEGIC ANALYSIS & ACTION PLAN
     # =========================
     st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และแนวทางดำเนินงาน (Analysis & Action Plan)</div>', unsafe_allow_html=True)
     if not fdf.empty and order_total > 0:
@@ -321,4 +321,4 @@ with tab2:
             fig_repair.update_layout(margin=dict(t=50, b=0), showlegend=False)
             st.plotly_chart(fig_repair, use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Optimized Layout & Machine Comparison | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Optimized Layout & Operational Flow | ข้อมูลครบถ้วน 100%")
