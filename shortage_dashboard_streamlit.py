@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (TOP NAVIGATION)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Fixed Top 10 Causes Chart to match original visual style
+# UPDATED: Added percentages back to Top 10 Causes Chart text labels
 # =====================================
 
 import streamlit as st
@@ -225,14 +225,18 @@ with tab1:
     col_left, col_mid, col_right = st.columns([2, 1, 1])
     
     with col_left:
-        # FIXED: Top 10 Causes Chart (Matching image_be3377.png)
+        # UPDATED: Re-added percentages to labels for Top 10 Causes Chart
         top10 = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
         if not top10.empty:
+            # Calculate % for each cause
+            top10["%"] = (top10["จำนวน"] / order_total * 100).round(1)
+            top10["label_with_pct"] = top10["จำนวน"].astype(str) + " (" + top10["%"].astype(str) + "%)"
+            
             fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", 
                               title="TOP 10 สาเหตุงานขาดจำนวน", 
                               color="จำนวน", 
                               color_continuous_scale="Reds", 
-                              text="จำนวน")
+                              text="label_with_pct") # Using label with count + percentage
             fig_top10.update_traces(textposition="inside", textfont=dict(size=12, color="white"))
             fig_top10.update_layout(
                 plot_bgcolor='white', 
@@ -266,7 +270,6 @@ with tab1:
             trend["ช่วง_dt"] = trend["วันที่"].dt.normalize(); trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         elif period == "รายสัปดาห์": 
             trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
-            # Updated week logic for Sunday start with offset +1
             week_nums = trend["วันที่"].dt.strftime("%U").astype(int) + 1; trend["ช่วง"] = "Week " + week_nums.apply(lambda x: f"{x:02d}")
         elif period == "รายเดือน": 
             trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp(); trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%b %Y")
@@ -279,7 +282,7 @@ with tab1:
         sum_trend = sum_trend.sort_values("ช่วง_dt")
         
         cust_display = f" | ลูกค้า: {', '.join(customer_filter)}" if customer_filter and len(customer_filter) <= 3 else (f" | ลูกค้า {len(customer_filter)} ราย" if customer_filter else "")
-        fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", title=f"แนวโน้มประสิทธิภาพการผลิต ({period}){cust_display}",
+        fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", title=f"แนวโน้มประสิทธิภาพการผลิต ({period}{title_suffix}){cust_display}",
                           text="label_display", barmode="stack", category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
                           color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
         fig_trend.update_layout(xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend['ช่วง'].unique()},
@@ -354,7 +357,7 @@ with tab2:
             fig_repair.update_layout(margin=dict(t=30, b=0), showlegend=False)
             st.plotly_chart(fig_repair, use_container_width=True)
 
-    # Data Explorer Expander (Moved to Tab 2 to keep Overview clean)
+    # Data Explorer Expander
     with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
         st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
         f_c1, f_c2, f_c3 = st.columns(3)
@@ -368,4 +371,4 @@ with tab2:
         st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
         st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
 
-st.caption("Shortage Intelligence Dashboard | Original Visual Style Restored | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Percentages re-added to Top 10 chart | ข้อมูลครบถ้วน 100%")
