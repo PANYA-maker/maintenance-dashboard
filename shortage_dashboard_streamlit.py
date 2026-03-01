@@ -153,16 +153,30 @@ with tab1:
             fig_top10.update_layout(plot_bgcolor='white', margin=dict(t=50, b=0, r=80), xaxis=dict(showgrid=True, gridcolor='lightgrey'))
             st.plotly_chart(fig_top10, use_container_width=True)
     with col_mid:
+        # กราฟสัดส่วนสถานะผลิต (Overall)
         status_df = fdf["สถานะผลิต"].value_counts().reset_index(); status_df.columns = ["สถานะ", "จำนวน"]
         fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", title="สัดส่วนสถานะการผลิต (Overall)", color="สถานะ", color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
-        fig_status.update_traces(textinfo="percent", textfont_size=12); fig_status.update_layout(margin=dict(t=50, b=20), showlegend=True, legend=dict(orientation="h", y=-0.1))
+        fig_status.update_traces(textinfo="value+percent", textfont_size=12); 
+        fig_status.update_layout(
+            margin=dict(t=80, b=20, l=10, r=10), 
+            showlegend=True, 
+            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5),
+            title=dict(y=0.9, x=0.5, xanchor='center', yanchor='top')
+        )
         st.plotly_chart(fig_status, use_container_width=True)
     with col_right:
+        # กราฟสัดส่วนการจอดเครื่อง (เฉพาะงานขาด)
         short_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]; stop_col = "สถานะ ORDER จอดหรือไม่จอด"
         if stop_col in short_df.columns:
             stop_summary = short_df[stop_col].value_counts().reset_index(); stop_summary.columns = ["สถานะจอด", "จำนวน"]
             fig_stop = px.pie(stop_summary, names="สถานะจอด", values="จำนวน", hole=0.5, title="สัดส่วนการจอดเครื่อง (เฉพาะงานขาด)", color_discrete_sequence=px.colors.qualitative.Safe)
-            fig_stop.update_traces(textinfo="value+percent", textfont_size=12); fig_stop.update_layout(margin=dict(t=100, b=20), showlegend=True, legend=dict(orientation="h", y=-0.1), title=dict(y=0.95, x=0.5, xanchor='center'))
+            fig_stop.update_traces(textinfo="value+percent", textfont_size=12); 
+            fig_stop.update_layout(
+                margin=dict(t=80, b=20, l=10, r=10), 
+                showlegend=True, 
+                legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5), 
+                title=dict(y=0.9, x=0.5, xanchor='center', yanchor='top')
+            )
             st.plotly_chart(fig_stop, use_container_width=True)
 
     st.markdown("#### 📈 แนวโน้มประสิทธิภาพตามช่วงเวลา")
@@ -222,4 +236,4 @@ with tab2:
         fdf_table["วันที่"] = fdf_table["วันที่"].dt.strftime("%d/%m/%Y"); available_cols = [c for c in target_columns if c in fdf_table.columns]
         st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
         st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
-st.caption("Shortage Intelligence Dashboard | Repair & Stop Status as Donut | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Improved Chart Alignment & Content | ข้อมูลครบถ้วน 100%")
