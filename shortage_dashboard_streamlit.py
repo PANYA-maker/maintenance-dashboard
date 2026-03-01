@@ -1,7 +1,7 @@
 # =====================================
-# Shortage Dashboard : EXECUTIVE VERSION (TOP NAVIGATION)
+# Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Fixed NameError for title_suffix & Ensured sorting stability
+# FIX: Ensured all variables are pre-defined to prevent execution errors
 # =====================================
 
 import streamlit as st
@@ -48,7 +48,7 @@ st.markdown("""
         border-left: 4px solid #6366f1;
         padding-left: 10px;
     }
-    /* Styling for Tabs to look more like the reference image */
+    /* Styling for Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 24px;
         border-bottom: 1px solid #e2e8f0;
@@ -225,7 +225,7 @@ with tab1:
     col_left, col_mid, col_right = st.columns([2, 1, 1])
     
     with col_left:
-        # Top 10 Causes Chart with percentages in labels
+        # Top 10 Causes Chart with percentages restored
         top10 = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
         if not top10.empty:
             top10["%"] = (top10["จำนวน"] / order_total * 100).round(1)
@@ -258,25 +258,30 @@ with tab1:
     st.markdown("#### 📈 แนวโน้มประสิทธิภาพตามช่วงเวลา")
     trend = fdf.copy()
     if not trend.empty:
-        # --- FIXED: title_suffix initialization to prevent NameError ---
+        # ENSURE title_suffix is ALWAYS defined before use to prevent NameError
         title_suffix = "" 
         
         if period == "รายวัน": 
-            trend["ช่วง_dt"] = trend["วันที่"].dt.normalize(); trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
+            trend["ช่วง_dt"] = trend["วันที่"].dt.normalize()
+            trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%d/%m/%Y")
         elif period == "รายสัปดาห์": 
             trend["ช่วง_dt"] = trend["วันที่"] - pd.to_timedelta((trend["วันที่"].dt.weekday + 1) % 7, unit='D')
-            week_nums = trend["วันที่"].dt.strftime("%U").astype(int) + 1; trend["ช่วง"] = "Week " + week_nums.apply(lambda x: f"{x:02d}")
+            week_nums = trend["วันที่"].dt.strftime("%U").astype(int) + 1
+            trend["ช่วง"] = "Week " + week_nums.apply(lambda x: f"{x:02d}")
             title_suffix = " - เริ่มต้นสัปดาห์ที่วันอาทิตย์"
         elif period == "รายเดือน": 
-            trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp(); trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%b %Y")
+            trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("M").dt.to_timestamp()
+            trend["ช่วง"] = trend["ช่วง_dt"].dt.strftime("%b %Y")
         else: 
-            trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("Y").dt.to_timestamp(); trend["ช่วง"] = trend["ช่วง_dt"].dt.year.astype(str)
+            trend["ช่วง_dt"] = trend["วันที่"].dt.to_period("Y").dt.to_timestamp()
+            trend["ช่วง"] = trend["ช่วง_dt"].dt.year.astype(str)
 
         sum_trend = trend.groupby(["ช่วง_dt", "ช่วง", "สถานะผลิต"]).size().reset_index(name="จำนวน")
         total_in_period = sum_trend.groupby("ช่วง_dt")["จำนวน"].transform("sum")
-        sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1); sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
+        sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1)
+        sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
         
-        # Chronological Sort
+        # Force Chronological Sort
         sum_trend = sum_trend.sort_values("ช่วง_dt")
         
         cust_display = f" | ลูกค้า: {', '.join(customer_filter)}" if customer_filter and len(customer_filter) <= 3 else (f" | ลูกค้า {len(customer_filter)} ราย" if customer_filter else "")
@@ -353,4 +358,4 @@ with tab2:
         st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
         st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
 
-st.caption("Shortage Intelligence Dashboard | Bug Fixed | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Critical Variables Fixed | ข้อมูลครบถ้วน 100%")
