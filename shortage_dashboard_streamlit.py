@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Enhanced Repair Summary Table with Metrics
+# UPDATED: Restored Repair Summary & Added Grand Total Row
 # =====================================
 
 import streamlit as st
@@ -125,7 +125,7 @@ if stop_status_filter: fdf = fdf[fdf[stop_status_col].isin(stop_status_filter)]
 st.markdown(f"""
     <div style="margin-bottom: 25px;">
         <h1 style="margin:0; color:#1e293b; font-size:2.2rem;">Shortage Performance Intelligence</h1>
-        <p style="color:#64748b; font-size:1.1rem;">วิเคราะห์ผลผลิตขาดจำนวน</p>
+        <p style="color:#64748b; font-size:1.1rem;">วิเคราะห์ผลผลิตขาดจำนวน | เริ่มต้น 7 วันล่าสุด (Week Cycle: อาทิตย์ - เสาร์)</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -341,7 +341,7 @@ if not trend.empty:
 st.divider()
 st.markdown('<div class="section-header">🛠️ งานซ่อมและการจัดการ PDW (Repair Workstream)</div>', unsafe_allow_html=True)
 
-# Update Repair Summary Table Logic
+# Update Repair Summary Table Logic with Total Row
 if "สถานะซ่อมสรุป" in fdf.columns:
     # Prepare data for aggregation
     repair_summary_data = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].dropna(subset=["สถานะซ่อมสรุป"]).copy()
@@ -359,8 +359,31 @@ if "สถานะซ่อมสรุป" in fdf.columns:
         'น้ำหนักงานขาดจำนวน': 'sum'
     }).rename(columns={'สถานะซ่อมสรุป': 'จำนวนออเดอร์'}).reset_index().sort_values("จำนวนออเดอร์", ascending=False)
     
+    # Calculate Grand Totals
+    total_orders = issue_df["จำนวนออเดอร์"].sum()
+    total_meters = issue_df["จำนวนเมตรขาดจำนวน"].sum()
+    total_sqm = issue_df["ตารางเมตรขาดจำนวน"].sum()
+    total_weight = issue_df["น้ำหนักงานขาดจำนวน"].sum()
+
+    # Add Grand Total Row
+    total_row = pd.DataFrame([{
+        "สถานะซ่อมสรุป": "ผลรวมทั้งหมด",
+        "จำนวนออเดอร์": total_orders,
+        "จำนวนเมตรขาดจำนวน": total_meters,
+        "ตารางเมตรขาดจำนวน": total_sqm,
+        "น้ำหนักงานขาดจำนวน": total_weight
+    }])
+    issue_df = pd.concat([issue_df, total_row], ignore_index=True)
+
     # Rename columns for display
     issue_df.columns = ["หมวดหมู่งานซ่อม", "จำนวนออเดอร์", "รวมเมตร (m)", "รวม ตร.ม.", "รวมน้ำหนัก (kg)"]
+
+    # SUMMARY INFO RESTORED
+    st.markdown(f"""
+    **สรุปสถานะงานซ่อม:** พบออเดอร์ขาดจำนวนที่ต้องจัดการทั้งหมด **{total_orders:,}** ใบงาน | 
+    รวมน้ำหนักงานขาดจำนวน **{total_weight:,.0f}** กก. | 
+    น้ำหนักของเหลือ PDW สะสม **{pdw_scrap_val:,.0f}** กก.
+    """)
 
     t1, t2 = st.columns([1.8, 1])
     with t1:
@@ -375,7 +398,9 @@ if "สถานะซ่อมสรุป" in fdf.columns:
             hide_index=True
         )
     with t2:
-        fig_repair = px.pie(issue_df, names="หมวดหมู่งานซ่อม", values="จำนวนออเดอร์", hole=0.5, title="สัดส่วนออเดอร์ตามงานซ่อม")
+        # Pie chart using data before total row for correct proportions
+        issue_df_pie = issue_df[issue_df["หมวดหมู่งานซ่อม"] != "ผลรวมทั้งหมด"]
+        fig_repair = px.pie(issue_df_pie, names="หมวดหมู่งานซ่อม", values="จำนวนออเดอร์", hole=0.5, title="สัดส่วนออเดอร์ตามงานซ่อม")
         fig_repair.update_traces(textinfo="label+percent", textposition="inside", textfont_size=11, textfont_color="white")
         fig_repair.update_layout(margin=dict(t=30, b=0), showlegend=False)
         st.plotly_chart(fig_repair, use_container_width=True)
@@ -410,4 +435,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
         hide_index=True
     )
 
-st.caption("Shortage Intelligence Dashboard | Enhanced Repair Analysis | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Restored Summary & Table Totals | ข้อมูลครบถ้วน 100%")
