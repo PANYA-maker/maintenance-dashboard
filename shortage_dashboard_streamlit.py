@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Added Strategic Analysis & Action Plan after Operational Summary
+# UPDATED: Reordered sections & Added Machine Comparison Bar Chart
 # =====================================
 
 import streamlit as st
@@ -143,63 +143,31 @@ with tab1:
     with c3: kpi_box("Shortage", f"{short_qty:,}", "ผลิตไม่ครบ (Order)", "#ef4444")
     with c4: kpi_box("Shortage Rate", f"{short_pct:.1f}%", "สัดส่วนงานขาดจำนวน", "#ef4444" if short_pct > 15 else "#f59e0b" if short_pct > 10 else "#10b981")
 
-    # =========================
-    # NEW: EXECUTIVE ANALYSIS & ACTION PLAN
-    # =========================
-    st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และแนวทางดำเนินงาน (Analysis & Action Plan)</div>', unsafe_allow_html=True)
-    if not fdf.empty and order_total > 0:
-        # Dynamic Data Analysis
-        # 1. Worst Machine Analysis
-        mc_perf_analysis = fdf.groupby('MC')['สถานะผลิต'].apply(lambda x: (x == 'ขาดจำนวน').mean() * 100).sort_values(ascending=False)
-        worst_mc = mc_perf_analysis.index[0] if not mc_perf_analysis.empty else "N/A"
-        worst_mc_rate = mc_perf_analysis.iloc[0] if not mc_perf_analysis.empty else 0
+    # Section 2: Machine Comparison Analysis (NEW CHART)
+    st.markdown('<div class="section-header">📊 เปรียบเทียบประสิทธิภาพการผลิตแยกรายเครื่องจักร (Machine Comparison)</div>', unsafe_allow_html=True)
+    if not fdf.empty:
+        # Group by MC and Status
+        mc_group_df = fdf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวนออเดอร์')
         
-        # 2. Main Root Cause
-        top_cause_series = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]["Detail"].value_counts()
-        main_cause = top_cause_series.index[0] if not top_cause_series.empty else "N/A"
-        
-        # 3. Status Grade
-        if short_pct > 20:
-            status_color = "#ef4444"
-            status_label = "วิกฤต (Critical)"
-            summary_desc = f"อัตรางานขาดจำนวนอยู่ในระดับสูง ({short_pct:.1f}%) ส่งผลกระทบต่อต้นทุนและกำหนดการส่งมอบอย่างมีนัยสำคัญ"
-        elif short_pct > 10:
-            status_color = "#f59e0b"
-            status_label = "ควรเฝ้าระวัง (Warning)"
-            summary_desc = f"อัตรางานขาดจำนวนเริ่มมีแนวโน้มสูงขึ้น ({short_pct:.1f}%) จำเป็นต้องตรวจสอบหาสาเหตุในเชิงป้องกัน"
-        else:
-            status_color = "#10b981"
-            status_label = "ปกติ (Healthy)"
-            summary_desc = f"การผลิตส่วนใหญ่เป็นไปตามเป้าหมาย ({short_pct:.1f}%) ควรเน้นการรักษามาตรฐานการทำงาน"
+        fig_mc_compare = px.bar(
+            mc_group_df, 
+            x="MC", 
+            y="จำนวนออเดอร์", 
+            color="สถานะผลิต",
+            title="เปรียบเทียบจำนวนออเดอร์ ครบจำนวน vs ขาดจำนวน รายเครื่องจักร",
+            barmode="group",
+            text="จำนวนออเดอร์",
+            color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"}
+        )
+        fig_mc_compare.update_traces(textposition='outside')
+        fig_mc_compare.update_layout(
+            plot_bgcolor='white',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(t=80, b=0)
+        )
+        st.plotly_chart(fig_mc_compare, use_container_width=True)
 
-        st.markdown(f"""
-        <div class="analysis-card">
-            <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                <div style="background-color: {status_color}; width: 15px; height: 15px; border-radius: 50%; margin-right: 10px;"></div>
-                <span style="font-size: 1.2rem; font-weight: 700; color: {status_color};">สถานะ: {status_label}</span>
-            </div>
-            <div style="color: #334155; line-height: 1.6;">
-                <b>📌 ผลสรุปภาพรวม:</b> {summary_desc} โดยปัจจุบันสูญเสียปริมาณการผลิตสะสมรวม <b>{missing_meters:,.0f} เมตร</b> ({missing_weight:,.0f} กก.) 
-                และมีของเหลือ PDW ในระบบรอการจัดการอีก <b>{pdw_scrap_val:,.0f} กก.</b>
-                <br><br>
-                <b>🎯 ประเด็นสำคัญที่ต้องตรวจสอบ:</b>
-                <ul>
-                    <li><b>เครื่องจักรที่ต้องจับตา:</b> เครื่อง <b>{worst_mc}</b> มีอัตราขาดจำนวนสูงสุดที่ <b>{worst_mc_rate:.1f}%</b></li>
-                    <li><b>สาเหตุหลักที่พบบ่อย:</b> <b>{main_cause}</b> (ควรลงรายละเอียดแก้ไขที่จุดนี้เป็นลำดับแรก)</li>
-                </ul>
-                <b>🚀 แนวทางสั่งการ (Actionable Steps):</b>
-                <ol>
-                    <li>ตรวจสอบมาตรฐานการตั้งค่าและประวัติการซ่อมบำรุงของเครื่อง <b>{worst_mc}</b></li>
-                    <li>ประชุมทีมเทคนิคเพื่อแก้ปัญหา <b>{main_cause}</b> เพื่อลดจำนวนออเดอร์ที่ขาดจำนวนลงอย่างน้อย 5-10%</li>
-                    <li>เร่งกระบวนการจัดการน้ำหนักของเหลือ PDW <b>{pdw_scrap_val:,.0f} กก.</b> เพื่อเปลี่ยนเป็นมูลค่าหรือลดพื้นที่จัดเก็บ</li>
-                </ol>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("กรุณาเลือกช่วงเวลาที่มีข้อมูลเพื่อแสดงบทวิเคราะห์")
-
-    # Section 2: Physical Loss Impact
+    # Section 3: Physical Loss Impact
     st.markdown('<div class="section-header">📏 ความสูญเสียเชิงกายภาพ (Physical Loss Impact)</div>', unsafe_allow_html=True)
     missing_sqm = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ตารางเมตรขาดจำนวน"], errors="coerce").sum()
     m1, m2, m3, m4 = st.columns(4)
@@ -208,7 +176,8 @@ with tab1:
     with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
     with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
 
-    st.markdown('<div class="section-header">🔍 Deep Dive Analysis</div>', unsafe_allow_html=True)
+    # Section 4: Deep Dive Analysis
+    st.markdown('<div class="section-header">🔍 วิเคราะห์เจาะลึกรายสาเหตุ (Deep Dive Analysis)</div>', unsafe_allow_html=True)
     col_left, col_mid, col_right = st.columns([2, 1, 1])
     with col_left:
         top10 = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
@@ -244,6 +213,7 @@ with tab1:
             )
             st.plotly_chart(fig_stop, use_container_width=True)
 
+    # Section 5: Trend Analysis
     st.markdown("#### 📈 แนวโน้มประสิทธิภาพตามช่วงเวลา")
     trend = fdf.copy()
     if not trend.empty:
@@ -262,6 +232,68 @@ with tab1:
         fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", title=f"แนวโน้มประสิทธิภาพการผลิต ({period}{title_suffix}){cust_display}", text="label_display", barmode="stack", category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]}, color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
         fig_trend.update_layout(xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend['ช่วง'].unique()}, yaxis_range=[0, 115], plot_bgcolor='white', legend=dict(orientation="h", y=-0.2))
         st.plotly_chart(fig_trend, use_container_width=True)
+
+    # =========================
+    # SECTION 6: STRATEGIC ANALYSIS & ACTION PLAN (MOVED TO END)
+    # =========================
+    st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และแนวทางดำเนินงาน (Analysis & Action Plan)</div>', unsafe_allow_html=True)
+    if not fdf.empty and order_total > 0:
+        mc_perf_analysis = fdf.groupby('MC')['สถานะผลิต'].apply(lambda x: (x == 'ขาดจำนวน').mean() * 100).sort_values(ascending=False)
+        worst_mc = mc_perf_analysis.index[0] if not mc_perf_analysis.empty else "N/A"
+        worst_mc_rate = mc_perf_analysis.iloc[0] if not mc_perf_analysis.empty else 0
+        top_cause_series = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]["Detail"].value_counts()
+        main_cause = top_cause_series.index[0] if not top_cause_series.empty else "N/A"
+        
+        if short_pct > 20:
+            status_color = "#ef4444"; status_label = "วิกฤต (Critical)"
+            summary_desc = f"อัตรางานขาดจำนวนอยู่ในระดับสูง ({short_pct:.1f}%) ส่งผลกระทบต่อต้นทุนและกำหนดการส่งมอบอย่างมีนัยสำคัญ"
+        elif short_pct > 10:
+            status_color = "#f59e0b"; status_label = "ควรเฝ้าระวัง (Warning)"
+            summary_desc = f"อัตรางานขาดจำนวนเริ่มมีแนวโน้มสูงขึ้น ({short_pct:.1f}%) จำเป็นต้องตรวจสอบหาสาเหตุในเชิงป้องกัน"
+        else:
+            status_color = "#10b981"; status_label = "ปกติ (Healthy)"
+            summary_desc = f"การผลิตส่วนใหญ่เป็นไปตามเป้าหมาย ({short_pct:.1f}%) ควรเน้นการรักษามาตรฐานการทำงาน"
+
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                <div style="background-color: {status_color}; width: 15px; height: 15px; border-radius: 50%; margin-right: 10px;"></div>
+                <span style="font-size: 1.2rem; font-weight: 700; color: {status_color};">สถานะ: {status_label}</span>
+            </div>
+            <div style="color: #334155; line-height: 1.6;">
+                <b>📌 ผลสรุปภาพรวม:</b> {summary_desc} โดยปัจจุบันสูญเสียปริมาณการผลิตสะสมรวม <b>{missing_meters:,.0f} เมตร</b> ({missing_weight:,.0f} กก.) 
+                และมีของเหลือ PDW ในระบบรอการจัดการอีก <b>{pdw_scrap_val:,.0f} กก.</b>
+                <br><br>
+                <b>🎯 ประเด็นสำคัญที่ต้องตรวจสอบ:</b>
+                <ul>
+                    <li><b>เครื่องจักรที่ต้องจับตา:</b> เครื่อง <b>{worst_mc}</b> มีอัตราขาดจำนวนสูงสุดที่ <b>{worst_mc_rate:.1f}%</b></li>
+                    <li><b>สาเหตุหลักที่พบบ่อย:</b> <b>{main_cause}</b> (ควรลงรายละเอียดแก้ไขที่จุดนี้เป็นลำดับแรก)</li>
+                </ul>
+                <b>🚀 แนวทางสั่งการ (Actionable Steps):</b>
+                <ol>
+                    <li>ตรวจสอบมาตรฐานการตั้งค่าและประวัติการซ่อมบำรุงของเครื่อง <b>{worst_mc}</b></li>
+                    <li>ประชุมทีมเทคนิคเพื่อแก้ปัญหา <b>{main_cause}</b> เพื่อลดจำนวนออเดอร์ที่ขาดจำนวนลงอย่างน้อย 5-10%</li>
+                    <li>เร่งกระบวนการจัดการน้ำหนักของเหลือ PDW <b>{pdw_scrap_val:,.0f} กก.</b> เพื่อเปลี่ยนเป็นมูลค่าหรือลดพื้นที่จัดเก็บ</li>
+                </ol>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("กรุณาเลือกช่วงเวลาที่มีข้อมูลเพื่อแสดงบทวิเคราะห์")
+
+    # Data Explorer Expander
+    with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
+        st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
+        f_c1, f_c2, f_c3 = st.columns(3)
+        target_columns = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป", "สถานะ ORDER จอดหรือไม่จอด"]
+        search_pdr = f_c1.text_input("ค้นหา PDR No.", placeholder="พิมพ์เลข PDR..."); search_cust = f_c2.text_input("ค้นหาชื่อลูกค้า", placeholder="พิมพ์ชื่อลูกค้า..."); search_detail = f_c3.text_input("ค้นหา Detail/สาเหตุ", placeholder="พิมพ์สาเหตุ...")
+        fdf_table = fdf.copy()
+        if search_pdr: fdf_table = fdf_table[fdf_table["PDR No."].astype(str).str.contains(search_pdr, case=False, na=False)]
+        if search_cust: fdf_table = fdf_table[fdf_table["ชื่อลูกค้า"].astype(str).str.contains(search_cust, case=False, na=False)]
+        if search_detail: fdf_table = fdf_table[fdf_table["Detail"].astype(str).str.contains(search_detail, case=False, na=False)]
+        fdf_table["วันที่"] = fdf_table["วันที่"].dt.strftime("%d/%m/%Y"); available_cols = [c for c in target_columns if c in fdf_table.columns]
+        st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
+        st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
 
 # ==============================================================================
 # TAB 2: DETAILED LOGS / REPAIR
@@ -288,16 +320,5 @@ with tab2:
             fig_repair.update_traces(textinfo="label+percent", textposition="inside", textfont_size=11, textfont_color="white")
             fig_repair.update_layout(margin=dict(t=50, b=0), showlegend=False)
             st.plotly_chart(fig_repair, use_container_width=True)
-    with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
-        st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
-        f_c1, f_c2, f_c3 = st.columns(3)
-        target_columns = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป", "สถานะ ORDER จอดหรือไม่จอด"]
-        search_pdr = f_c1.text_input("ค้นหา PDR No.", placeholder="พิมพ์เลข PDR..."); search_cust = f_c2.text_input("ค้นหาชื่อลูกค้า", placeholder="พิมพ์ชื่อลูกค้า..."); search_detail = f_c3.text_input("ค้นหา Detail/สาเหตุ", placeholder="พิมพ์สาเหตุ...")
-        fdf_table = fdf.copy()
-        if search_pdr: fdf_table = fdf_table[fdf_table["PDR No."].astype(str).str.contains(search_pdr, case=False, na=False)]
-        if search_cust: fdf_table = fdf_table[fdf_table["ชื่อลูกค้า"].astype(str).str.contains(search_cust, case=False, na=False)]
-        if search_detail: fdf_table = fdf_table[fdf_table["Detail"].astype(str).str.contains(search_detail, case=False, na=False)]
-        fdf_table["วันที่"] = fdf_table["วันที่"].dt.strftime("%d/%m/%Y"); available_cols = [c for c in target_columns if c in fdf_table.columns]
-        st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
-        st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
-st.caption("Shortage Intelligence Dashboard | Strategic Analysis & Action Plan Added | ข้อมูลครบถ้วน 100%")
+
+st.caption("Shortage Intelligence Dashboard | Optimized Layout & Machine Comparison | ข้อมูลครบถ้วน 100%")
