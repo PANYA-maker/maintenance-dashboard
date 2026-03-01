@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Moved Physical Loss Impact cards to follow Operational Summary
+# UPDATED: Machine Comparison changed to Horizontal Stacked Bar with Qty & %
 # =====================================
 
 import streamlit as st
@@ -143,7 +143,7 @@ with tab1:
     with c3: kpi_box("Shortage", f"{short_qty:,}", "ผลิตไม่ครบ (Order)", "#ef4444")
     with c4: kpi_box("Shortage Rate", f"{short_pct:.1f}%", "สัดส่วนงานขาดจำนวน", "#ef4444" if short_pct > 15 else "#f59e0b" if short_pct > 10 else "#10b981")
 
-    # Section 2: Physical Loss Impact (MOVED HERE)
+    # Section 2: Physical Loss Impact
     st.markdown('<div class="section-header">📏 ความสูญเสียเชิงกายภาพ (Physical Loss Impact)</div>', unsafe_allow_html=True)
     missing_sqm = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ตารางเมตรขาดจำนวน"], errors="coerce").sum()
     m1, m2, m3, m4 = st.columns(4)
@@ -152,25 +152,45 @@ with tab1:
     with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
     with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
 
-    # Section 3: Machine Comparison Analysis
-    st.markdown('<div class="section-header">📊 เปรียบเทียบประสิทธิภาพการผลิตแยกรายเครื่องจักร (Machine Comparison)</div>', unsafe_allow_html=True)
+    # Section 3: Machine Comparison Analysis (Horizontal Stacked Bar)
+    st.markdown('<div class="section-header">📊 เปรียบเทียบสัดส่วนประสิทธิภาพแยกรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
     if not fdf.empty:
-        # Group by MC and Status
+        # Step 1: Group by MC and Status
         mc_group_df = fdf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวนออเดอร์')
         
+        # Step 2: Calculate Percentage for labels
+        mc_totals = mc_group_df.groupby('MC')['จำนวนออเดอร์'].transform('sum')
+        mc_group_df['%'] = (mc_group_df['จำนวนออเดอร์'] / mc_totals * 100).round(1)
+        
+        # Step 3: Create readable label
+        mc_group_df['label_display'] = mc_group_df.apply(lambda x: f"{int(x['จำนวนออเดอร์'])} ({x['%']}%)", axis=1)
+        
+        # Step 4: Sort by Shortage Rate for better insight
+        shortage_rates = mc_group_df[mc_group_df['สถานะผลิต'] == 'ขาดจำนวน'][['MC', '%']].rename(columns={'%': 'short_rate'})
+        mc_group_df = mc_group_df.merge(shortage_rates, on='MC', how='left').fillna({'short_rate': 0})
+        mc_group_df = mc_group_df.sort_values('short_rate', ascending=True)
+
         fig_mc_compare = px.bar(
             mc_group_df, 
-            x="MC", 
-            y="จำนวนออเดอร์", 
+            y="MC", 
+            x="จำนวนออเดอร์", 
             color="สถานะผลิต",
-            title="เปรียบเทียบจำนวนออเดอร์ ครบจำนวน vs ขาดจำนวน รายเครื่องจักร",
-            barmode="group",
-            text="จำนวนออเดอร์",
+            title="สัดส่วนจำนวนออเดอร์ ครบจำนวน vs ขาดจำนวน (แสดงจำนวนและ %)",
+            orientation="h",
+            barmode="stack",
+            text="label_display",
             color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"}
         )
-        fig_mc_compare.update_traces(textposition='outside')
+        
+        fig_mc_compare.update_traces(
+            textposition='inside',
+            textfont=dict(size=12, color="white", family="Arial Black")
+        )
+        
         fig_mc_compare.update_layout(
             plot_bgcolor='white',
+            xaxis_title="จำนวนออเดอร์รวม",
+            yaxis_title=None,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(t=80, b=0)
         )
@@ -321,4 +341,4 @@ with tab2:
             fig_repair.update_layout(margin=dict(t=50, b=0), showlegend=False)
             st.plotly_chart(fig_repair, use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Optimized Layout & Operational Flow | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Horizontal Stacked Bar Analysis | ข้อมูลครบถ้วน 100%")
