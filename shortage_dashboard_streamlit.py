@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Machine Comparison changed to Horizontal Stacked Bar with Qty & %
+# UPDATED: Machine Comparison changed to 100% Normalized Stacked Bar
 # =====================================
 
 import streamlit as st
@@ -152,30 +152,30 @@ with tab1:
     with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
     with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
 
-    # Section 3: Machine Comparison Analysis (Horizontal Stacked Bar)
+    # Section 3: Machine Comparison Analysis (Updated to 100% Stacked)
     st.markdown('<div class="section-header">📊 เปรียบเทียบสัดส่วนประสิทธิภาพแยกรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
     if not fdf.empty:
         # Step 1: Group by MC and Status
         mc_group_df = fdf.groupby(['MC', 'สถานะผลิต']).size().reset_index(name='จำนวนออเดอร์')
         
-        # Step 2: Calculate Percentage for labels
+        # Step 2: Calculate Percentage
         mc_totals = mc_group_df.groupby('MC')['จำนวนออเดอร์'].transform('sum')
-        mc_group_df['%'] = (mc_group_df['จำนวนออเดอร์'] / mc_totals * 100).round(1)
+        mc_group_df['เปอร์เซ็นต์สะสม'] = (mc_group_df['จำนวนออเดอร์'] / mc_totals * 100).round(1)
         
         # Step 3: Create readable label
-        mc_group_df['label_display'] = mc_group_df.apply(lambda x: f"{int(x['จำนวนออเดอร์'])} ({x['%']}%)", axis=1)
+        mc_group_df['label_display'] = mc_group_df.apply(lambda x: f"{int(x['จำนวนออเดอร์'])} ({x['เปอร์เซ็นต์สะสม']}%)", axis=1)
         
-        # Step 4: Sort by Shortage Rate for better insight
-        shortage_rates = mc_group_df[mc_group_df['สถานะผลิต'] == 'ขาดจำนวน'][['MC', '%']].rename(columns={'%': 'short_rate'})
+        # Step 4: Sort by Shortage Rate (Descending shortage for visibility)
+        shortage_rates = mc_group_df[mc_group_df['สถานะผลิต'] == 'ขาดจำนวน'][['MC', 'เปอร์เซ็นต์สะสม']].rename(columns={'เปอร์เซ็นต์สะสม': 'short_rate'})
         mc_group_df = mc_group_df.merge(shortage_rates, on='MC', how='left').fillna({'short_rate': 0})
         mc_group_df = mc_group_df.sort_values('short_rate', ascending=True)
 
         fig_mc_compare = px.bar(
             mc_group_df, 
             y="MC", 
-            x="จำนวนออเดอร์", 
+            x="เปอร์เซ็นต์สะสม", 
             color="สถานะผลิต",
-            title="สัดส่วนจำนวนออเดอร์ ครบจำนวน vs ขาดจำนวน (แสดงจำนวนและ %)",
+            title="สัดส่วนประสิทธิภาพการผลิต (Normalized 100%)",
             orientation="h",
             barmode="stack",
             text="label_display",
@@ -189,7 +189,8 @@ with tab1:
         
         fig_mc_compare.update_layout(
             plot_bgcolor='white',
-            xaxis_title="จำนวนออเดอร์รวม",
+            xaxis_title="สัดส่วนเปอร์เซ็นต์ (%)",
+            xaxis_range=[0, 100],
             yaxis_title=None,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(t=80, b=0)
@@ -341,4 +342,4 @@ with tab2:
             fig_repair.update_layout(margin=dict(t=50, b=0), showlegend=False)
             st.plotly_chart(fig_repair, use_container_width=True)
 
-st.caption("Shortage Intelligence Dashboard | Horizontal Stacked Bar Analysis | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | 100% Normalized Stacked Bar Analysis | ข้อมูลครบถ้วน 100%")
