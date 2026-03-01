@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE BUILD)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Fixed Label Overflow & X-Axis Sorting Issue
+# UPDATED: Enhanced Repair Summary Table with Metrics
 # =====================================
 
 import streamlit as st
@@ -303,10 +303,8 @@ if not trend.empty:
     sum_trend["%"] = (sum_trend["จำนวน"] / total_in_period * 100).round(1)
     sum_trend["label_display"] = sum_trend.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]}%)', axis=1)
     
-    # บังคับการจัดเรียงตามเวลา (Chronological Sort)
     sum_trend = sum_trend.sort_values("ช่วง_dt")
     
-    # คำนวณชื่อลูกค้าสำหรับชื่อกราฟ
     cust_display = ""
     if customer_filter:
         if len(customer_filter) > 3:
@@ -321,16 +319,14 @@ if not trend.empty:
                       category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
                       color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
     
-    # ตั้งค่า X-axis ให้รักษาระดับการเรียงลำดับตามข้อมูลที่ผ่านการ sort มาแล้ว (CategoryOrder)
     fig_trend.update_layout(
         xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend['ช่วง'].unique()},
-        yaxis_range=[0, 115], # ขยายขอบบนเพื่อไม่ให้ตัวเลขล้น
+        yaxis_range=[0, 115], 
         plot_bgcolor='rgba(0,0,0,0)', 
         legend=dict(orientation="h", y=-0.2),
         margin=dict(t=50)
     )
     
-    # ปรับให้ตัวเลขพยายามอยู่ในแท่งกราฟ และลดขนาด font หากพื้นที่แคบ
     fig_trend.update_traces(
         textposition="inside", 
         textfont=dict(size=10, color="white"),
@@ -344,26 +340,47 @@ if not trend.empty:
 # =========================
 st.divider()
 st.markdown('<div class="section-header">🛠️ งานซ่อมและการจัดการ PDW (Repair Workstream)</div>', unsafe_allow_html=True)
-short_order_count = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
 
-r_col1, r_col2 = st.columns(2)
-with r_col1: kpi_box("Shortage Orders (Repair)", f"{short_order_count:,.0f}", "ใบงานที่ต้องดำเนินการซ่อม", "#374151")
-with r_col2: kpi_box("Total PDW Scrap", f"{pdw_scrap_val:,.0f}", "น้ำหนักของเหลือรวม (กิโลกรัม)", "#78350f")
-
+# Update Repair Summary Table Logic
 if "สถานะซ่อมสรุป" in fdf.columns:
-    issue_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].dropna(subset=["สถานะซ่อมสรุป"]).groupby("สถานะซ่อมสรุป").size().reset_index(name="จำนวน").sort_values("จำนวน", ascending=False)
+    # Prepare data for aggregation
+    repair_summary_data = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].dropna(subset=["สถานะซ่อมสรุป"]).copy()
     
-    t1, t2 = st.columns([1, 1])
+    # Ensure metric columns are numeric
+    metrics = ["จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน"]
+    for m in metrics:
+        repair_summary_data[m] = pd.to_numeric(repair_summary_data[m], errors='coerce').fillna(0)
+    
+    # Group and Aggregate
+    issue_df = repair_summary_data.groupby("สถานะซ่อมสรุป").agg({
+        'สถานะซ่อมสรุป': 'size',
+        'จำนวนเมตรขาดจำนวน': 'sum',
+        'ตารางเมตรขาดจำนวน': 'sum',
+        'น้ำหนักงานขาดจำนวน': 'sum'
+    }).rename(columns={'สถานะซ่อมสรุป': 'จำนวนออเดอร์'}).reset_index().sort_values("จำนวนออเดอร์", ascending=False)
+    
+    # Rename columns for display
+    issue_df.columns = ["หมวดหมู่งานซ่อม", "จำนวนออเดอร์", "รวมเมตร (m)", "รวม ตร.ม.", "รวมน้ำหนัก (kg)"]
+
+    t1, t2 = st.columns([1.8, 1])
     with t1:
-        st.markdown("**ตารางสรุปหมวดหมู่งานซ่อม**")
-        st.dataframe(issue_df, use_container_width=True, hide_index=True)
+        st.markdown("**ตารางวิเคราะห์หมวดหมู่งานซ่อมเชิงลึก**")
+        st.dataframe(
+            issue_df.style.format({
+                "รวมเมตร (m)": "{:,.0f}",
+                "รวม ตร.ม.": "{:,.0f}",
+                "รวมน้ำหนัก (kg)": "{:,.0f}"
+            }),
+            use_container_width=True, 
+            hide_index=True
+        )
     with t2:
-        fig_repair = px.pie(issue_df, names="สถานะซ่อมสรุป", values="จำนวน", hole=0.5, title="สัดส่วนปัญหาสถานะซ่อม")
+        fig_repair = px.pie(issue_df, names="หมวดหมู่งานซ่อม", values="จำนวนออเดอร์", hole=0.5, title="สัดส่วนออเดอร์ตามงานซ่อม")
         fig_repair.update_traces(textinfo="label+percent", textposition="inside", textfont_size=11, textfont_color="white")
         fig_repair.update_layout(margin=dict(t=30, b=0), showlegend=False)
         st.plotly_chart(fig_repair, use_container_width=True)
 
-# ---------------- DATA EXPLORER WITH COLUMN FILTERS ----------------
+# Data Explorer
 with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
     st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
     f_c1, f_c2, f_c3 = st.columns(3)
@@ -393,4 +410,4 @@ with st.expander("📄 ดูข้อมูลใบงานฉบับละ
         hide_index=True
     )
 
-st.caption("Shortage Intelligence Dashboard | Fixed Overflow & Sorting | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Enhanced Repair Analysis | ข้อมูลครบถ้วน 100%")
