@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (TOP NAVIGATION)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Added percentages back to Top 10 Causes Chart text labels
+# UPDATED: Moved Navigation to Top Tabs as requested
 # =====================================
 
 import streamlit as st
@@ -156,13 +156,14 @@ missing_weight = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "�
 pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
 
 # ---------------- TOP NAVIGATION TABS ----------------
-tab1, tab2 = st.tabs(["📊 Executive Overview", "🛠️ Detailed Logs / Repair"])
+# Use emoji to match the reference image style if desired
+tab1, tab2 = st.tabs(["📊 ภาพรวมแดชบอร์ด", "🛠️ วิเคราะห์งานซ่อม (Repair)"])
 
 # ==============================================================================
-# TAB 1: EXECUTIVE OVERVIEW
+# TAB 1: DASHBOARD OVERVIEW
 # ==============================================================================
 with tab1:
-    st.markdown('<p style="color:#64748b; font-size:1.1rem; margin-bottom:20px;">วิเคราะห์ผลผลิตขาดจำนวน | เริ่มต้น 7 วันล่าสุด (Week Cycle: อาทิตย์ - เสาร์)</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#64748b; font-size:1.1rem; margin-bottom:20px;">Executive Overview | Week Cycle: อาทิตย์ - เสาร์</p>', unsafe_allow_html=True)
     
     # Section 1: Operational Summary
     complete_qty = (fdf["สถานะผลิต"] == "ครบจำนวน").sum()
@@ -197,7 +198,22 @@ with tab1:
     with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
     with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
 
-    # Section 3: Machine Performance Analysis
+    # Section 3: Executive Insights
+    st.divider()
+    st.subheader("🧠 สรุปสาระสำคัญสำหรับผู้บริหาร (Executive Insights)")
+    if not fdf.empty and order_total > 0:
+        status_label = "🔴 วิกฤต (Critical)" if short_pct >= 20 else ("🟡 ต้องเฝ้าระวัง (Watchlist)" if short_pct >= 15 else "🟢 ปกติ (Healthy)")
+        top_cause_series = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]["Detail"].value_counts().head(1)
+        main_cause = f"{top_cause_series.index[0]} ({top_cause_series.iloc[0]} Order)" if not top_cause_series.empty else "N/A"
+        
+        st.info(f"""
+        **การวิเคราะห์ภาพรวม:**
+        * **สถานะปัจจุบัน:** {status_label} ด้วยอัตราขาดจำนวน **{short_pct:.1f}%**
+        * **ปัจจัยหลักที่ส่งผล:** ปัญหาหลักคือ **{main_cause}**
+        * **ผลกระทบสะสม:** ขาดรวมทั้งหมด **{missing_meters:,.0f} เมตร** คิดเป็นน้ำหนักรวม **{missing_weight:,.0f} กก.**
+        """)
+    
+    # Section 4: Machine Performance Analysis
     st.markdown('<div class="section-header">🖥️ ประสิทธิภาพรายเครื่องจักร (Machine Performance Analysis)</div>', unsafe_allow_html=True)
     mc_perf = fdf.copy()
     if not mc_perf.empty:
@@ -220,41 +236,23 @@ with tab1:
                              legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_mc, use_container_width=True)
 
-    # Section 4: Deep Dive & Trend
+    # Section 5: Deep Dive & Trend
     st.markdown('<div class="section-header">🔍 วิเคราะห์สาเหตุและเจาะลึกงานขาดจำนวน (Deep Dive Analysis)</div>', unsafe_allow_html=True)
     col_left, col_mid, col_right = st.columns([2, 1, 1])
-    
     with col_left:
-        # UPDATED: Re-added percentages to labels for Top 10 Causes Chart
         top10 = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
         if not top10.empty:
-            # Calculate % for each cause
-            top10["%"] = (top10["จำนวน"] / order_total * 100).round(1)
-            top10["label_with_pct"] = top10["จำนวน"].astype(str) + " (" + top10["%"].astype(str) + "%)"
-            
-            fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", 
-                              title="TOP 10 สาเหตุงานขาดจำนวน", 
-                              color="จำนวน", 
-                              color_continuous_scale="Reds", 
-                              text="label_with_pct") # Using label with count + percentage
-            fig_top10.update_traces(textposition="inside", textfont=dict(size=12, color="white"))
-            fig_top10.update_layout(
-                plot_bgcolor='white', 
-                paper_bgcolor='white',
-                margin=dict(t=50, b=0),
-                coloraxis_colorbar=dict(title="จำนวน"),
-                xaxis=dict(showgrid=True, gridcolor='lightgrey'),
-                yaxis=dict(showgrid=False)
-            )
+            top10["label"] = top10["จำนวน"].astype(str)
+            fig_top10 = px.bar(top10, x="จำนวน", y="Detail", orientation="h", title="TOP 10 สาเหตุงานขาดจำนวน", color="จำนวน", color_continuous_scale="Reds", text="label")
+            fig_top10.update_traces(textposition="auto")
+            fig_top10.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=40, b=0))
             st.plotly_chart(fig_top10, use_container_width=True)
-
     with col_mid:
         status_df = fdf["สถานะผลิต"].value_counts().reset_index(); status_df.columns = ["สถานะ", "จำนวน"]
         fig_status = px.pie(status_df, names="สถานะ", values="จำนวน", title="สัดส่วนสถานะผลิต (Overall)",
                            color="สถานะ", color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
         fig_status.update_traces(textinfo="value+percent", textfont_size=11); fig_status.update_layout(margin=dict(t=40, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.1))
         st.plotly_chart(fig_status, use_container_width=True)
-        
     with col_right:
         short_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]; stop_col = "สถานะ ORDER จอดหรือไม่จอด"
         if stop_col in short_df.columns:
@@ -282,16 +280,30 @@ with tab1:
         sum_trend = sum_trend.sort_values("ช่วง_dt")
         
         cust_display = f" | ลูกค้า: {', '.join(customer_filter)}" if customer_filter and len(customer_filter) <= 3 else (f" | ลูกค้า {len(customer_filter)} ราย" if customer_filter else "")
-        fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", title=f"แนวโน้มประสิทธิภาพการผลิต ({period}{title_suffix}){cust_display}",
+        fig_trend = px.bar(sum_trend, x="ช่วง", y="%", color="สถานะผลิต", title=f"แนวโน้มประสิทธิภาพการผลิต ({period}){cust_display}",
                           text="label_display", barmode="stack", category_orders={"สถานะผลิต": ["ครบจำนวน", "ขาดจำนวน", "ยกเลิกผลิต"]},
                           color_discrete_map={"ครบจำนวน": "#10b981", "ขาดจำนวน": "#ef4444", "ยกเลิกผลิต": "#94a3b8"})
         fig_trend.update_layout(xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend['ช่วง'].unique()},
-                                yaxis_range=[0, 115], plot_bgcolor='white', legend=dict(orientation="h", y=-0.2), margin=dict(t=50))
+                                yaxis_range=[0, 115], plot_bgcolor='rgba(0,0,0,0)', legend=dict(orientation="h", y=-0.2), margin=dict(t=50))
         fig_trend.update_traces(textposition="inside", textfont=dict(size=10, color="white"), insidetextanchor="middle")
         st.plotly_chart(fig_trend, use_container_width=True)
 
+    # Data Explorer Expander
+    with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
+        st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
+        f_c1, f_c2, f_c3 = st.columns(3)
+        target_columns = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป", "สถานะ ORDER จอดหรือไม่จอด"]
+        search_pdr = f_c1.text_input("ค้นหา PDR No.", placeholder="พิมพ์เลข PDR..."); search_cust = f_c2.text_input("ค้นหาชื่อลูกค้า", placeholder="พิมพ์ชื่อลูกค้า..."); search_detail = f_c3.text_input("ค้นหา Detail/สาเหตุ", placeholder="พิมพ์สาเหตุ...")
+        fdf_table = fdf.copy()
+        if search_pdr: fdf_table = fdf_table[fdf_table["PDR No."].astype(str).str.contains(search_pdr, case=False, na=False)]
+        if search_cust: fdf_table = fdf_table[fdf_table["ชื่อลูกค้า"].astype(str).str.contains(search_cust, case=False, na=False)]
+        if search_detail: fdf_table = fdf_table[fdf_table["Detail"].astype(str).str.contains(search_detail, case=False, na=False)]
+        fdf_table["วันที่"] = fdf_table["วันที่"].dt.strftime("%d/%m/%Y"); available_cols = [c for c in target_columns if c in fdf_table.columns]
+        st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
+        st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
+
 # ==============================================================================
-# TAB 2: DETAILED LOGS / REPAIR
+# TAB 2: REPAIR ANALYSIS
 # ==============================================================================
 with tab2:
     st.markdown('<div class="section-header">🛠️ งานซ่อมและการจัดการ PDW (Repair Workstream)</div>', unsafe_allow_html=True)
@@ -311,6 +323,7 @@ with tab2:
             'น้ำหนักงานขาดจำนวน': 'sum'
         }).rename(columns={'สถานะซ่อมสรุป': 'จำนวนออเดอร์'}).reset_index().sort_values("จำนวนออเดอร์", ascending=False)
         
+        # Grand Totals
         total_orders = issue_df["จำนวนออเดอร์"].sum()
         total_meters = issue_df["จำนวนเมตรขาดจำนวน"].sum()
         total_sqm = issue_df["ตารางเมตรขาดจำนวน"].sum()
@@ -327,7 +340,7 @@ with tab2:
         issue_df = pd.concat([issue_df, total_row], ignore_index=True)
         issue_df.columns = ["หมวดหมู่งานซ่อม", "จำนวนออเดอร์", "รวมเมตร (m)", "รวม ตร.ม.", "รวมน้ำหนัก (kg)"]
 
-        # RESTORED SUMMARY BOX (Matching image_be9899.png)
+        # RESTORED SUMMARY INFO
         st.markdown(f"""
         <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
             <p style="margin:0; font-size: 1.1rem; color: #334155;">
@@ -356,19 +369,7 @@ with tab2:
             fig_repair.update_traces(textinfo="label+percent", textposition="inside", textfont_size=11, textfont_color="white")
             fig_repair.update_layout(margin=dict(t=30, b=0), showlegend=False)
             st.plotly_chart(fig_repair, use_container_width=True)
+    else:
+        st.info("ไม่พบข้อมูลคอลัมน์ 'สถานะซ่อมสรุป' ในช่วงเวลาที่เลือก")
 
-    # Data Explorer Expander
-    with st.expander("📄 ดูข้อมูลใบงานฉบับละเอียด (Detailed Orders)"):
-        st.markdown("🔍 **กรองข้อมูลเฉพาะในตาราง**")
-        f_c1, f_c2, f_c3 = st.columns(3)
-        target_columns = ["วันที่", "ลำดับที่", "MC", "กะ", "PDR No.", "ชื่อลูกค้า", "ลอน", "จำนวนที่ลูกค้าต้องการ", "ขาดจำนวน", "จำนวนเมตรขาดจำนวน", "ตารางเมตรขาดจำนวน", "น้ำหนักงานขาดจำนวน", "สถานะส่งงาน", "Detail", "สถานะซ่อมสรุป", "สถานะ ORDER จอดหรือไม่จอด"]
-        search_pdr = f_c1.text_input("ค้นหา PDR No.", placeholder="พิมพ์เลข PDR..."); search_cust = f_c2.text_input("ค้นหาชื่อลูกค้า", placeholder="พิมพ์ชื่อลูกค้า..."); search_detail = f_c3.text_input("ค้นหา Detail/สาเหตุ", placeholder="พิมพ์สาเหตุ...")
-        fdf_table = fdf.copy()
-        if search_pdr: fdf_table = fdf_table[fdf_table["PDR No."].astype(str).str.contains(search_pdr, case=False, na=False)]
-        if search_cust: fdf_table = fdf_table[fdf_table["ชื่อลูกค้า"].astype(str).str.contains(search_cust, case=False, na=False)]
-        if search_detail: fdf_table = fdf_table[fdf_table["Detail"].astype(str).str.contains(search_detail, case=False, na=False)]
-        fdf_table["วันที่"] = fdf_table["วันที่"].dt.strftime("%d/%m/%Y"); available_cols = [c for c in target_columns if c in fdf_table.columns]
-        st.markdown(f"พบข้อมูลทั้งหมด **{len(fdf_table):,}** แถว")
-        st.dataframe(fdf_table[available_cols].sort_values("ลำดับที่", ascending=True), use_container_width=True, hide_index=True)
-
-st.caption("Shortage Intelligence Dashboard | Percentages re-added to Top 10 chart | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Top Navigation Enabled | ข้อมูลครบถ้วน 100%")
