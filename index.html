@@ -7,6 +7,8 @@
     <!-- โหลด Library พื้นฐาน -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- เพิ่มปลั๊กอินสำหรับแสดงตัวเลขบนกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
@@ -23,7 +25,7 @@
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        <p class="mt-4 font-bold text-slate-600 italic">กำลังดึงข้อมูลและคำนวณของเสีย (แผ่นเสีย * T * นน/แผ่น)...</p>
+        <p class="mt-4 font-bold text-slate-600 italic">กำลังดึงข้อมูลและประมวลผลตัวเลขจำนวนเต็ม...</p>
     </div>
 
     <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
@@ -34,7 +36,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Multi-Sync</span></h1>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">เปรียบเทียบข้อมูลรายเครื่อง (BHS | YUELI | ISOWA)</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">วิเคราะห์ข้อมูลรายเครื่อง (BHS | YUELI | ISOWA)</p>
                 </div>
             </div>
             
@@ -98,7 +100,7 @@
         <!-- Combined Data Table -->
         <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
             <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                <h3 class="font-bold text-slate-800">รายการผลิตรวม 3 เครื่อง (คำนวณของเสียตามสูตรใหม่)</h3>
+                <h3 class="font-bold text-slate-800">รายการผลิตรวม 3 เครื่อง (ปัดเศษทศนิยมเป็นจำนวนเต็ม)</h3>
                 <div id="timeRangeDisplay" class="text-[10px] font-bold text-indigo-600 bg-white px-4 py-1.5 rounded-full border shadow-sm uppercase tracking-widest italic">
                     Ready to Fetch
                 </div>
@@ -124,9 +126,12 @@
     </main>
 
     <script>
+        // ลงทะเบียนปลั๊กอิน DataLabels
+        Chart.register(ChartDataLabels);
+
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         
-        // กำหนดลำดับเครื่องจักรใหม่: BHS -> YUELI -> ISOWA
+        // กำหนดลำดับเครื่องจักร: BHS -> YUELI -> ISOWA
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         const SHEETS_CONFIG = [
             { machine: 'BHS', sheetName: 'DATA BHS' },
@@ -207,7 +212,6 @@
                 if (shiftVal.includes('เช้า')) shiftVal = 'A';
                 if (shiftVal.includes('ดึก')) shiftVal = 'B';
 
-                // สูตรการคำนวณของเสีย: แผ่นใหญ่เสีย * T * นน/แผ่น(กก)
                 const wasteSheets = parseFloat(cleanRow[colIdx.wasteCount]) || 0;
                 const T = parseFloat(cleanRow[colIdx.multiplier]) || 0;
                 const unitWeight = parseFloat(cleanRow[colIdx.unitWeight]) || 0;
@@ -259,7 +263,9 @@
                     const valsB = filtered.filter(d => d.machine === m && d.shift === 'B').map(d => d[key]);
                     const sum = (arr) => arr.reduce((a, b) => a + b, 0);
                     const avg = (arr) => arr.length ? sum(arr) / arr.length : 0;
-                    return isAverage ? [avg(valsA), avg(valsB)] : [sum(valsA), sum(valsB)];
+                    
+                    // ปัดเศษเป็นจำนวนเต็มที่นี่เลย
+                    return isAverage ? [Math.round(avg(valsA)), Math.round(avg(valsB))] : [Math.round(sum(valsA)), Math.round(sum(valsB))];
                 });
             };
 
@@ -281,14 +287,38 @@
                             { label: labelB, data: d2, backgroundColor: '#a5b4fc', borderRadius: 8, tension: 0.4 }
                         ]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        layout: { padding: { top: 25 } }, // เพิ่มพื้นที่ด้านบนเพื่อให้ตัวเลขไม่โดนตัด
+                        plugins: { 
+                            legend: { position: 'bottom' },
+                            datalabels: { // การตั้งค่าแสดงตัวเลขบนกราฟ
+                                anchor: 'end',
+                                align: 'top',
+                                offset: 2,
+                                font: { weight: 'bold', family: 'Sarabun', size: 10 },
+                                formatter: (value) => value > 0 ? formatNum(value) : '', // แสดงเฉพาะค่าที่มากกว่า 0
+                                color: (ctx) => ctx.dataset.backgroundColor
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                ticks: { font: { size: 10 } }
+                            },
+                            x: {
+                                ticks: { font: { weight: 'bold', size: 11 } }
+                            }
+                        }
+                    }
                 });
             };
 
-            draw('weightChart', 'รวมกะ A (กก.)', datasets.weight.map(v => v[0]), 'รวมกะ B (กก.)', datasets.weight.map(v => v[1]), 'bar');
-            draw('wasteChart', 'รวมกะ A (กก.)', datasets.waste.map(v => v[0]), 'รวมกะ B (กก.)', datasets.waste.map(v => v[1]), 'bar');
-            draw('speedChart', 'เฉลี่ยกะ A (m/min)', datasets.speed.map(v => v[0]), 'เฉลี่ยกะ B (m/min)', datasets.speed.map(v => v[1]), 'line');
-            draw('downtimeChart', 'รวมกะ A (นาที)', datasets.down.map(v => v[0]), 'รวมกะ B (นาที)', datasets.down.map(v => v[1]), 'bar');
+            draw('weightChart', 'กะ A', datasets.weight.map(v => v[0]), 'กะ B', datasets.weight.map(v => v[1]), 'bar');
+            draw('wasteChart', 'กะ A', datasets.waste.map(v => v[0]), 'กะ B', datasets.waste.map(v => v[1]), 'bar');
+            draw('speedChart', 'กะ A', datasets.speed.map(v => v[0]), 'กะ B', datasets.speed.map(v => v[1]), 'line');
+            draw('downtimeChart', 'กะ A', datasets.down.map(v => v[0]), 'กะ B', datasets.down.map(v => v[1]), 'bar');
 
             const tbody = document.getElementById('dataTableBody');
             if (filtered.length === 0) {
@@ -302,9 +332,9 @@
                         <td class="px-8 py-4 text-center">
                             <span class="px-3 py-1 rounded-full text-[10px] font-black tracking-tighter shadow-sm ${item.shift === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">SH. ${item.shift}</span>
                         </td>
-                        <td class="px-8 py-4 text-right font-mono font-bold text-slate-800">${formatNum(item.weight.toFixed(2))}</td>
-                        <td class="px-8 py-4 text-right font-mono">${item.speed.toFixed(0)}</td>
-                        <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(item.waste.toFixed(2))}</td>
+                        <td class="px-8 py-4 text-right font-mono font-bold text-slate-800">${formatNum(Math.round(item.weight))}</td>
+                        <td class="px-8 py-4 text-right font-mono text-slate-500">${Math.round(item.speed)}</td>
+                        <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(Math.round(item.waste))}</td>
                     </tr>
                 `).join('');
             }
