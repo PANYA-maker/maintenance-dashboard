@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corrugator Multi-Sheet Analytics</title>
+    <!-- โหลด Library พื้นฐาน -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -33,7 +34,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Multi-Sync</span></h1>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">เปรียบเทียบข้อมูลรายเครื่อง (DATA BHS | ISOWA | YUELI)</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">เปรียบเทียบข้อมูลรายเครื่อง (BHS | YUELI | ISOWA)</p>
                 </div>
             </div>
             
@@ -124,10 +125,13 @@
 
     <script>
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
+        
+        // กำหนดลำดับเครื่องจักรใหม่: BHS -> YUELI -> ISOWA
+        const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         const SHEETS_CONFIG = [
             { machine: 'BHS', sheetName: 'DATA BHS' },
-            { machine: 'ISOWA', sheetName: 'DATA ISOWA' },
-            { machine: 'YUELI', sheetName: 'DATA YUELI' }
+            { machine: 'YUELI', sheetName: 'DATA YUELI' },
+            { machine: 'ISOWA', sheetName: 'DATA ISOWA' }
         ];
         
         let dashboardData = [];
@@ -203,7 +207,7 @@
                 if (shiftVal.includes('เช้า')) shiftVal = 'A';
                 if (shiftVal.includes('ดึก')) shiftVal = 'B';
 
-                // สูตรการคำนวณของเสียใหม่: แผ่นใหญ่เสีย * T * นน/แผ่น(กก)
+                // สูตรการคำนวณของเสีย: แผ่นใหญ่เสีย * T * นน/แผ่น(กก)
                 const wasteSheets = parseFloat(cleanRow[colIdx.wasteCount]) || 0;
                 const T = parseFloat(cleanRow[colIdx.multiplier]) || 0;
                 const unitWeight = parseFloat(cleanRow[colIdx.unitWeight]) || 0;
@@ -249,9 +253,8 @@
             document.getElementById('kpiSpeed').innerText = formatNum(overallSpeed);
             document.getElementById('kpiDowntime').innerText = formatNum(totalDown);
 
-            const machines = ['BHS', 'ISOWA', 'YUELI'];
             const prepareChartData = (key, isAverage = false) => {
-                return machines.map(m => {
+                return MACHINES.map(m => {
                     const valsA = filtered.filter(d => d.machine === m && d.shift === 'A').map(d => d[key]);
                     const valsB = filtered.filter(d => d.machine === m && d.shift === 'B').map(d => d[key]);
                     const sum = (arr) => arr.reduce((a, b) => a + b, 0);
@@ -272,7 +275,7 @@
                 charts[id] = new Chart(document.getElementById(id), {
                     type: type,
                     data: {
-                        labels: machines,
+                        labels: MACHINES,
                         datasets: [
                             { label: labelA, data: d1, backgroundColor: '#4f46e5', borderRadius: 8, tension: 0.4 },
                             { label: labelB, data: d2, backgroundColor: '#a5b4fc', borderRadius: 8, tension: 0.4 }
