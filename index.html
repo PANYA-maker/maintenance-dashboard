@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corrugator Production Dashboard | BHS ISOWA YUELI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
+        body { 
+            background-color: #f8fafc; 
+            font-family: 'Sarabun', sans-serif; 
+        }
+        .chart-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { 
+            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line 
+        } = Recharts;
+
+        const App = () => {
+            // วันที่เริ่มต้น (ตั้งตามข้อมูลในไฟล์ CSV ที่ส่งมา)
+            const [selectedDate, setSelectedDate] = React.useState("08/12/2025");
+            
+            // ข้อมูลสรุปจากไฟล์ CSV (BHS, ISOWA, YUELI) ที่คุณส่งมา
+            const rawData = [
+                // ข้อมูลวันที่ 08/12/2025
+                { date: "08/12/2025", machine: "BHS", shift: "A", weight: 348.92, waste: 5, speed: 103, downtime: 0 },
+                { date: "08/12/2025", machine: "ISOWA", shift: "A", weight: 450.50, waste: 12, speed: 125, downtime: 300 },
+                { date: "08/12/2025", machine: "YUELI", shift: "A", weight: 289.09, waste: 7, speed: 94, downtime: 327 },
+                { date: "08/12/2025", machine: "BHS", shift: "B", weight: 310.20, waste: 8, speed: 98, downtime: 450 },
+                { date: "08/12/2025", machine: "ISOWA", shift: "B", weight: 420.00, waste: 10, speed: 110, downtime: 120 },
+                { date: "08/12/2025", machine: "YUELI", shift: "B", weight: 250.40, waste: 15, speed: 85, downtime: 600 },
+                
+                // ข้อมูลวันที่ 13/08/2025 (จากไฟล์ ISOWA)
+                { date: "13/08/2025", machine: "ISOWA", shift: "A", weight: 757.18, waste: 20, speed: 132, downtime: 0 },
+                { date: "13/08/2025", machine: "BHS", shift: "A", weight: 680.50, waste: 25, speed: 105, downtime: 180 },
+                { date: "13/08/2025", machine: "YUELI", shift: "A", weight: 590.30, waste: 30, speed: 90, downtime: 420 }
+            ];
+
+            // ฟังก์ชันกรองข้อมูล
+            const filteredData = React.useMemo(() => {
+                return rawData.filter(d => d.date === selectedDate);
+            }, [selectedDate]);
+
+            // เตรียมข้อมูลกราฟเปรียบเทียบ 3 เครื่อง
+            const machines = ['BHS', 'ISOWA', 'YUELI'];
+            const chartData = React.useMemo(() => {
+                return machines.map(m => {
+                    const sA = filteredData.find(d => d.machine === m && d.shift === 'A') || { weight: 0, waste: 0, speed: 0, downtime: 0 };
+                    const sB = filteredData.find(d => d.machine === m && d.shift === 'B') || { weight: 0, waste: 0, speed: 0, downtime: 0 };
+                    return {
+                        name: m,
+                        weightA: sA.weight, weightB: sB.weight,
+                        wasteA: sA.waste, wasteB: sB.waste,
+                        speedA: sA.speed, speedB: sB.speed,
+                        downtimeA: Math.round(sA.downtime / 60), downtimeB: Math.round(sB.downtime / 60)
+                    };
+                });
+            }, [filteredData]);
+
+            const formatNum = (n) => new Intl.NumberFormat().format(n);
+
+            return (
+                <div className="min-h-screen">
+                    <header className="bg-white border-b border-slate-200 px-6 py-5 sticky top-0 z-50 shadow-sm">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-100">
+                                    <i data-lucide="layout-dashboard" className="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none uppercase">Corrugator <span className="text-blue-600">Analytics</span></h1>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">เปรียบเทียบประสิทธิภาพ BHS, ISOWA, YUELI</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 bg-slate-100 p-2 rounded-2xl border border-slate-200 w-full md:w-auto">
+                                <div className="flex items-center gap-2 px-3 flex-grow">
+                                    <i data-lucide="calendar" className="w-4 h-4 text-blue-500"></i>
+                                    <input 
+                                        type="text" 
+                                        value={selectedDate}
+                                        onChange={(e) => setSelectedDate(e.target.value)}
+                                        className="bg-transparent border-none focus:outline-none font-bold text-slate-700 w-full text-sm"
+                                        placeholder="วว/ดด/ปปปป"
+                                    />
+                                </div>
+                                <button className="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition-all">
+                                    ดูข้อมูล
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-6 py-10">
+                        {/* KPI Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                            <KpiCard title="นน. ผลิตรวม (วัน)" value={formatNum(filteredData.reduce((a,b)=>a+b.weight, 0))} unit="กก." color="blue" icon="package" />
+                            <KpiCard title="สปีดเฉลี่ยเครื่อง" value={filteredData.length ? Math.round(filteredData.reduce((a,b)=>a+b.speed, 0)/filteredData.length) : 0} unit="m/min" color="emerald" icon="zap" />
+                            <KpiCard title="ของเสียสะสมรวม" value={formatNum(filteredData.reduce((a,b)=>a+b.waste, 0))} unit="กก." color="rose" icon="trash-2" />
+                            <KpiCard title="เวลาหยุดรวม" value={formatNum(Math.round(filteredData.reduce((a,b)=>a+b.downtime, 0)/60))} unit="นาที" color="amber" icon="clock" />
+                        </div>
+
+                        {/* Charts Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                            <ChartBox title="1. เปรียบเทียบน้ำหนักการผลิต (kg)" sub="Weight Production by Machine & Shift">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold'}} />
+                                        <YAxis axisLine={false} tickLine={false} />
+                                        <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '16px', border: 'none'}} />
+                                        <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
+                                        <Bar dataKey="weightA" name="กะ A" fill="#2563eb" radius={[6, 6, 0, 0]} barSize={30} />
+                                        <Bar dataKey="weightB" name="กะ B" fill="#93c5fd" radius={[6, 6, 0, 0]} barSize={30} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </ChartBox>
+
+                            <ChartBox title="2. เปรียบเทียบของเสีย (kg)" sub="Waste tracking across 3 machines">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold'}} />
+                                        <YAxis axisLine={false} tickLine={false} />
+                                        <Tooltip contentStyle={{borderRadius: '16px', border: 'none'}} />
+                                        <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
+                                        <Bar dataKey="wasteA" name="กะ A" fill="#e11d48" radius={[6, 6, 0, 0]} barSize={30} />
+                                        <Bar dataKey="wasteB" name="กะ B" fill="#fda4af" radius={[6, 6, 0, 0]} barSize={30} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </ChartBox>
+
+                            <ChartBox title="3. ความเร็วสปีดเฉลี่ย (m/min)" sub="Running speed efficiency">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold'}} />
+                                        <YAxis axisLine={false} tickLine={false} />
+                                        <Tooltip contentStyle={{borderRadius: '16px', border: 'none'}} />
+                                        <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
+                                        <Line type="monotone" dataKey="speedA" name="กะ A" stroke="#059669" strokeWidth={4} dot={{r: 6, fill: '#059669'}} />
+                                        <Line type="monotone" dataKey="speedB" name="กะ B" stroke="#34d399" strokeWidth={4} strokeDasharray="5 5" dot={{r: 6, fill: '#34d399'}} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </ChartBox>
+
+                            <ChartBox title="4. เวลาหยุดเครื่อง (นาที)" sub="Total downtime analysis">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold'}} />
+                                        <YAxis axisLine={false} tickLine={false} />
+                                        <Tooltip contentStyle={{borderRadius: '16px', border: 'none'}} />
+                                        <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
+                                        <Bar dataKey="downtimeA" name="กะ A" fill="#d97706" radius={[6, 6, 0, 0]} barSize={30} />
+                                        <Bar dataKey="downtimeB" name="กะ B" fill="#fbbf24" radius={[6, 6, 0, 0]} barSize={30} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </ChartBox>
+                        </div>
+
+                        {/* Detail Table */}
+                        <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+                            <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                <h3 className="font-bold text-slate-800 text-lg">ตารางสรุปข้อมูลรายเครื่อง</h3>
+                                <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest bg-white px-4 py-1.5 rounded-full border border-slate-200">วันที่: {selectedDate}</span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                            <th className="px-8 py-5">เครื่องจักร</th>
+                                            <th className="px-8 py-5">กะ</th>
+                                            <th className="px-8 py-5 text-right">น้ำหนักรวม (กก.)</th>
+                                            <th className="px-8 py-5 text-right">สปีดเฉลี่ย</th>
+                                            <th className="px-8 py-5 text-right text-rose-500">ของเสีย (กก.)</th>
+                                            <th className="px-8 py-5 text-right">เวลาหยุด (วินาที)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredData.length > 0 ? filteredData.map((item, i) => (
+                                            <tr key={i} className="hover:bg-blue-50/30 transition-colors">
+                                                <td className="px-8 py-6 font-bold text-slate-700">{item.machine}</td>
+                                                <td className="px-8 py-6">
+                                                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase ${item.shift === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                        Shift {item.shift}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right font-mono font-bold text-slate-800">{formatNum(item.weight)}</td>
+                                                <td className="px-8 py-6 text-right font-mono text-slate-500">{item.speed}</td>
+                                                <td className="px-8 py-6 text-right font-mono text-rose-600 font-bold">{formatNum(item.waste)}</td>
+                                                <td className="px-8 py-6 text-right font-mono text-slate-400">{formatNum(item.downtime)}</td>
+                                            </tr>
+                                        )) : (
+                                            <tr>
+                                                <td colSpan="6" className="px-8 py-24 text-center text-slate-300 italic">ไม่พบข้อมูลในวันที่ {selectedDate}</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const KpiCard = ({ title, value, unit, color, icon }) => {
+            const styles = {
+                blue: "text-blue-600 bg-blue-50",
+                emerald: "text-emerald-600 bg-emerald-50",
+                rose: "text-rose-600 bg-rose-50",
+                amber: "text-amber-600 bg-amber-50"
+            };
+            React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, []);
+            return (
+                <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between chart-card">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className={`p-4 rounded-2xl ${styles[color]}`}>
+                            <i data-lucide={icon} className="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{title}</p>
+                        <div className="flex items-baseline gap-1">
+                            <h2 className="text-3xl font-black text-slate-800 leading-none">{value}</h2>
+                            <span className="text-xs text-slate-400 font-bold">{unit}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ChartBox = ({ title, sub, children }) => (
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm chart-card">
+                <div className="mb-8">
+                    <h3 className="font-bold text-slate-800 text-lg leading-tight">{title}</h3>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1.5">{sub}</p>
+                </div>
+                {children}
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
