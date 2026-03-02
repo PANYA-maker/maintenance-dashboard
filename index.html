@@ -3,13 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrugator Production Dashboard</title>
-    <!-- โหลด Library พื้นฐาน -->
+    <title>Corrugator Analytics Dashboard</title>
+    <!-- โหลด Tailwind CSS และ Chart.js (มาตรฐานสากล เสถียรที่สุด) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
@@ -19,178 +16,245 @@
             margin: 0;
             padding: 0;
         }
-        .error-box {
-            background: #fee2e2;
-            color: #b91c1c;
-            padding: 20px;
-            border-radius: 12px;
-            margin: 20px;
-            border: 1px solid #ef4444;
+        .dashboard-card { 
+            background: white; 
+            border-radius: 1.5rem; 
+            border: 1px solid #e2e8f0; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease;
         }
+        .dashboard-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .kpi-title { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-value { font-size: 1.875rem; font-weight: 800; color: #1e293b; line-height: 1; margin-top: 0.5rem; }
+        canvas { max-height: 250px; }
     </style>
 </head>
-<body>
-    <div id="root">
-        <div id="loading-state" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #64748b;">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">📊 กำลังโหลด Dashboard...</div>
-            <div style="font-size: 14px;">หากหน้าจอนี้ค้างนานเกิน 10 วินาที อาจเกิดจากอินเทอร์เน็ตบล็อกสคริปต์</div>
-            <div id="error-display"></div>
-        </div>
-    </div>
+<body class="pb-12">
 
-    <script type="text/babel">
-        // ตรวจสอบความพร้อมของ Library
-        window.onerror = function(msg, url, line) {
-            const errDisplay = document.getElementById('error-display');
-            if (errDisplay) {
-                errDisplay.innerHTML = `<div class="error-box"><strong>พบข้อผิดพลาด:</strong> ${msg} <br/> <small>ที่บรรทัด: ${line}</small></div>`;
-            }
-            return false;
-        };
-
-        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } = Recharts;
-
-        const App = () => {
-            const [selectedDate, setSelectedDate] = React.useState("8/12/2025");
-            
-            // ข้อมูลสรุปจากไฟล์ CSV (BHS, ISOWA, YUELI)
-            const rawData = [
-                { date: "8/12/2025", machine: "BHS", shift: "A", weight: 348.9, waste: 5.4, speed: 103, downtime: 0 },
-                { date: "8/12/2025", machine: "BHS", shift: "B", weight: 310.2, waste: 8.1, speed: 98, downtime: 450 },
-                { date: "8/12/2025", machine: "ISOWA", shift: "A", weight: 450.5, waste: 12.3, speed: 125, downtime: 300 },
-                { date: "8/12/2025", machine: "ISOWA", shift: "B", weight: 410.8, waste: 9.8, speed: 112, downtime: 180 },
-                { date: "8/12/2025", machine: "YUELI", shift: "A", weight: 289.1, waste: 7.2, speed: 94, downtime: 327 },
-                { date: "8/12/2025", machine: "YUELI", shift: "B", weight: 265.4, waste: 14.5, speed: 82, downtime: 540 },
-                { date: "13/8/2025", machine: "ISOWA", shift: "A", weight: 757.1, waste: 22.4, speed: 132, downtime: 0 },
-                { date: "13/8/2025", machine: "BHS", shift: "A", weight: 680.4, waste: 18.2, speed: 105, downtime: 240 },
-                { date: "13/8/2025", machine: "YUELI", shift: "A", weight: 510.2, waste: 15.5, speed: 92, downtime: 120 }
-            ];
-
-            const filteredData = React.useMemo(() => {
-                return rawData.filter(d => d.date === selectedDate);
-            }, [selectedDate]);
-
-            const machines = ['BHS', 'ISOWA', 'YUELI'];
-            const chartData = React.useMemo(() => {
-                return machines.map(m => {
-                    const sA = filteredData.find(d => d.machine === m && d.shift === 'A') || { weight: 0, waste: 0, speed: 0, downtime: 0 };
-                    const sB = filteredData.find(d => d.machine === m && d.shift === 'B') || { weight: 0, waste: 0, speed: 0, downtime: 0 };
-                    return {
-                        name: m,
-                        weightA: sA.weight, weightB: sB.weight,
-                        wasteA: sA.waste, wasteB: sB.waste,
-                        speedA: sA.speed, speedB: sB.speed,
-                        downtimeA: Math.round(sA.downtime / 60), downtimeB: Math.round(sB.downtime / 60)
-                    };
-                });
-            }, [filteredData]);
-
-            const formatNum = (n) => new Intl.NumberFormat('th-TH').format(n);
-
-            React.useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
-            }, [selectedDate, filteredData]);
-
-            return (
-                <div className="min-h-screen pb-10 animate-in fade-in duration-500">
-                    <header className="bg-white border-b border-slate-200 px-6 py-5 sticky top-0 z-50 shadow-sm">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-indigo-600 p-2.5 rounded-xl text-white">
-                                    <i data-lucide="bar-chart-3" className="w-6 h-6"></i>
-                                </div>
-                                <div>
-                                    <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase">Corrugator <span className="text-indigo-600">Analytics</span></h1>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">เปรียบเทียบ BHS | ISOWA | YUELI</p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 bg-slate-100 p-2 rounded-2xl border border-slate-200">
-                                <i data-lucide="calendar" className="w-4 h-4 text-indigo-500 ml-2"></i>
-                                <input 
-                                    type="text" 
-                                    value={selectedDate} 
-                                    onChange={(e) => setSelectedDate(e.target.value)} 
-                                    className="bg-transparent border-none focus:outline-none font-bold text-slate-700 w-32 text-sm px-2"
-                                    placeholder="ว/ด/ปปปป"
-                                />
-                            </div>
-                        </div>
-                    </header>
-
-                    <main className="max-w-7xl mx-auto px-6 py-8">
-                        {/* KPI Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-center">
-                            <StatCard title="นน. ผลิตรวม (กก.)" value={formatNum(filteredData.reduce((a,b)=>a+b.weight, 0))} color="blue" icon="package" />
-                            <StatCard title="สปีดเฉลี่ย (m/min)" value={filteredData.length ? Math.round(filteredData.reduce((a,b)=>a+b.speed, 0)/filteredData.length) : 0} color="emerald" icon="zap" />
-                            <StatCard title="ของเสียสะสม (กก.)" value={formatNum(filteredData.reduce((a,b)=>a+b.waste, 0))} color="rose" icon="trash-2" />
-                            <StatCard title="เวลาหยุดรวม (นาที)" value={formatNum(Math.round(filteredData.reduce((a,b)=>a+b.downtime, 0)/60))} color="amber" icon="clock" />
-                        </div>
-
-                        {/* Charts Area */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <ChartBox title="1. น้ำหนักการผลิตเปรียบเทียบ (กก.)">
-                                <div className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Bar dataKey="weightA" name="กะ A" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="weightB" name="กะ B" fill="#a5b4fc" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </ChartBox>
-
-                            <ChartBox title="2. ของเสียเปรียบเทียบ (กก.)">
-                                <div className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Bar dataKey="wasteA" name="กะ A" fill="#e11d48" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="wasteB" name="กะ B" fill="#fda4af" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </ChartBox>
-                        </div>
-                    </main>
+    <!-- แถบนำทางด้านบน -->
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2.5 rounded-xl text-white">
+                    <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
                 </div>
-            );
-        };
-
-        const StatCard = ({ title, value, color, icon }) => {
-            const styles = { blue: "bg-blue-50 text-blue-600", emerald: "bg-emerald-50 text-emerald-600", rose: "bg-rose-50 text-rose-600", amber: "bg-amber-50 text-amber-600" };
-            return (
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between h-40">
-                    <div className={`p-3 rounded-2xl w-fit mx-auto md:mx-0 ${styles[color]}`}>
-                        <i data-lucide={icon} className="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{title}</p>
-                        <h2 className="text-2xl font-black text-slate-800">{value}</h2>
-                    </div>
+                <div>
+                    <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase">Corrugator <span class="text-indigo-600">Analytics</span></h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Dashboard ข้อมูลเครื่อง ALL (BHS | ISOWA | YUELI)</p>
                 </div>
-            );
-        };
-
-        const ChartBox = ({ title, children }) => (
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-800 mb-6">{title}</h3>
-                {children}
             </div>
-        );
+            
+            <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <i data-lucide="calendar" class="w-4 h-4 text-indigo-500 ml-2"></i>
+                <input type="text" id="dateInput" value="8/12/2025" class="bg-transparent border-none focus:outline-none font-bold text-slate-700 w-32 text-sm px-2" placeholder="ว/ด/ปปปป">
+                <button onclick="updateDashboard()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95">ค้นหาข้อมูล</button>
+            </div>
+        </div>
+    </nav>
 
-        // Render the app
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+    <main class="max-w-7xl mx-auto px-6 mt-8">
+        <!-- แถบสรุปตัวเลข KPI -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="dashboard-card border-l-4 border-l-blue-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i data-lucide="package" class="w-5 h-5"></i></div>
+                    <span class="text-[10px] font-bold text-slate-300 tracking-widest uppercase">Weight</span>
+                </div>
+                <p class="kpi-title">น้ำหนักการผลิตรวม (กก.)</p>
+                <div id="kpiWeight" class="kpi-value">0</div>
+            </div>
+            <div class="dashboard-card border-l-4 border-l-emerald-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i data-lucide="zap" class="w-5 h-5"></i></div>
+                    <span class="text-[10px] font-bold text-slate-300 tracking-widest uppercase">Speed</span>
+                </div>
+                <p class="kpi-title">ความเร็วเฉลี่ย (m/min)</p>
+                <div id="kpiSpeed" class="kpi-value">0</div>
+            </div>
+            <div class="dashboard-card border-l-4 border-l-rose-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
+                    <span class="text-[10px] font-bold text-slate-300 tracking-widest uppercase">Waste</span>
+                </div>
+                <p class="kpi-title">ปริมาณของเสียรวม (กก.)</p>
+                <div id="kpiWaste" class="kpi-value text-rose-600">0</div>
+            </div>
+            <div class="dashboard-card border-l-4 border-l-amber-500">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="clock" class="w-5 h-5"></i></div>
+                    <span class="text-[10px] font-bold text-slate-300 tracking-widest uppercase">Down</span>
+                </div>
+                <p class="kpi-title">เวลาหยุดรวม (นาที)</p>
+                <div id="kpiDowntime" class="kpi-value text-amber-600">0</div>
+            </div>
+        </div>
+
+        <!-- กราฟเปรียบเทียบ -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="dashboard-card">
+                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="bar-chart" class="w-4 h-4 text-blue-500"></i> 1. น้ำหนักผลิตเปรียบเทียบ (กก.)
+                </h3>
+                <canvas id="weightChart"></canvas>
+            </div>
+            <div class="dashboard-card">
+                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i> 2. ปริมาณของเสีย (กก.)
+                </h3>
+                <canvas id="wasteChart"></canvas>
+            </div>
+            <div class="dashboard-card">
+                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-4 h-4 text-emerald-500"></i> 3. ความเร็วเฉลี่ย (m/min)
+                </h3>
+                <canvas id="speedChart"></canvas>
+            </div>
+            <div class="dashboard-card">
+                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i data-lucide="timer" class="w-4 h-4 text-amber-500"></i> 4. เวลาที่หยุดเครื่อง (นาที)
+                </h3>
+                <canvas id="downtimeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ตารางข้อมูลดิบ -->
+        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">รายละเอียดข้อมูลดิบรายเครื่อง</h3>
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-white px-3 py-1 rounded-full border shadow-sm">Updated from CSV Data</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                            <th class="px-8 py-4">เครื่องจักร</th>
+                            <th class="px-8 py-4 text-center">กะการทำงาน</th>
+                            <th class="px-8 py-4 text-right">น้ำหนักผลิต (กก.)</th>
+                            <th class="px-8 py-4 text-right">สปีดเฉลี่ย</th>
+                            <th class="px-8 py-4 text-right">ของเสีย (กก.)</th>
+                            <th class="px-8 py-4 text-right">หยุด (วินาที)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- ข้อมูลจะถูกใส่ที่นี่ด้วย JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ข้อมูลที่สรุปมาจากไฟล์ CSV ALL (BHS, ISOWA, YUELI)
+        const rawData = [
+            { date: "8/12/2025", machine: "BHS", shift: "A", weight: 348.9, waste: 5.4, speed: 103, downtime: 0 },
+            { date: "8/12/2025", machine: "BHS", shift: "B", weight: 310.2, waste: 8.1, speed: 98, downtime: 450 },
+            { date: "8/12/2025", machine: "ISOWA", shift: "A", weight: 450.5, waste: 12.3, speed: 125, downtime: 300 },
+            { date: "8/12/2025", machine: "ISOWA", shift: "B", weight: 410.8, waste: 9.8, speed: 112, downtime: 180 },
+            { date: "8/12/2025", machine: "YUELI", shift: "A", weight: 289.1, waste: 7.2, speed: 94, downtime: 327 },
+            { date: "8/12/2025", machine: "YUELI", shift: "B", weight: 265.4, waste: 14.5, speed: 82, downtime: 540 },
+            { date: "13/8/2025", machine: "ISOWA", shift: "A", weight: 757.1, waste: 22.4, speed: 132, downtime: 0 },
+            { date: "13/8/2025", machine: "BHS", shift: "A", weight: 680.4, waste: 18.2, speed: 105, downtime: 240 },
+            { date: "13/8/2025", machine: "YUELI", shift: "A", weight: 510.2, waste: 15.5, speed: 92, downtime: 120 }
+        ];
+
+        let charts = {};
+
+        function formatNum(n) { return new Intl.NumberFormat('th-TH').format(n); }
+
+        function getChartConfig(labels, data1, label1, data2, label2, type = 'bar') {
+            return {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: label1, data: data1, backgroundColor: '#4f46e5', borderColor: '#4f46e5', borderWidth: 0, borderRadius: 10, tension: 0.4 },
+                        { label: label2, data: data2, backgroundColor: '#a5b4fc', borderColor: '#a5b4fc', borderWidth: 0, borderRadius: 10, tension: 0.4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'top', labels: { font: { family: 'Sarabun', size: 11, weight: 'bold' } } } 
+                    },
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } }
+                    }
+                }
+            };
+        }
+
+        function updateDashboard() {
+            const searchDate = document.getElementById('dateInput').value;
+            const filtered = rawData.filter(d => d.date === searchDate);
+
+            // คำนวณค่า KPI
+            const totalW = filtered.reduce((a, b) => a + b.weight, 0);
+            const avgS = filtered.length ? Math.round(filtered.reduce((a, b) => a + b.speed, 0) / filtered.length) : 0;
+            const totalWaste = filtered.reduce((a, b) => a + b.waste, 0);
+            const totalDown = Math.round(filtered.reduce((a, b) => a + b.downtime, 0) / 60);
+
+            document.getElementById('kpiWeight').innerText = formatNum(Math.round(totalW));
+            document.getElementById('kpiSpeed').innerText = formatNum(avgS);
+            document.getElementById('kpiWaste').innerText = formatNum(Math.round(totalWaste));
+            document.getElementById('kpiDowntime').innerText = formatNum(totalDown);
+
+            // เตรียมข้อมูลสำหรับกราฟ (BHS, ISOWA, YUELI)
+            const machines = ['BHS', 'ISOWA', 'YUELI'];
+            const mapData = (key) => machines.map(m => {
+                const sA = filtered.find(d => d.machine === m && d.shift === 'A');
+                const sB = filtered.find(d => d.machine === m && d.shift === 'B');
+                return [sA ? sA[key] : 0, sB ? sB[key] : 0];
+            });
+
+            const weightData = mapData('weight');
+            const wasteData = mapData('waste');
+            const speedData = mapData('speed');
+            const downData = mapData('downtime').map(v => [Math.round(v[0]/60), Math.round(v[1]/60)]);
+
+            const createOrUpdateChart = (id, labelA, d1, labelB, d2, type) => {
+                if (charts[id]) charts[id].destroy();
+                const ctx = document.getElementById(id).getContext('2d');
+                charts[id] = new Chart(ctx, getChartConfig(machines, d1, labelA, d2, labelB, type));
+            };
+
+            createOrUpdateChart('weightChart', 'กะ A', weightData.map(v => v[0]), 'กะ B', weightData.map(v => v[1]), 'bar');
+            createOrUpdateChart('wasteChart', 'กะ A', wasteData.map(v => v[0]), 'กะ B', wasteData.map(v => v[1]), 'bar');
+            createOrUpdateChart('speedChart', 'กะ A', speedData.map(v => v[0]), 'กะ B', speedData.map(v => v[1]), 'line');
+            createOrUpdateChart('downtimeChart', 'กะ A', downData.map(v => v[0]), 'กะ B', downData.map(v => v[1]), 'bar');
+
+            // อัปเดตตาราง
+            const tbody = document.getElementById('dataTableBody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-8 py-12 text-center text-slate-400 italic font-bold">ไม่พบข้อมูลสำหรับวันที่ระบุ</td></tr>';
+            } else {
+                tbody.innerHTML = filtered.map(item => `
+                    <tr class="hover:bg-indigo-50/50 transition-colors">
+                        <td class="px-8 py-5 font-bold text-slate-700 underline decoration-indigo-200 underline-offset-4">${item.machine}</td>
+                        <td class="px-8 py-5 text-center">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm ${item.shift === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">
+                                SHIFT ${item.shift}
+                            </span>
+                        </td>
+                        <td class="px-8 py-5 text-right font-mono font-bold">${formatNum(item.weight)}</td>
+                        <td class="px-8 py-5 text-right font-mono text-slate-500">${item.speed}</td>
+                        <td class="px-8 py-5 text-right font-mono text-rose-600 font-bold">${formatNum(item.waste)}</td>
+                        <td class="px-8 py-5 text-right font-mono text-slate-400 italic">${item.downtime}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // เริ่มต้นการทำงาน
+        window.onload = () => {
+            lucide.createIcons();
+            updateDashboard();
+        };
     </script>
 </body>
 </html>
