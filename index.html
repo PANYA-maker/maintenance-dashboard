@@ -15,7 +15,7 @@
         .nav-tab { transition: all 0.3s; cursor: pointer; border-bottom: 3px solid transparent; }
         .nav-tab.active { border-bottom-color: #4f46e5; color: #4f46e5; font-weight: 800; }
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        canvas { max-height: 280px; width: 100% !important; }
+        canvas { max-height: 400px; width: 100% !important; }
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
     </style>
 </head>
@@ -23,7 +23,7 @@
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังซิงค์ข้อมูลจาก 7 ชีท...<br/><span id="loading-status" class="text-sm font-normal text-slate-400">กำลังประมวลผลข้อมูล...</span></p>
+        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังซิงค์ข้อมูลจากชีทสรุป...<br/><span id="loading-status" class="text-sm font-normal text-slate-400">กำลังประมวลผลข้อมูลกะ A/B</span></p>
     </div>
 
     <!-- Navigation Header -->
@@ -43,7 +43,7 @@
                     </div>
                 </div>
                 
-                <!-- ชุดเลือกวันที่สำหรับหน้า Production (Datetime) -->
+                <!-- Date Controls for Production Page -->
                 <div id="date-controls-prod" class="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
                     <div class="flex flex-col px-2 border-r border-slate-200">
                         <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter italic">เวลาเริ่ม (DATA)</span>
@@ -58,18 +58,18 @@
                     </button>
                 </div>
 
-                <!-- ชุดเลือกวันที่สำหรับหน้า Management (Date Only) -->
+                <!-- Date Controls for Management Page -->
                 <div id="date-controls-mgmt" class="hidden flex flex-wrap items-center gap-2 bg-indigo-50 p-2 rounded-2xl border border-indigo-200">
                     <div class="flex flex-col px-2 border-r border-indigo-200">
-                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic">เริ่มวันที่ (Management)</span>
+                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic">เริ่มวันที่</span>
                         <input type="date" id="mgmtFromDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
                     </div>
                     <div class="flex flex-col px-2 border-r border-indigo-200">
-                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic">ถึงวันที่ (Management)</span>
+                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic">ถึงวันที่</span>
                         <input type="date" id="mgmtToDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
                     </div>
                     <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
-                        <i data-lucide="search" class="w-4 h-4"></i> ค้นหา
+                        <i data-lucide="search" class="w-4 h-4"></i> ค้นหาข้อมูลบริหาร
                     </button>
                 </div>
             </div>
@@ -79,26 +79,6 @@
     <!-- Main Content Area -->
     <main class="max-w-7xl mx-auto px-6 mt-8">
         
-        <!-- KPI Summary (Dynamic) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-center sm:text-left">
-            <div class="dashboard-card border-l-4 border-l-indigo-500">
-                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">นน. ผลิตรวม (กก.)</p>
-                <div id="kpiWeight" class="text-2xl font-black text-slate-800">0</div>
-            </div>
-            <div class="dashboard-card border-l-4 border-l-emerald-500">
-                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">เมตรที่ผลิตได้จริง (M)</p>
-                <div id="kpiMeters" class="text-2xl font-black text-slate-800">0</div>
-            </div>
-            <div class="dashboard-card border-l-4 border-l-rose-500">
-                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">เวลาสูญเสียรวม (นาที)</p>
-                <div id="kpiLoss" class="text-2xl font-black text-rose-600">0</div>
-            </div>
-            <div class="dashboard-card border-l-4 border-l-amber-500">
-                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">หยุดเครื่องสะสม (ครั้ง)</p>
-                <div id="kpiStopCount" class="text-2xl font-black text-amber-600">0</div>
-            </div>
-        </div>
-
         <!-- View 1: Production Details -->
         <section id="view-production">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -114,42 +94,57 @@
                         <thead>
                             <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b text-center">
                                 <th class="px-6 py-4 text-left">เครื่อง</th>
-                                <th class="px-6 py-4">ช่วงเวลาที่ทำ</th>
+                                <th class="px-6 py-4">ช่วงเวลา</th>
                                 <th class="px-6 py-4">กะ</th>
                                 <th class="px-6 py-4 text-right">น้ำหนัก (กก.)</th>
                                 <th class="px-6 py-4 text-right text-rose-500">ของเสีย (กก.)</th>
-                                <th class="px-6 py-4 text-right">สปีดเฉลี่ย</th>
                             </tr>
                         </thead>
-                        <tbody id="prodTableBody" class="divide-y divide-slate-100 text-sm">
-                            <tr><td colspan="6" class="py-20 text-center text-slate-400 italic font-bold">กรุณากด Sync ข้อมูลเพื่อแสดงรายละเอียด</td></tr>
+                        <tbody id="prodTableBody" class="divide-y divide-slate-100 text-sm italic text-slate-400 text-center">
+                            <tr><td colspan="5" class="py-20">Sync data to load records...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- View 2: Management Analytics -->
+        <!-- View 2: Management Analytics (New Custom Layout) -->
         <section id="view-analytics" class="hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="timer" class="text-rose-500"></i> เวลาสูญเสียเปรียบเทียบ (นาที) แยกกะ</h3><canvas id="lossChart"></canvas></div>
-                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="activity" class="text-blue-500"></i> เมตรที่ผลิตได้จริง (Meters)</h3><canvas id="metersChart"></canvas></div>
-                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="trending-up" class="text-emerald-500"></i> เวลาเดินเครื่องจริง vs ทั้งหมด (นาที)</h3><canvas id="opTimeChart"></canvas></div>
-                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="alert-circle" class="text-amber-500"></i> อัตราการขาดจำนวน (%)</h3><canvas id="shortageChart"></canvas></div>
+            <div class="mb-8">
+                <div class="dashboard-card">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                            <i data-lucide="timer" class="text-rose-500"></i> 
+                            สรุปเวลาสูญเสียเปรียบเทียบ 3 เครื่อง (นาที)
+                        </h3>
+                        <div class="flex gap-2 text-[10px] font-bold uppercase tracking-widest">
+                            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-indigo-600 rounded"></div> กะ A</span>
+                            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-indigo-300 rounded"></div> กะ B</span>
+                        </div>
+                    </div>
+                    <div class="h-[400px]">
+                        <canvas id="lossChart"></canvas>
+                    </div>
+                </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div id="summary-bhs" class="dashboard-card border-t-4 border-indigo-600">
-                    <h4 class="font-black text-indigo-600 mb-4">สรุปเครื่อง BHS</h4>
-                    <div class="space-y-3 text-sm" id="sum-bhs-content">กำลังโหลด...</div>
-                </div>
-                <div id="summary-yueli" class="dashboard-card border-t-4 border-indigo-600">
-                    <h4 class="font-black text-indigo-600 mb-4">สรุปเครื่อง YUELI</h4>
-                    <div class="space-y-3 text-sm" id="sum-yueli-content">กำลังโหลด...</div>
-                </div>
-                <div id="summary-isowa" class="dashboard-card border-t-4 border-indigo-600">
-                    <h4 class="font-black text-indigo-600 mb-4">สรุปเครื่อง ISOWA</h4>
-                    <div class="space-y-3 text-sm" id="sum-isowa-content">กำลังโหลด...</div>
+            <!-- Summary Table for Management -->
+            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                <div class="p-6 border-b border-slate-100 bg-slate-50 font-bold text-slate-800">สรุปเวลาสูญเสียรายเครื่องแยกกะ (สะสมตามช่วงวันที่เลือก)</div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b">
+                                <th class="px-8 py-4">เครื่องจักร</th>
+                                <th class="px-8 py-4 text-right">เวลาสูญเสีย กะ A (นาที)</th>
+                                <th class="px-8 py-4 text-right">เวลาสูญเสีย กะ B (นาที)</th>
+                                <th class="px-8 py-4 text-right bg-rose-50 text-rose-600">รวม (นาที)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm">
+                            <!-- ข้อมูลจะถูกใส่ที่นี่ -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -159,17 +154,14 @@
     <script>
         Chart.register(ChartDataLabels);
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
-        // ลำดับตามที่คุณต้องการ: BHS -> YUELI -> ISOWA
+        // ลำดับ: BHS -> YUELI -> ISOWA
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         
         const ALL_SHEETS = [
             { id: 'detail_bhs', name: 'DATA BHS', machine: 'BHS' },
             { id: 'detail_yueli', name: 'DATA YUELI', machine: 'YUELI' },
             { id: 'detail_isowa', name: 'DATA ISOWA', machine: 'ISOWA' },
-            { id: 'loss', name: 'เวลาสูญเสีย', isSummary: true },
-            { id: 'op_time', name: 'เวลาเดินงาน', isSummary: true },
-            { id: 'meters', name: 'เมตร', isSummary: true },
-            { id: 'shortage', name: 'ขาดจำนวน', isSummary: true }
+            { id: 'loss', name: 'เวลาสูญเสีย', isSummary: true }
         ];
 
         let appState = {
@@ -177,7 +169,7 @@
             raw: {},
             processed: {
                 production: [],
-                analytics: { loss: [], opTime: [], meters: [], shortage: [] }
+                lossSummary: []
             }
         };
 
@@ -203,12 +195,10 @@
 
         async function fetchSheetData() {
             const overlay = document.getElementById('loadingOverlay');
-            const statusText = document.getElementById('loading-status');
             overlay.style.display = 'flex';
             
             try {
                 const fetchPromises = ALL_SHEETS.map(async (cfg) => {
-                    statusText.innerText = `กำลังดึงข้อมูลชีท: ${cfg.name}...`;
                     const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`;
                     const response = await fetch(url);
                     const csvText = await response.text();
@@ -220,7 +210,7 @@
                 renderDashboard();
             } catch (err) {
                 console.error(err);
-                alert("ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบการ Publish to web และชื่อชีทให้ถูกต้อง");
+                alert("ไม่สามารถดึงข้อมูลได้");
             } finally {
                 overlay.style.display = 'none';
             }
@@ -249,25 +239,16 @@
                     parsed.data.forEach(item => {
                         const start = parseSheetDateTime(item['เวลาเริ่ม']);
                         const end = parseSheetDateTime(item['เวลาสิ้นสุด']);
-                        // สูตรของเสีย: แผ่นใหญ่เสีย * T * นน/แผ่น(กก)
                         const waste = (parseFloat(item['แผ่นใหญ่เสีย']) || 0) * (parseFloat(item['T']) || 0) * (parseFloat(item['นน/แผ่น(กก)']) || 0);
                         appState.processed.production.push({
-                            machine: res.machine,
-                            startObj: start,
-                            endObj: end,
-                            shift: (item['กะ'] || 'A').toUpperCase().includes('เช้า') ? 'A' : 
-                                   (item['กะ'] || 'A').toUpperCase().includes('ดึก') ? 'B' : item['กะ'],
+                            machine: res.machine, startObj: start, endObj: end,
+                            shift: (item['กะ'] || 'A').toUpperCase().includes('เช้า') ? 'A' : (item['กะ'] || 'A').toUpperCase().includes('ดึก') ? 'B' : item['กะ'],
                             weight: parseFloat((item['นน.ทั้งหมด(กก)'] || "0").replace(/,/g, '')) || 0,
-                            waste: waste,
-                            speed: parseFloat(item['AVG_Speed(M/min)']) || 0,
-                            stopCount: parseInt(item['จำนวนครั้งที่หยุด']) || 0,
-                            rawStart: item['เวลาเริ่ม'],
-                            rawEnd: item['เวลาสิ้นสุด']
+                            waste: waste, rawStart: item['เวลาเริ่ม'], rawEnd: item['เวลาสิ้นสุด']
                         });
                     });
-                } else {
-                    // ชีทบริหารใช้หัวตารางจากแถวที่ 2
-                    appState.raw[res.id] = parseCSV(res.csv, 1).data;
+                } else if (res.id === 'loss') {
+                    appState.raw.loss = parseCSV(res.csv, 1).data;
                 }
             });
         }
@@ -283,15 +264,11 @@
 
         function parseDateOnly(str) {
             if (!str) return null;
-            const p = str.split('/'); // คาดหวังรูปแบบ D/M/YYYY
+            const p = str.split('/');
             if (p.length < 3) return null;
-            const day = parseInt(p[0]);
-            const month = parseInt(p[1]) - 1;
-            const year = parseInt(p[2]);
-            // จัดการกรณีเป็นปี พ.ศ. (เกิน 2500) ให้เป็น ค.ศ.
-            const fixedYear = year > 2500 ? year - 543 : year;
-            const d = new Date(fixedYear, month, day);
-            d.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเพื่อการเปรียบเทียบที่แม่นยำ
+            const year = parseInt(p[2]) > 2500 ? parseInt(p[2]) - 543 : parseInt(p[2]);
+            const d = new Date(year, parseInt(p[1])-1, parseInt(p[0]));
+            d.setHours(0,0,0,0);
             return d;
         }
 
@@ -299,121 +276,94 @@
             if (appState.view === 'production') {
                 const limitFrom = new Date(document.getElementById('fromDateTimeInput').value);
                 const limitTo = new Date(document.getElementById('toDateTimeInput').value);
+                const filtered = appState.processed.production.filter(d => d.startObj >= limitFrom && d.endObj <= limitTo);
                 
-                const filteredProd = appState.processed.production.filter(d => 
-                    d.startObj && d.endObj && d.startObj >= limitFrom && d.endObj <= limitTo
-                );
-                
-                document.getElementById('kpiWeight').innerText = formatNum(filteredProd.reduce((a,b)=>a+b.weight,0));
+                // KPI (Optional for this view)
+                const totalW = filtered.reduce((a,b)=>a+b.weight, 0);
+                document.getElementById('kpiWeight').innerText = formatNum(totalW);
                 document.getElementById('kpiMeters').innerText = "-";
                 document.getElementById('kpiLoss').innerText = "-";
-                document.getElementById('kpiStopCount').innerText = formatNum(filteredProd.reduce((a,b)=>a+b.stopCount,0));
-                
-                renderProductionView(filteredProd);
+                document.getElementById('kpiStopCount').innerText = "-";
+
+                renderProductionView(filtered);
             } else {
                 const mFrom = new Date(document.getElementById('mgmtFromDate').value);
                 const mTo = new Date(document.getElementById('mgmtToDate').value);
                 mFrom.setHours(0,0,0,0);
                 mTo.setHours(0,0,0,0);
 
-                const filterMgmt = (id) => appState.raw[id]?.filter(row => {
+                const filteredLoss = appState.raw.loss?.filter(row => {
                     const d = parseDateOnly(row['วันที่']);
                     return d && d >= mFrom && d <= mTo;
                 }) || [];
 
-                const sumLoss = filterMgmt('loss');
-                const sumOp = filterMgmt('op_time');
-                const sumMeters = filterMgmt('meters');
-                const sumShort = filterMgmt('shortage');
-
-                const totalM = sumMeters.reduce((a,b) => a + (parseFloat(b['รวม2กะ']?.replace(/,/g,'')) || 0), 0);
-                const totalLoss = sumLoss.reduce((a,b) => a + (parseFloat(b['BHS 2กะ']) || 0) + (parseFloat(b['YUELI 2กะ']) || 0) + (parseFloat(b['ISOWA 2กะ']) || 0), 0);
-
+                const totalLossValue = filteredLoss.reduce((a,b) => a + (parseFloat(b['BHS 2กะ'])||0) + (parseFloat(b['YUELI 2กะ'])||0) + (parseFloat(b['ISOWA 2กะ'])||0), 0);
+                
                 document.getElementById('kpiWeight').innerText = "-";
-                document.getElementById('kpiMeters').innerText = formatNum(totalM);
-                document.getElementById('kpiLoss').innerText = formatNum(totalLoss);
+                document.getElementById('kpiMeters').innerText = "-";
+                document.getElementById('kpiLoss').innerText = formatNum(totalLossValue);
                 document.getElementById('kpiStopCount').innerText = "-";
 
-                renderAnalyticsView(sumLoss, sumOp, sumMeters, sumShort);
+                renderAnalyticsView(filteredLoss);
             }
         }
 
         function renderProductionView(data) {
             const tbody = document.getElementById('prodTableBody');
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="py-20 text-center font-bold text-slate-300 italic">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>';
-            } else {
-                data.sort((a,b) => b.startObj - a.startObj);
-                tbody.innerHTML = data.map(d => `
-                    <tr class="hover:bg-indigo-50/30 transition-colors text-slate-700">
-                        <td class="px-6 py-4 font-black">${d.machine}</td>
-                        <td class="px-6 py-4 text-center font-mono text-[10px] leading-tight text-slate-400">${d.rawStart} ถึง<br/>${d.rawEnd}</td>
-                        <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700'}">กะ ${d.shift}</span></td>
-                        <td class="px-8 py-4 text-right font-mono font-bold">${formatNum(d.weight)}</td>
-                        <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(d.waste)}</td>
-                        <td class="px-8 py-4 text-right font-mono">${Math.round(d.speed)}</td>
-                    </tr>
-                `).join('');
-            }
-            const chartData = MACHINES.map(m => {
+            data.sort((a,b) => b.startObj - a.startObj);
+            tbody.innerHTML = data.length ? data.map(d => `
+                <tr class="hover:bg-slate-50 transition-colors text-slate-700">
+                    <td class="px-6 py-4 font-black">${d.machine}</td>
+                    <td class="px-6 py-4 text-center font-mono text-[10px] leading-tight text-slate-400">${d.rawStart} - ${d.rawEnd}</td>
+                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700'}">กะ ${d.shift}</span></td>
+                    <td class="px-8 py-4 text-right font-mono font-bold">${formatNum(d.weight)}</td>
+                    <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(d.waste)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="5" class="py-20 text-center font-bold text-slate-300">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>';
+
+            const cData = MACHINES.map(m => {
                 const sA = data.filter(d => d.machine === m && d.shift === 'A');
                 const sB = data.filter(d => d.machine === m && d.shift === 'B');
                 return { name: m, wA: sA.reduce((a,b)=>a+b.weight,0), wB: sB.reduce((a,b)=>a+b.weight,0), waA: sA.reduce((a,b)=>a+b.waste,0), waB: sB.reduce((a,b)=>a+b.waste,0) };
             });
-            updateChart('weightChart', MACHINES, chartData.map(d=>d.wA), 'กะ A', chartData.map(d=>d.wB), 'กะ B', 'bar');
-            updateChart('wasteChart', MACHINES, chartData.map(d=>d.waA), 'กะ A', chartData.map(d=>d.waB), 'กะ B', 'bar');
+            updateChart('weightChart', MACHINES, cData.map(d=>d.wA), 'กะ A', cData.map(d=>d.wB), 'กะ B', 'bar');
+            updateChart('wasteChart', MACHINES, cData.map(d=>d.waA), 'กะ A', cData.map(d=>d.waB), 'กะ B', 'bar');
         }
 
-        function renderAnalyticsView(loss, op, meters, shortage) {
-            const agg = (arr, prefix, suffixA, suffixB) => {
-                const a = arr.reduce((acc, row) => acc + (parseFloat(row[prefix + " " + suffixA]) || 0), 0);
-                const b = arr.reduce((acc, row) => acc + (parseFloat(row[prefix + " " + suffixB]) || 0), 0);
-                return [Math.round(a), Math.round(b)];
-            };
-
-            const lData = MACHINES.map(m => agg(loss, m, 'เวลาสูญเสียกะ A', 'เวลาสูญเสียกะ B'));
-            const mData = MACHINES.map(m => agg(meters, m, 'กะ A เดินงาน', 'กะ B เดินงาน'));
-            const realOp = MACHINES.map(m => agg(op, m, 'เวลาเดินงานจริงกะ A', 'เวลาเดินงานจริงกะ B'));
-            const totalOp = MACHINES.map(m => agg(op, m, 'เวลาเดินงานทั้งหมดกะ A', 'เวลาเดินงานทั้งหมดกะ B'));
-            
-            const shData = MACHINES.map(m => {
-                const rA = shortage.filter(r => r[m + " %กะ A ขาด"]).map(r => parseFloat(r[m + " %กะ A ขาด"]));
-                const rB = shortage.filter(r => r[m + " %กะ B ขาด"]).map(r => parseFloat(r[m + " %กะ B ขาด"]));
-                const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-                return [Math.round(avg(rA)), Math.round(avg(rB))];
+        function renderAnalyticsView(lossData) {
+            const chartStats = MACHINES.map(m => {
+                const sumA = lossData.reduce((acc, row) => acc + (parseFloat(row[m + " เวลาสูญเสียกะ A"]) || 0), 0);
+                const sumB = lossData.reduce((acc, row) => acc + (parseFloat(row[m + " เวลาสูญเสียกะ B"]) || 0), 0);
+                return [Math.round(sumA), Math.round(sumB)];
             });
 
-            updateChart('lossChart', MACHINES, lData.map(v=>v[0]), 'กะ A (นาที)', lData.map(v=>v[1]), 'กะ B (นาที)', 'bar');
-            updateChart('metersChart', MACHINES, mData.map(v=>v[0]), 'กะ A (M)', mData.map(v=>v[1]), 'กะ B (M)', 'bar');
-            updateChart('opTimeChart', MACHINES, realOp.map(v=>v[0]+v[1]), 'เดินงานจริง', totalOp.map(v=>v[0]+v[1]), 'เวลาทั้งหมด', 'bar');
-            updateChart('shortageChart', MACHINES, shData.map(v=>v[0]), 'กะ A (%)', shData.map(v=>v[1]), 'กะ B (%)', 'line');
+            updateChart('lossChart', MACHINES, chartStats.map(v=>v[0]), 'กะ A (นาที)', chartStats.map(v=>v[1]), 'กะ B (นาที)', 'bar');
 
-            MACHINES.forEach(m => {
-                const sumL = loss.reduce((acc, r) => acc + (parseFloat(r[m+" เวลาสูญเสียกะ A"])||0) + (parseFloat(r[m+" เวลาสูญเสียกะ B"])||0), 0);
-                const sumM = meters.reduce((acc, r) => acc + (parseFloat(r[m+" กะ A เดินงาน"])||0) + (parseFloat(r[m+" กะ B เดินงาน"])||0), 0);
-                document.getElementById(`sum-${m.toLowerCase()}-content`).innerHTML = `
-                    <div class="flex justify-between"><span>เวลาสูญเสียรวม:</span><span class="font-bold text-rose-600">${formatNum(sumL)} นาที</span></div>
-                    <div class="flex justify-between"><span>กะ A:</span><span>${formatNum(agg(loss, m, 'เวลาสูญเสียกะ A', 'เวลาสูญเสียกะ B')[0])} นาที</span></div>
-                    <div class="flex justify-between border-b pb-2"><span>กะ B:</span><span>${formatNum(agg(loss, m, 'เวลาสูญเสียกะ A', 'เวลาสูญเสียกะ B')[1])} นาที</span></div>
-                    <div class="flex justify-between pt-1 font-bold text-indigo-600"><span>เมตรผลิตรวม:</span><span>${formatNum(sumM)} M</span></div>
-                `;
-            });
+            const tbody = document.getElementById('mgmtTableBody');
+            tbody.innerHTML = MACHINES.map((m, i) => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-8 py-5 font-black text-slate-700">${m}</td>
+                    <td class="px-8 py-5 text-right font-mono font-bold text-indigo-600">${formatNum(chartStats[i][0])}</td>
+                    <td class="px-8 py-5 text-right font-mono font-bold text-indigo-400">${formatNum(chartStats[i][1])}</td>
+                    <td class="px-8 py-5 text-right font-mono font-black bg-rose-50 text-rose-600">${formatNum(chartStats[i][0] + chartStats[i][1])}</td>
+                </tr>
+            `).join('');
         }
 
         function updateChart(id, labels, d1, l1, d2, l2, type) {
             if (charts[id]) charts[id].destroy();
-            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
                 type: type,
                 data: { labels: labels, datasets: [{ label: l1, data: d1, backgroundColor: '#4f46e5', borderRadius: 8, tension: 0.3 }, { label: l2, data: d2, backgroundColor: '#a5b4fc', borderRadius: 8, tension: 0.3 }] },
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    layout: { padding: { top: 30 } }, 
+                    responsive: true, maintainAspectRatio: false, 
+                    layout: { padding: { top: 30 } },
                     plugins: { 
-                        legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 10, weight: 'bold' } } }, 
-                        datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? formatNum(v) : '', color: '#475569' } 
-                    }, 
-                    scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { weight: 'bold', size: 11 } } } } 
+                        legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 11, weight: 'bold' } } },
+                        datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 11 }, formatter: (v) => v > 0 ? formatNum(v) : '', color: '#1e293b' }
+                    },
+                    scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false }, ticks: { font: { weight: 'bold', size: 12 } } } }
                 }
             });
         }
@@ -422,13 +372,10 @@
             lucide.createIcons();
             const now = new Date();
             const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
-            
             document.getElementById('fromDateTimeInput').value = `${yesterday.toISOString().split('T')[0]}T08:00`;
             document.getElementById('toDateTimeInput').value = `${now.toISOString().split('T')[0]}T08:00`;
-            
             document.getElementById('mgmtFromDate').value = yesterday.toISOString().split('T')[0];
             document.getElementById('mgmtToDate').value = now.toISOString().split('T')[0];
-            
             fetchSheetData();
         };
     </script>
