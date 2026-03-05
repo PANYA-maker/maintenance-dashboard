@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrugator Management Analytics - Executive Edition</title>
+    <title>Corrugator Management Analytics - Pro Executive</title>
     <!-- Library Setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -14,139 +14,178 @@
         body { background-color: #f8fafc; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
         .chart-container { position: relative; height: 350px; width: 100%; }
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
         .trophy-1 { color: #fbbf24; fill: #fef3c7; } 
         .trophy-2 { color: #94a3b8; fill: #f1f5f9; } 
         .trophy-3 { color: #b45309; fill: #ffedd5; }
         .analysis-gradient { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 6px solid #0284c7; }
+        input[type="date"] { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.25rem 0.5rem; font-weight: bold; color: #1e293b; }
     </style>
 </head>
 <body class="pb-24">
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p class="font-bold text-slate-700 animate-pulse text-lg">กำลังประมวลผลบทวิเคราะห์อัตโนมัติ...</p>
+        <p id="loading-text" class="font-bold text-slate-700 text-lg">กำลังประมวลผลข้อมูล...</p>
+        <p id="error-display" class="hidden mt-4 p-4 bg-red-100 text-red-700 rounded-xl max-w-md text-sm text-center"></p>
     </div>
 
-    <!-- Navigation Header -->
+    <!-- Top Navigation -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-6 py-4">
-            <div class="flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-4">
-                    <div class="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-200">
-                        <i data-lucide="layout-dashboard"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-black text-slate-800 uppercase italic">Corrugator <span class="text-indigo-600">Analytics</span> Pro</h1>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Executive Intelligence System</p>
+        <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-lg"><i data-lucide="layout-dashboard"></i></div>
+                <div>
+                    <h1 class="text-xl font-black text-slate-800 uppercase italic leading-none">Corrugator <span class="text-indigo-600">Analytics</span></h1>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Management Edition v4.0</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-indigo-50 p-2 rounded-2xl border border-indigo-100">
+                <div class="flex flex-col px-4 border-r border-indigo-100">
+                    <span class="text-[9px] font-bold text-indigo-600 uppercase text-center mb-1">ช่วงวันที่เลือก</span>
+                    <div class="flex gap-2 items-center">
+                        <input type="date" id="mgmtFromDate" onchange="renderDashboard()">
+                        <span class="text-indigo-300 font-bold">ถึง</span>
+                        <input type="date" id="mgmtToDate" onchange="renderDashboard()">
                     </div>
                 </div>
-                
-                <div class="flex flex-wrap items-center justify-center gap-2 bg-indigo-50 p-2 rounded-2xl border border-indigo-100">
-                    <div class="flex flex-col px-4 border-r border-indigo-100">
-                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic text-center w-full">เลือกช่วงวันที่บริหาร</span>
-                        <div class="flex gap-2">
-                            <input type="date" id="mgmtFromDate" onchange="renderDashboard()" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
-                            <span class="text-indigo-300">ถึง</span>
-                            <input type="date" id="mgmtToDate" onchange="renderDashboard()" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
-                        </div>
-                    </div>
-                    <button onclick="fetchSheetData()" class="bg-white text-indigo-600 px-6 py-3 rounded-xl text-xs font-black shadow-sm border border-indigo-100 hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Sync Data
-                    </button>
-                </div>
+                <button onclick="fetchSheetData()" class="bg-white text-indigo-600 px-5 py-2.5 rounded-xl text-xs font-black shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-all flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> ซิงค์ข้อมูล
+                </button>
             </div>
         </div>
     </nav>
 
     <main class="max-w-7xl mx-auto px-6 mt-8 space-y-12">
 
-        <!-- NEW: EXECUTIVE ANALYSIS SUMMARY -->
-        <section id="executive-summary" class="dashboard-card analysis-gradient overflow-hidden">
+        <!-- EXECUTIVE ANALYSIS SECTION -->
+        <section id="executive-summary" class="dashboard-card analysis-gradient border-none">
             <div class="flex items-center gap-3 mb-6">
-                <div class="p-2 bg-white rounded-xl shadow-sm"><i data-lucide="brain-circuit" class="text-indigo-600"></i></div>
-                <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Executive Summary & AI Analysis (บทวิเคราะห์สรุป)</h2>
+                <div class="p-2 bg-white rounded-xl shadow-sm"><i data-lucide="sparkles" class="text-indigo-600"></i></div>
+                <h2 class="text-lg font-black text-slate-800 tracking-tight">Executive Summary & AI Analysis (บทวิเคราะห์สรุป)</h2>
             </div>
-            
             <div id="analysis-content" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <!-- ข้อมูลจะถูกฉีดเข้าด้วย JavaScript -->
-                <div class="lg:col-span-4 py-8 text-center text-slate-400 italic">กำลังรอข้อมูลเพื่อวิเคราะห์...</div>
+                <div class="lg:col-span-4 py-12 text-center text-slate-400 italic">กำลังรอการวิเคราะห์ข้อมูล...</div>
             </div>
         </section>
-        
-        <!-- SECTION 1: PRODUCTION PERFORMANCE (METER & SPEED) -->
+
+        <!-- SPEED SECTION -->
         <section id="perf-section" class="space-y-6">
-            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
+            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
             <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+            <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
-                    <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
-                        <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                    </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
-                        <th class="px-3 py-2 border-r">นาที</th><th class="px-3 py-2 border-r">เมตร</th><th class="px-3 py-2 border-r">Speed</th><th class="px-3 py-2 border-r">นาที</th><th class="px-3 py-2 border-r">เมตร</th><th class="px-3 py-2 border-r">Speed</th><th class="px-3 py-2 border-r">นาที</th><th class="px-3 py-2 border-r">เมตร</th><th class="px-3 py-2 font-black">Speed</th>
-                    </tr></thead><tbody id="perfTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                        <tr class="border-b">
+                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                            <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30 text-indigo-700">กะ A</th>
+                            <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30 text-orange-700">กะ B</th>
+                            <th colspan="3" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด</th>
+                        </tr>
+                        <tr class="text-[9px] border-b">
+                            <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 border-r">Speed</th>
+                            <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 border-r">Speed</th>
+                            <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 font-black">Speed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="perfTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
                 </table></div>
             </div>
             <div class="dashboard-card"><div class="chart-container"><canvas id="speedChart"></canvas></div></div>
         </section>
 
-        <!-- SECTION 2: LOSS TIME ANALYSIS -->
+        <!-- LOSS SECTION -->
         <section id="loss-section" class="space-y-6">
-            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-rose-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">2. การวิเคราะห์เวลาสูญเสีย (Loss Time)</h2></div>
+            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-rose-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800">2. การวิเคราะห์เวลาสูญเสีย (Loss Time)</h2></div>
             <div id="loss-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+            <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
-                    <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
-                        <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                    </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
-                        <th class="px-3 py-2 border-r">เดินงาน</th><th class="px-3 py-2 border-r">สูญเสีย</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">เดินงาน</th><th class="px-3 py-2 border-r">สูญเสีย</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">เดินงาน</th><th class="px-3 py-2 border-r">สูญเสีย</th><th class="px-3 py-2 font-black">%</th>
-                    </tr></thead><tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                        <tr class="border-b">
+                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                            <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30 text-indigo-700">กะ A</th>
+                            <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30 text-orange-700">กะ B</th>
+                            <th colspan="3" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด</th>
+                        </tr>
+                        <tr class="text-[9px] border-b">
+                            <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 border-r">%</th>
+                            <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 border-r">%</th>
+                            <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 font-black">%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
                 </table></div>
             </div>
             <div class="dashboard-card"><div class="chart-container"><canvas id="lossChart"></canvas></div></div>
         </section>
 
-        <!-- SECTION 3: SHORTAGE ANALYSIS -->
+        <!-- SHORTAGE SECTION -->
         <section id="short-section" class="space-y-6">
-            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-indigo-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">3. การวิเคราะห์งานขาดจำนวน (Order Shortage)</h2></div>
+            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-indigo-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800">3. การวิเคราะห์งานขาดจำนวน (Order Shortage)</h2></div>
             <div id="short-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+            <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
-                    <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
-                        <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                    </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
-                        <th class="px-3 py-2 border-r">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-500">ขาด</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-500">ขาด</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-600">ขาด</th><th class="px-3 py-2 font-black">%</th>
-                    </tr></thead><tbody id="shortTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                        <tr class="border-b">
+                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                            <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30 text-indigo-700">กะ A</th>
+                            <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30 text-orange-700">กะ B</th>
+                            <th colspan="3" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด</th>
+                        </tr>
+                        <tr class="text-[9px] border-b">
+                            <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 border-r">%</th>
+                            <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 border-r">%</th>
+                            <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 font-black">%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shortTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
                 </table></div>
             </div>
             <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
         </section>
+
     </main>
 
     <script>
         Chart.register(ChartDataLabels);
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
-        const ALL_SHEETS = [{id:'loss',name:'เวลาสูญเสีย'},{id:'op_time',name:'เวลาเดินงาน'},{id:'meter',name:'เมตร'},{id:'shortage',name:'ขาดจำนวน'}];
+        const ALL_SHEETS = [
+            {id:'loss',name:'เวลาสูญเสีย'},
+            {id:'op_time',name:'เวลาเดินงาน'},
+            {id:'meter',name:'เมตร'},
+            {id:'shortage',name:'ขาดจำนวน'}
+        ];
 
-        let appState = { raw: {}, isRendering: false };
+        let appState = { raw: {}, isRendering: false, lastRenderTime: 0 };
         let charts = {};
 
-        function formatNum(n) { return new Intl.NumberFormat('th-TH').format(Math.round(n || 0)); }
+        const formatNum = (n) => new Intl.NumberFormat('th-TH').format(Math.round(n || 0));
 
         async function fetchSheetData() {
             const overlay = document.getElementById('loadingOverlay');
+            const errorDisplay = document.getElementById('error-display');
             overlay.style.display = 'flex';
+            errorDisplay.classList.add('hidden');
+            
             try {
                 for (const cfg of ALL_SHEETS) {
-                    const response = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`);
+                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`ไม่สามารถเข้าถึงชีท "${cfg.name}" ได้`);
                     const text = await response.text();
+                    if (text.includes('<html')) throw new Error(`กรุณา Publish to Web ชีท "${cfg.name}" เป็น CSV`);
                     appState.raw[cfg.id] = parseCSV(text);
                 }
                 renderDashboard();
-            } catch (err) { alert("Error syncing data: " + err.message); }
-            finally { overlay.style.display = 'none'; }
+                overlay.style.display = 'none';
+            } catch (err) {
+                errorDisplay.innerText = err.message;
+                errorDisplay.classList.remove('hidden');
+                console.error(err);
+            }
         }
 
         function parseCSV(csv) {
@@ -154,116 +193,114 @@
             const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
             return lines.slice(1).map(line => {
                 const row = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
-                const obj = {}; headers.forEach((h, idx) => obj[h] = row[idx]);
+                const obj = {}; 
+                headers.forEach((h, idx) => obj[h] = row[idx]);
                 return obj;
             });
         }
 
         function renderDashboard() {
-            if (appState.isRendering) return;
+            // Guard against recursion and rapid calls
+            const now = Date.now();
+            if (appState.isRendering || (now - appState.lastRenderTime < 100)) return;
             appState.isRendering = true;
-            
-            const from = new Date(document.getElementById('mgmtFromDate').value);
-            const to = new Date(document.getElementById('mgmtToDate').value);
-            from.setHours(0,0,0,0); to.setHours(23,59,59,999);
+            appState.lastRenderTime = now;
 
-            const filter = (id) => appState.raw[id]?.filter(r => {
-                const d = r['วันที่'].split('/');
-                const dateObj = new Date(d[2]>2500?d[2]-543:d[2], d[1]-1, d[0]);
-                return dateObj >= from && dateObj <= to;
-            }) || [];
+            try {
+                const fromStr = document.getElementById('mgmtFromDate').value;
+                const toStr = document.getElementById('mgmtToDate').value;
+                if (!fromStr || !toStr) return;
 
-            const stats = MACHINES.map(m => {
-                const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
-                const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
-                
-                const la = getSum(l, `${m} กะ A`), lb = getSum(l, `${m} กะ B`);
-                const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
-                const ma = getSum(met, `${m} กะ A`), mb = getSum(met, `${m} กะ B`);
-                const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
-                const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
+                const from = new Date(fromStr); from.setHours(0,0,0,0);
+                const to = new Date(toStr); to.setHours(23,59,59,999);
 
-                return {
-                    name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
-                    spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
-                    pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
-                    pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
-                    // Sub-stats for analysis
-                    spdA: opa>0?ma/opa:0, spdB: opb>0?mb/opb:0,
-                    pctA: opa>0?la/opa*100:0, pctB: opb>0?lb/opb*100:0,
-                    shPctA: shaO>0?shaM/shaO*100:0, shPctB: shbO>0?shbM/shbO*100:0
-                };
-            });
+                const filter = (id) => appState.raw[id]?.filter(r => {
+                    const d = r['วันที่'].split('/');
+                    const dateObj = new Date(d[2]>2500?d[2]-543:d[2], d[1]-1, d[0]);
+                    return dateObj >= from && dateObj <= to;
+                }) || [];
 
-            renderExecutiveAnalysis(stats);
-            renderKPIs(stats);
-            renderTables(stats);
-            renderCharts(stats);
-            
-            appState.isRendering = false;
-            lucide.createIcons();
+                const stats = MACHINES.map(m => {
+                    const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
+                    const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
+                    
+                    const la = getSum(l, `${m} กะ A`), lb = getSum(l, `${m} กะ B`);
+                    const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
+                    const ma = getSum(met, `${m} กะ A`), mb = getSum(met, `${m} กะ B`);
+                    
+                    // Column names mapping based on your images
+                    const shaO = getSum(sh, `${m} กะ A เดินงาน order`);
+                    const shbO = getSum(sh, `${m} กะ B เดินงาน order`);
+                    const shaM = getSum(sh, `${m} กะ A ขาด`);
+                    const shbM = getSum(sh, `${m} กะ B ขาด`);
+
+                    return {
+                        name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
+                        spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
+                        pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
+                        pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
+                        spdA: opa>0?ma/opa:0, spdB: opb>0?mb/opb:0,
+                        pctA: opa>0?la/opa*100:0, pctB: opb>0?lb/opb*100:0,
+                        shPctA: shaO>0?shaM/shaO*100:0, shPctB: shbO>0?shbM/shbO*100:0
+                    };
+                });
+
+                renderSummary(stats);
+                renderKPIs(stats);
+                renderTables(stats);
+                renderCharts(stats);
+                lucide.createIcons();
+            } finally {
+                appState.isRendering = false;
+            }
         }
 
-        function renderExecutiveAnalysis(stats) {
-            // Determine Champion (Weighted Score: Speed + Loss% + Short%)
-            const ranked = [...stats].sort((a,b) => {
-                const scoreA = (a.spdTotal/150) - (a.pctLoss/50) - (a.pctShort/20);
-                const scoreB = (b.spdTotal/150) - (b.pctLoss/50) - (b.pctShort/20);
-                return scoreB - scoreA;
-            });
+        function renderSummary(stats) {
+            const ranked = [...stats].sort((a,b) => (b.spdTotal/150 - a.spdTotal/150) + (a.pctLoss/50 - b.pctLoss/50));
             const champ = ranked[0];
-            
-            const container = document.getElementById('analysis-content');
-            container.innerHTML = `
+            const content = document.getElementById('analysis-content');
+            content.innerHTML = `
                 <div class="lg:col-span-1 flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border-2 border-amber-200">
-                    <div class="text-[10px] font-black uppercase text-amber-600 mb-2">Champion Performance</div>
-                    <i data-lucide="trophy" class="w-16 h-16 trophy-1 mb-4"></i>
+                    <div class="text-[10px] font-black uppercase text-amber-600 mb-2">Champion</div>
+                    <i data-lucide="trophy" class="w-16 h-16 trophy-1 mb-3"></i>
                     <div class="text-3xl font-black text-slate-800">${champ.name}</div>
-                    <div class="text-[10px] font-bold text-slate-400 mt-2">อันดับ 1 ของช่วงเวลานี้</div>
+                    <div class="text-[10px] font-bold text-slate-400 mt-2">ประสิทธิภาพรวมสูงสุด</div>
                 </div>
-                <div class="lg:col-span-3 space-y-6 py-2">
+                <div class="lg:col-span-3 space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         ${stats.map(s => `
-                            <div class="space-y-2">
-                                <div class="font-black text-slate-700 flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-indigo-500"></div> เครื่อง ${s.name}
-                                </div>
-                                <div class="text-[11px] leading-relaxed text-slate-600">
-                                    <b>จุดเด่น:</b> ${s.spdTotal > 100 ? 'ความเร็วสูงสม่ำเสมอ' : s.pctLoss < 5 ? 'คุมเวลาสูญเสียได้เยี่ยม' : 'ทำงานได้เสถียร'}<br/>
-                                    <b>ต้องปรับปรุง:</b> ${s.pctShort > 5 ? 'ความแม่นยำจำนวนออร์เดอร์' : s.pctLoss > 10 ? 'เวลาเตรียมเครื่อง' : 'การรักษาสปีดเฉลี่ย'}<br/>
-                                    <b class="text-indigo-600">กะที่ต้องโฟกัส:</b> ${s.pctA > s.pctB ? 'กะ A (Loss สูงกว่า)' : 'กะ B (Loss สูงกว่า)'}
+                            <div class="space-y-1">
+                                <div class="font-black text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-indigo-500"></div> ${s.name}</div>
+                                <div class="text-[11px] text-slate-600 leading-relaxed">
+                                    <b>เด่น:</b> ${s.spdTotal > 100 ? 'สปีดเดินงานเยี่ยม' : 'ควบคุม Loss ได้ดี'}<br/>
+                                    <b>ปรับปรุง:</b> ${s.pctLoss > 10 ? 'ลดเวลาหยุดกะ ' + (s.pctA > s.pctB ? 'A':'B') : 'รักษาความแม่นยำออเดอร์'}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <div class="bg-white/50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4">
-                        <i data-lucide="info" class="text-blue-500 mt-1"></i>
-                        <p class="text-xs text-slate-600 font-medium">
-                            <b>ข้อเสนอแนะฝ่ายบริหาร:</b> ในช่วงวันนี้ควรเน้นให้เครื่อง <b>${ranked[0].name}</b> รับงาน Meter สูง 
-                            และให้เครื่อง <b>${[...stats].sort((a,b)=>a.pctShort-b.pctShort)[0].name}</b> รับงานที่เน้นความแม่นยำสูงเพื่อลดงานขาดจำนวน
-                        </p>
+                    <div class="p-3 bg-white/60 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                        <i data-lucide="lightbulb" class="text-amber-500 w-5 h-5 shrink-0"></i>
+                        <p class="text-xs text-slate-600 italic font-medium"><b>คำแนะนำ:</b> ช่วงเวลานี้เครื่อง ${champ.name} ทำงานได้เสถียรที่สุด ควรให้รับออเดอร์เร่งด่วน ส่วนเครื่องที่ Shortage สูงควรตรวจสอบขั้นตอนการนับงานหน้าเครื่องอีกครั้ง</p>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
 
         function renderKPIs(stats) {
-            const sum = (key) => stats.reduce((acc, s) => acc + s[key], 0);
-            const totalOp = sum('opa') + sum('opb');
-            const totalMet = sum('ma') + sum('mb');
-            const totalLoss = sum('la') + sum('lb');
-            const totalOrd = sum('shaO') + sum('shbO');
-            const totalMiss = sum('shaM') + sum('shbM');
+            const tOp = stats.reduce((acc,s)=>acc+s.opa+s.opb,0);
+            const tMet = stats.reduce((acc,s)=>acc+s.ma+s.mb,0);
+            const tLoss = stats.reduce((acc,s)=>acc+s.la+s.lb,0);
+            const tOrd = stats.reduce((acc,s)=>acc+s.shaO+s.shbO,0);
+            const tMiss = stats.reduce((acc,s)=>acc+s.shaM+s.shbM,0);
 
-            const kpiBox = (icon, label, val, unit, color) => `
+            const kpi = (icon, label, val, unit, color) => `
                 <div class="dashboard-card border-t-4 border-t-${color}-500">
                     <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-${color}-50 text-${color}-600 rounded-lg"><i data-lucide="${icon}"></i></div><span class="text-xs font-bold text-slate-400 uppercase">${label}</span></div>
                     <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${val}</span><span class="text-sm font-bold text-slate-400 italic">${unit}</span></div>
                 </div>`;
 
-            document.getElementById('perf-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('layers','เมตรรวม',formatNum(totalMet),'เมตร','emerald') + kpiBox('gauge','สปีดเฉลี่ย',(totalMet/(totalOp||1)).toFixed(1),'m/min','indigo');
-            document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
-            document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
+            document.getElementById('perf-kpis').innerHTML = kpi('clock','เวลาเดินงานรวม',formatNum(tOp),'นาที','blue') + kpi('layers','เมตรรวม',formatNum(tMet),'เมตร','emerald') + kpi('gauge','สปีดเฉลี่ย',(tMet/(tOp||1)).toFixed(1),'m/min','indigo');
+            document.getElementById('loss-kpis').innerHTML = kpi('clock','เวลาเดินงานรวม',formatNum(tOp),'นาที','blue') + kpi('clock-alert','สูญเสียรวม',formatNum(tLoss),'นาที','rose') + kpi('percent','% สูญเสีย',(tLoss/(tOp||1)*100).toFixed(1),'%','amber');
+            document.getElementById('short-kpis').innerHTML = kpi('clipboard','ออเดอร์รวม',formatNum(tOrd),'ออเดอร์','blue') + kpi('alert-circle','ขาดจำนวนรวม',formatNum(tMiss),'ออเดอร์','rose') + kpi('percent','% ขาดจำนวน',(tMiss/(tOrd||1)*100).toFixed(1),'%','indigo');
         }
 
         function renderTables(stats) {
@@ -280,27 +317,27 @@
         }
 
         function renderCharts(stats) {
-            const machines = MACHINES;
-            updateChart('speedChart', machines, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', '#10b981', '#a7f3d0', false);
-            updateChart('lossChart', machines, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', '#f43f5e', '#fecdd3', true);
-            updateChart('shortChart', machines, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', '#6366f1', '#c7d2fe', true);
-        }
-
-        function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct) {
-            const ctx = document.getElementById(id); if(!ctx) return;
-            if (charts[id]) charts[id].destroy();
-            charts[id] = new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: { labels, datasets: [{ label: l1, data: d1, backgroundColor: c1, borderRadius: 8 }, { label: l2, data: d2, backgroundColor: c2, borderRadius: 8 }] },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
-                        datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 11 }, formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => v+(isPct?'%':'') } } }
-                }
+            const opt = (color1, color2, isPct) => ({
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun' } } },
+                    datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 10 }, formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' }
+                },
+                scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
             });
+
+            const draw = (id, d1, d2, c1, c2, isPct) => {
+                if(charts[id]) charts[id].destroy();
+                charts[id] = new Chart(document.getElementById(id), {
+                    type: 'bar',
+                    data: { labels: MACHINES, datasets: [{ label: 'กะ A', data: d1, backgroundColor: c1, borderRadius: 8 }, { label: 'กะ B', data: d2, backgroundColor: c2, borderRadius: 8 }] },
+                    options: opt(c1, c2, isPct)
+                });
+            };
+
+            draw('speedChart', stats.map(s=>s.spdA), stats.map(s=>s.spdB), '#10b981', '#a7f3d0', false);
+            draw('lossChart', stats.map(s=>s.pctA), stats.map(s=>s.pctB), '#f43f5e', '#fecdd3', true);
+            draw('shortChart', stats.map(s=>s.shPctA), stats.map(s=>s.shPctB), '#6366f1', '#c7d2fe', true);
         }
 
         window.onload = () => {
