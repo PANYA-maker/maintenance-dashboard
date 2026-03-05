@@ -17,9 +17,12 @@
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         .error-badge { background: #fee2e2; color: #b91c1c; padding: 1.5rem; border-radius: 1.5rem; border: 1px solid #f87171; margin: 10px auto; max-width: 500px; font-size: 0.85rem; line-height: 1.6; }
         .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
-        .trophy-1 { color: #fbbf24; } 
-        .trophy-2 { color: #94a3b8; } 
-        .trophy-3 { color: #b45309; }
+        
+        /* Trophy Colors */
+        .trophy-1 { color: #fbbf24; fill: #fef3c7; } /* Gold */
+        .trophy-2 { color: #94a3b8; fill: #f1f5f9; } /* Silver */
+        .trophy-3 { color: #b45309; fill: #ffedd5; } /* Bronze */
+        
         input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; border-radius: 4px; padding: 2px; filter: invert(30%) sepia(50%) saturate(1000%) hue-rotate(220deg) brightness(90%) contrast(90%); }
     </style>
 </head>
@@ -41,7 +44,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Analytics</span> Pro</h1>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Production & Efficiency Management</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Efficiency & Speed Management</p>
                     </div>
                 </div>
                 
@@ -62,13 +65,13 @@
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 mt-8 space-y-12">
+    <main class="max-w-7xl mx-auto px-6 mt-8 space-y-16">
         
         <!-- SECTION 1: PRODUCTION PERFORMANCE (METER & SPEED) -->
         <section id="perf-section">
             <div class="flex items-center gap-3 mb-6">
                 <div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div>
-                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพการเดินเครื่อง (Meter & Speed)</h2>
+                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Meter & Speed)</h2>
             </div>
 
             <!-- Performance KPIs -->
@@ -105,14 +108,14 @@
                 </div>
             </div>
 
-            <!-- Performance Ranking Table -->
+            <!-- Speed Ranking Table -->
             <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8">
                 <div class="p-6 border-b border-slate-100 bg-emerald-50/30 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">จัดอันดับความเร็วเฉลี่ย (Speed Ranking)</h3>
-                    <div id="perf-date-display" class="text-[10px] text-emerald-600 font-black bg-white px-4 py-1.5 rounded-full border"></div>
+                    <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">ตารางจัดอันดับความเร็วสูงสุด (Speed Ranking)</h3>
+                    <div id="perf-date-display" class="text-[10px] text-emerald-600 font-black bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-center border-collapse min-w-[1000px]">
+                    <table class="w-full text-center border-collapse min-w-[1100px]">
                         <thead>
                             <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
                                 <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
@@ -121,9 +124,9 @@
                                 <th colspan="3" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด (เฉลี่ย)</th>
                             </tr>
                             <tr class="bg-slate-50 text-[9px] font-bold uppercase tracking-tighter border-b">
-                                <th class="px-3 py-2 border-r text-indigo-600">เดินงาน (นาที)</th><th class="px-3 py-2 border-r text-emerald-600">เมตร</th><th class="px-3 py-2 border-r text-indigo-600">สปีด</th>
-                                <th class="px-3 py-2 border-r text-orange-600">เดินงาน (นาที)</th><th class="px-3 py-2 border-r text-emerald-600">เมตร</th><th class="px-3 py-2 border-r text-orange-600">สปีด</th>
-                                <th class="px-3 py-2 border-r text-slate-700">เดินงาน</th><th class="px-3 py-2 border-r text-emerald-700">เมตร</th><th class="px-3 py-2 text-indigo-700 font-black">สปีด</th>
+                                <th class="px-3 py-2 border-r text-indigo-600">นาที</th><th class="px-3 py-2 border-r text-emerald-600">เมตร</th><th class="px-3 py-2 border-r text-indigo-700 font-black">Speed</th>
+                                <th class="px-3 py-2 border-r text-orange-600">นาที</th><th class="px-3 py-2 border-r text-emerald-600">เมตร</th><th class="px-3 py-2 border-r text-orange-700 font-black">Speed</th>
+                                <th class="px-3 py-2 border-r text-slate-700">นาที</th><th class="px-3 py-2 border-r text-emerald-700">เมตร</th><th class="px-3 py-2 text-indigo-800 font-black">Speed</th>
                             </tr>
                         </thead>
                         <tbody id="perfTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
@@ -188,7 +191,7 @@
                     <div id="analytics-date-range-display" class="text-[10px] text-rose-600 font-black bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-center border-collapse min-w-[1000px]">
+                    <table class="w-full text-center border-collapse min-w-[1100px]">
                         <thead>
                             <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
                                 <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
@@ -197,8 +200,8 @@
                                 <th colspan="3" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด (นาที)</th>
                             </tr>
                             <tr class="bg-slate-50 text-[9px] font-bold uppercase tracking-tighter border-b">
-                                <th class="px-3 py-2 border-r text-indigo-600">เดินงาน</th><th class="px-3 py-2 border-r text-rose-500">สูญเสีย</th><th class="px-3 py-2 border-r text-amber-600">%</th>
-                                <th class="px-3 py-2 border-r text-orange-600">เดินงาน</th><th class="px-3 py-2 border-r text-rose-500">สูญเสีย</th><th class="px-3 py-2 border-r text-amber-600">%</th>
+                                <th class="px-3 py-2 border-r text-indigo-600">เดินงาน</th><th class="px-3 py-2 border-r text-rose-500">สูญเสีย</th><th class="px-3 py-2 border-r text-amber-600 font-black">%</th>
+                                <th class="px-3 py-2 border-r text-orange-600">เดินงาน</th><th class="px-3 py-2 border-r text-rose-500">สูญเสีย</th><th class="px-3 py-2 border-r text-amber-600 font-black">%</th>
                                 <th class="px-3 py-2 border-r text-slate-700">เดินงาน</th><th class="px-3 py-2 border-r text-rose-600">สูญเสีย</th><th class="px-3 py-2 text-rose-700 font-black">%</th>
                             </tr>
                         </thead>
@@ -258,7 +261,6 @@
                 processAllData(results);
                 renderDashboard();
                 overlay.style.display = 'none';
-                lucide.createIcons();
             } catch (err) {
                 console.error(err);
                 errorLog.classList.remove('hidden');
@@ -319,8 +321,8 @@
                 const filteredOp = filterData('op_time');
                 const filteredMeter = filterData('meter');
 
-                document.getElementById('perf-date-display').innerText = `${fromInput} TO ${toInput}`;
-                document.getElementById('analytics-date-range-display').innerText = `${fromInput} TO ${toInput}`;
+                document.getElementById('perf-date-display').innerText = `${fromInput} ถึง ${toInput}`;
+                document.getElementById('analytics-date-range-display').innerText = `${fromInput} ถึง ${toInput}`;
                 
                 renderAnalyticsView(filteredLoss, filteredOp, filteredMeter);
             } finally { appState.isRendering = false; }
@@ -335,7 +337,6 @@
                 const sumMetA = meterData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A`]) || 0), 0);
                 const sumMetB = meterData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B`]) || 0), 0);
                 
-                // Calculations
                 const pctA = sumOpA > 0 ? ((sumLA / sumOpA) * 100) : 0;
                 const pctB = sumOpB > 0 ? ((sumLB / sumOpB) * 100) : 0;
                 const spdA = sumOpA > 0 ? (sumMetA / sumOpA) : 0;
@@ -357,17 +358,16 @@
                 };
             });
 
-            // --- SECTION 1: PERFORMANCE CARDS & TABLE ---
             const totalOpValue = stats.reduce((acc, s) => acc + s.opa + s.opb, 0);
             const totalMeterValue = stats.reduce((acc, s) => acc + s.metA + s.metB, 0);
-            const globalAvgSpeed = totalOpValue > 0 ? (totalMeterValue / totalOpValue) : 0;
-
+            const totalLossValue = stats.reduce((acc, s) => acc + s.la + s.lb, 0);
+            
+            // --- SECTION 1: PERFORMANCE ---
             document.getElementById('perfOpTimeTotal').innerText = formatNum(totalOpValue);
             document.getElementById('perfMeterTotal').innerText = formatNum(totalMeterValue);
-            document.getElementById('perfAvgSpeed').innerText = globalAvgSpeed.toFixed(1);
+            document.getElementById('perfAvgSpeed').innerText = (totalOpValue > 0 ? (totalMeterValue / totalOpValue) : 0).toFixed(1);
 
             const perfRanked = [...stats].sort((a, b) => b.rawSpdTotal - a.rawSpdTotal);
-            const trophyIcons = ['🥇', '🥈', '🥉'];
             const trophyColors = ['trophy-1', 'trophy-2', 'trophy-3'];
 
             const perfTbody = document.getElementById('perfTableBody');
@@ -376,18 +376,18 @@
                     <td class="px-6 py-5 font-black text-slate-700 table-sticky-col text-left border-r shadow-sm">
                         <div class="flex items-center gap-4">
                             <div class="flex flex-col items-center min-w-[70px]">
-                                <span class="text-xl ${trophyColors[idx] || ''}">${trophyIcons[idx] || (idx+1)}</span>
-                                <span class="text-[9px] uppercase tracking-tighter mt-0.5 text-slate-400 font-black">อันดับที่ ${idx+1}</span>
+                                <i data-lucide="trophy" class="w-6 h-6 ${trophyColors[idx] || 'text-slate-300'}"></i>
+                                <span class="text-[9px] uppercase tracking-tighter mt-1 text-slate-400 font-black italic">อันดับที่ ${idx+1}</span>
                             </div>
                             <span class="text-base underline decoration-emerald-200 decoration-2 underline-offset-8">${s.name}</span>
                         </div>
                     </td>
-                    <td class="px-3 py-4 font-mono font-bold text-slate-500">${formatNum(s.opa)}</td>
+                    <td class="px-3 py-4 font-mono font-bold text-slate-400 italic">${formatNum(s.opa)}</td>
                     <td class="px-3 py-4 font-mono font-bold text-emerald-600">${formatNum(s.metA)}</td>
-                    <td class="px-3 py-4 font-mono font-black text-indigo-600 bg-indigo-50/20">${s.spdA}</td>
-                    <td class="px-3 py-4 font-mono font-bold text-slate-500 border-l">${formatNum(s.opb)}</td>
+                    <td class="px-3 py-4 font-mono font-black text-indigo-600 bg-indigo-50/20 underline">${s.spdA}</td>
+                    <td class="px-3 py-4 font-mono font-bold text-slate-400 italic border-l">${formatNum(s.opb)}</td>
                     <td class="px-3 py-4 font-mono font-bold text-emerald-600">${formatNum(s.metB)}</td>
-                    <td class="px-3 py-4 font-mono font-black text-indigo-600 bg-indigo-50/20">${s.spdB}</td>
+                    <td class="px-3 py-4 font-mono font-black text-indigo-600 bg-indigo-50/20 underline">${s.spdB}</td>
                     <td class="px-3 py-4 font-mono font-bold text-slate-700 border-l">${formatNum(s.opa+s.opb)}</td>
                     <td class="px-3 py-4 font-mono font-bold text-emerald-700">${formatNum(s.metA+s.metB)}</td>
                     <td class="px-3 py-4 font-mono font-black ${idx === 0 ? 'text-emerald-700 bg-emerald-50' : 'text-indigo-700 bg-slate-50'}">${s.spdTotal}</td>
@@ -396,21 +396,20 @@
 
             updateChart('speedChart', MACHINES, stats.map(s=>s.rawSpdA), 'กะ A (m/min)', stats.map(s=>s.rawSpdB), 'กะ B (m/min)', 'bar', '#10b981', '#a7f3d0');
 
-            // --- SECTION 2: LOSS CARDS & TABLE ---
-            const totalLossValue = stats.reduce((acc, s) => acc + s.la + s.lb, 0);
+            // --- SECTION 2: LOSS ---
             document.getElementById('mgmtOpTimeTotal').innerText = formatNum(totalOpValue);
             document.getElementById('mgmtLossTimeTotal').innerText = formatNum(totalLossValue);
             document.getElementById('mgmtLossPercent').innerText = totalOpValue > 0 ? ((totalLossValue / totalOpValue) * 100).toFixed(1) : "0.0";
 
             const lossRanked = [...stats].sort((a, b) => parseFloat(a.pctTotal) - parseFloat(b.pctTotal));
             const lossTbody = document.getElementById('mgmtTableBody');
-            lossTbody.innerHTML = lossRanked.map((s, index) => `
+            lossTbody.innerHTML = lossRanked.map((s, idx) => `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-6 py-5 font-black text-slate-700 table-sticky-col text-left border-r shadow-sm">
                         <div class="flex items-center gap-4">
                             <div class="flex flex-col items-center min-w-[70px]">
-                                <span class="text-xl ${trophyColors[index] || ''}">${trophyIcons[index] || (index+1)}</span>
-                                <span class="text-[9px] uppercase tracking-tighter mt-0.5 text-slate-400 font-black">อันดับที่ ${index+1}</span>
+                                <i data-lucide="trophy" class="w-6 h-6 ${trophyColors[idx] || 'text-slate-300'}"></i>
+                                <span class="text-[9px] uppercase tracking-tighter mt-1 text-slate-400 font-black italic">อันดับที่ ${idx+1}</span>
                             </div>
                             <span class="text-base underline decoration-rose-200 decoration-2 underline-offset-8">${s.name}</span>
                         </div>
@@ -423,11 +422,12 @@
                     <td class="px-3 py-4 font-mono text-amber-600 italic bg-amber-50/20">${s.pctB}%</td>
                     <td class="px-3 py-4 font-mono font-black text-slate-800 border-l">${formatNum(s.opa + s.opb)}</td>
                     <td class="px-3 py-4 font-mono font-black text-rose-600 bg-rose-50/50">${formatNum(s.la + s.lb)}</td>
-                    <td class="px-3 py-4 font-mono font-black ${index === 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50/30'}">${s.pctTotal}%</td>
+                    <td class="px-3 py-4 font-mono font-black ${idx === 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50/30'}">${s.pctTotal}%</td>
                 </tr>
             `).join('');
 
             updateChart('lossChart', MACHINES, stats.map(s=>s.rawPctA), 'กะ A (%)', stats.map(s=>s.rawPctB), 'กะ B (%)', 'bar', '#f43f5e', '#fecdd3');
+            
             lucide.createIcons();
         }
 
@@ -436,7 +436,7 @@
             if (charts[id]) charts[id].destroy();
             charts[id] = new Chart(ctx.getContext('2d'), {
                 type: type,
-                data: { labels, datasets: [{ label: l1, data: d1, backgroundColor: c1, borderRadius: 10 }, { label: l2, data: d2, backgroundColor: c2, borderRadius: 10 }] },
+                data: { labels, datasets: [{ label: l1, data: d1, backgroundColor: c1, borderRadius: 8 }, { label: l2, data: d2, backgroundColor: c2, borderRadius: 8 }] },
                 options: { 
                     responsive: true, maintainAspectRatio: false, layout: { padding: { top: 40 } },
                     plugins: { 
@@ -452,6 +452,7 @@
         }
 
         window.onload = () => {
+            lucide.createIcons();
             const now = new Date(); const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
             document.getElementById('mgmtFromDate').value = yesterday.toISOString().substring(0,10);
             document.getElementById('mgmtToDate').value = now.toISOString().substring(0,10);
