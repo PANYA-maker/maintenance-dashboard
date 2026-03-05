@@ -144,12 +144,12 @@
                 </div>
             </div>
 
-            <!-- 2. ตารางสรุปรายเครื่องแยกกะ พร้อมเวลาเดินงานและสูญเสีย -->
+            <!-- 2. ตารางสรุปรายเครื่องแยกกะ พร้อมเปอร์เซ็นต์ -->
             <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8">
                 <div class="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">สรุปผลการเดินเครื่องและเวลาสูญเสียรายกะ</h3>
-                        <p class="text-[10px] text-slate-400 font-bold mt-1">ข้อมูลสะสมตามช่วงวันที่เลือกจากชีท "เวลาเดินงาน" และ "เวลาสูญเสีย"</p>
+                        <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">สรุปผลการเดินเครื่องและเวลาสูญเสียรายกะ (พร้อม %)</h3>
+                        <p class="text-[10px] text-slate-400 font-bold mt-1">สูตรคำนวณ: (เวลาสูญเสีย / เวลาเดินงานทั้งหมด) * 100</p>
                     </div>
                     <div id="analytics-date-range-display" class="text-[10px] text-indigo-600 font-black bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
                 </div>
@@ -158,17 +158,20 @@
                         <thead>
                             <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
                                 <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col">เครื่องจักร</th>
-                                <th colspan="2" class="px-4 py-2 border-r border-indigo-100 bg-indigo-50/30 text-indigo-700">กะ A (นาที)</th>
-                                <th colspan="2" class="px-4 py-2 border-r border-orange-100 bg-orange-50/30 text-orange-700">กะ B (นาที)</th>
-                                <th colspan="2" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด (นาที)</th>
+                                <th colspan="3" class="px-4 py-2 border-r border-indigo-100 bg-indigo-50/30 text-indigo-700">กะ A (นาที)</th>
+                                <th colspan="3" class="px-4 py-2 border-r border-orange-100 bg-orange-50/30 text-orange-700">กะ B (นาที)</th>
+                                <th colspan="3" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด (นาที)</th>
                             </tr>
                             <tr class="bg-slate-50 text-[9px] font-bold uppercase tracking-tighter border-b">
-                                <th class="px-4 py-2 border-r text-indigo-600">เดินงาน</th>
-                                <th class="px-4 py-2 border-r text-rose-500">สูญเสีย</th>
-                                <th class="px-4 py-2 border-r text-orange-600">เดินงาน</th>
-                                <th class="px-4 py-2 border-r text-rose-500">สูญเสีย</th>
-                                <th class="px-4 py-2 border-r text-slate-700">เดินงาน</th>
-                                <th class="px-4 py-2 text-rose-600 font-black">สูญเสีย</th>
+                                <th class="px-3 py-2 border-r text-indigo-600">เดินงาน</th>
+                                <th class="px-3 py-2 border-r text-rose-500">สูญเสีย</th>
+                                <th class="px-3 py-2 border-r text-amber-600">%</th>
+                                <th class="px-3 py-2 border-r text-orange-600">เดินงาน</th>
+                                <th class="px-3 py-2 border-r text-rose-500">สูญเสีย</th>
+                                <th class="px-3 py-2 border-r text-amber-600">%</th>
+                                <th class="px-3 py-2 border-r text-slate-700">เดินงาน</th>
+                                <th class="px-3 py-2 border-r text-rose-600">สูญเสีย</th>
+                                <th class="px-3 py-2 text-rose-700 font-black">%</th>
                             </tr>
                         </thead>
                         <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm">
@@ -239,7 +242,7 @@
                 const results = [];
                 for (const cfg of ALL_SHEETS) {
                     statusText.innerText = `Syncing: ${cfg.name}...`;
-                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`;
+                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx:out:csv&sheet=${encodeURIComponent(cfg.name)}`;
                     const response = await fetch(url);
                     const text = await response.text();
                     
@@ -348,7 +351,7 @@
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-6 py-4 font-black text-slate-700 underline decoration-indigo-100">${d.machine}</td>
                     <td class="px-6 py-4 text-center font-mono text-[10px] text-slate-400 leading-tight">${d.rawStart} ถึง<br/>${d.rawEnd}</td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700'}">กะ ${d.shift}</span></td>
+                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">กะ ${d.shift}</span></td>
                     <td class="px-8 py-4 text-right font-mono font-bold">${formatNum(d.weight)}</td>
                     <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(d.waste)}</td>
                 </tr>
@@ -364,41 +367,51 @@
         }
 
         function renderAnalyticsView(lossData, opData) {
-            // 1. คำนวณสรุปรายเครื่อง
             const stats = MACHINES.map(m => {
                 const sumLA = lossData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A`]) || 0), 0);
                 const sumLB = lossData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B`]) || 0), 0);
                 
-                // หัวคอลัมน์จากชีทเดินงาน
                 const sumOpA = opData.reduce((acc, row) => acc + (parseFloat(row[`${m} เวลาเดินงานทั้งหมดกะ A`]) || 0), 0);
                 const sumOpB = opData.reduce((acc, row) => acc + (parseFloat(row[`${m} เวลาเดินงานทั้งหมดกะ B`]) || 0), 0);
 
-                return { name: m, la: Math.round(sumLA), lb: Math.round(sumLB), opa: Math.round(sumOpA), opb: Math.round(sumOpB) };
+                const pctA = sumOpA > 0 ? ((sumLA / sumOpA) * 100).toFixed(1) : "0.0";
+                const pctB = sumOpB > 0 ? ((sumLB / sumOpB) * 100).toFixed(1) : "0.0";
+                
+                const totalOp = sumOpA + sumOpB;
+                const totalLoss = sumLA + sumLB;
+                const pctTotal = totalOp > 0 ? ((totalLoss / totalOp) * 100).toFixed(1) : "0.0";
+
+                return { 
+                    name: m, 
+                    la: Math.round(sumLA), lb: Math.round(sumLB), 
+                    opa: Math.round(sumOpA), opb: Math.round(sumOpB),
+                    pctA, pctB, pctTotal
+                };
             });
 
-            // 2. คำนวณภาพรวม (การ์ดด้านบน)
-            const totalLoss = stats.reduce((acc, s) => acc + s.la + s.lb, 0);
-            const totalOp = stats.reduce((acc, s) => acc + s.opa + s.opb, 0);
-            const lossPercent = totalOp > 0 ? ((totalLoss / totalOp) * 100).toFixed(1) : "0.0";
+            const totalLossValue = stats.reduce((acc, s) => acc + s.la + s.lb, 0);
+            const totalOpValue = stats.reduce((acc, s) => acc + s.opa + s.opb, 0);
+            const lossPercentTotal = totalOpValue > 0 ? ((totalLossValue / totalOpValue) * 100).toFixed(1) : "0.0";
 
-            document.getElementById('mgmtLossTimeTotal').innerText = formatNum(totalLoss);
-            document.getElementById('mgmtOpTimeTotal').innerText = formatNum(totalOp);
-            document.getElementById('mgmtLossPercent').innerText = lossPercent;
+            document.getElementById('mgmtLossTimeTotal').innerText = formatNum(totalLossValue);
+            document.getElementById('mgmtOpTimeTotal').innerText = formatNum(totalOpValue);
+            document.getElementById('mgmtLossPercent').innerText = lossPercentTotal;
 
-            // 3. กราฟเปรียบเทียบ (ย้ายมาล่างสุด)
             updateChart('lossChart', MACHINES, stats.map(s=>s.la), 'กะ A (นาที)', stats.map(s=>s.lb), 'กะ B (นาที)', 'bar');
 
-            // 4. ตารางสรุปรายเครื่องละเอียด
             const tbody = document.getElementById('mgmtTableBody');
             tbody.innerHTML = stats.map(s => `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-6 py-4 font-black text-slate-700 table-sticky-col text-left underline decoration-indigo-200">${s.name}</td>
-                    <td class="px-4 py-4 font-mono font-bold text-indigo-600">${formatNum(s.opa)}</td>
-                    <td class="px-4 py-4 font-mono font-bold text-rose-500">${formatNum(s.la)}</td>
-                    <td class="px-4 py-4 font-mono font-bold text-orange-600 border-l border-slate-100">${formatNum(s.opb)}</td>
-                    <td class="px-4 py-4 font-mono font-bold text-rose-500">${formatNum(s.lb)}</td>
-                    <td class="px-4 py-4 font-mono font-black text-slate-800 border-l border-slate-100">${formatNum(s.opa + s.opb)}</td>
-                    <td class="px-4 py-4 font-mono font-black text-rose-600 bg-rose-50/50">${formatNum(s.la + s.lb)}</td>
+                    <td class="px-3 py-4 font-mono font-bold text-indigo-600">${formatNum(s.opa)}</td>
+                    <td class="px-3 py-4 font-mono font-bold text-rose-500">${formatNum(s.la)}</td>
+                    <td class="px-3 py-4 font-mono text-amber-600 italic bg-amber-50/20">${s.pctA}%</td>
+                    <td class="px-3 py-4 font-mono font-bold text-orange-600 border-l border-slate-100">${formatNum(s.opb)}</td>
+                    <td class="px-3 py-4 font-mono font-bold text-rose-500">${formatNum(s.lb)}</td>
+                    <td class="px-3 py-4 font-mono text-amber-600 italic bg-amber-50/20">${s.pctB}%</td>
+                    <td class="px-3 py-4 font-mono font-black text-slate-800 border-l border-slate-100">${formatNum(s.opa + s.opb)}</td>
+                    <td class="px-3 py-4 font-mono font-black text-rose-600 bg-rose-50/50">${formatNum(s.la + s.lb)}</td>
+                    <td class="px-3 py-4 font-mono font-black text-rose-700 bg-rose-100/30">${s.pctTotal}%</td>
                 </tr>
             `).join('');
         }
