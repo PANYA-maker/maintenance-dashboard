@@ -354,10 +354,23 @@
                     responsive: true, maintainAspectRatio: false,
                     plugins: { 
                         legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun' } } },
-                        datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 11 }, formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' }
+                        datalabels: { 
+                            display: true,
+                            anchor: 'end', 
+                            align: 'start', // นำตัวเลขไว้ด้านในส่วนปลาย
+                            offset: 4,
+                            color: (context) => context.chart.config.type === 'line' ? '#1e293b' : '#ffffff', // สีขาวสำหรับแท่งกราฟเพื่อความชัดเจน
+                            font: { weight: '900', size: 13, family: 'Sarabun' }, // ปรับตัวเลขให้หนาและใหญ่ขึ้น
+                            formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' 
+                        }
                     },
                     scales: { 
-                        y: { beginAtZero: true, grid: { display: false }, ticks: { callback: v => v+(isPct?'%':'') } },
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { display: false }, 
+                            ticks: { callback: v => v+(isPct?'%':'') },
+                            grace: '15%'
+                        },
                         x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
                     }
                 }
