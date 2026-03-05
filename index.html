@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrugator Management Analytics - Pro V3</title>
+    <title>Corrugator Management Analytics - Executive Edition</title>
     <!-- Library Setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,25 +13,20 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
         body { background-color: #f8fafc; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .chart-container { position: relative; height: 400px; width: 100%; }
+        .chart-container { position: relative; height: 350px; width: 100%; }
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
-        .error-badge { background: #fee2e2; color: #b91c1c; padding: 1.5rem; border-radius: 1.5rem; border: 1px solid #f87171; margin: 10px auto; max-width: 500px; font-size: 0.85rem; line-height: 1.6; }
         .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
-        
-        /* Trophy Colors */
-        .trophy-1 { color: #fbbf24; fill: #fef3c7; } /* Gold */
-        .trophy-2 { color: #94a3b8; fill: #f1f5f9; } /* Silver */
-        .trophy-3 { color: #b45309; fill: #ffedd5; } /* Bronze */
-        
-        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; border-radius: 4px; padding: 2px; filter: invert(30%) sepia(50%) saturate(1000%) hue-rotate(220deg) brightness(90%) contrast(90%); }
+        .trophy-1 { color: #fbbf24; fill: #fef3c7; } 
+        .trophy-2 { color: #94a3b8; fill: #f1f5f9; } 
+        .trophy-3 { color: #b45309; fill: #ffedd5; }
+        .analysis-gradient { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 6px solid #0284c7; }
     </style>
 </head>
 <body class="pb-24">
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังซิงค์ข้อมูลล่าสุด...<br/><span id="loading-status" class="text-sm font-normal text-slate-400 italic">กรุณารอสักครู่</span></p>
-        <div id="error-log" class="hidden error-badge shadow-2xl"></div>
+        <p class="font-bold text-slate-700 animate-pulse text-lg">กำลังประมวลผลบทวิเคราะห์อัตโนมัติ...</p>
     </div>
 
     <!-- Navigation Header -->
@@ -40,11 +35,11 @@
             <div class="flex flex-col lg:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4">
                     <div class="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-200">
-                        <i data-lucide="bar-chart-big"></i>
+                        <i data-lucide="layout-dashboard"></i>
                     </div>
                     <div>
-                        <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Analytics</span> Pro</h1>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Total Operations Management System</p>
+                        <h1 class="text-xl font-black text-slate-800 uppercase italic">Corrugator <span class="text-indigo-600">Analytics</span> Pro</h1>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Executive Intelligence System</p>
                     </div>
                 </div>
                 
@@ -65,30 +60,26 @@
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 mt-8 space-y-16">
+    <main class="max-w-7xl mx-auto px-6 mt-8 space-y-12">
+
+        <!-- NEW: EXECUTIVE ANALYSIS SUMMARY -->
+        <section id="executive-summary" class="dashboard-card analysis-gradient overflow-hidden">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-white rounded-xl shadow-sm"><i data-lucide="brain-circuit" class="text-indigo-600"></i></div>
+                <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Executive Summary & AI Analysis (บทวิเคราะห์สรุป)</h2>
+            </div>
+            
+            <div id="analysis-content" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- ข้อมูลจะถูกฉีดเข้าด้วย JavaScript -->
+                <div class="lg:col-span-4 py-8 text-center text-slate-400 italic">กำลังรอข้อมูลเพื่อวิเคราะห์...</div>
+            </div>
+        </section>
         
         <!-- SECTION 1: PRODUCTION PERFORMANCE (METER & SPEED) -->
-        <section id="perf-section">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div>
-                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Meter & Speed)</h2>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="dashboard-card border-t-4 border-t-blue-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i data-lucide="clock"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาเดินงานจริงรวม</span></div>
-                    <div class="flex items-baseline gap-2"><span id="perfOpTimeTotal" class="text-3xl font-black text-slate-800">0</span><span class="text-sm font-bold text-slate-400 italic">นาที</span></div>
-                </div>
-                <div class="dashboard-card border-t-4 border-t-emerald-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i data-lucide="layers"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">จำนวนเมตรรวม</span></div>
-                    <div class="flex items-baseline gap-2"><span id="perfMeterTotal" class="text-3xl font-black text-emerald-600">0</span><span class="text-sm font-bold text-slate-400 italic">เมตร</span></div>
-                </div>
-                <div class="dashboard-card border-t-4 border-t-indigo-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i data-lucide="gauge"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">ความเร็วเฉลี่ย (Speed)</span></div>
-                    <div class="flex items-baseline gap-1"><span id="perfAvgSpeed" class="text-3xl font-black text-indigo-600">0</span><span class="text-sm font-bold text-slate-400 italic">m/min</span></div>
-                </div>
-            </div>
-            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8">
-                <div class="p-6 border-b border-slate-100 bg-emerald-50/30 flex justify-between items-center"><h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">ตารางจัดอันดับความเร็วสูงสุด (Speed Ranking)</h3></div>
+        <section id="perf-section" class="space-y-6">
+            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
+            <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
                     <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
                         <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
@@ -97,113 +88,39 @@
                     </tr></thead><tbody id="perfTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
                 </table></div>
             </div>
-            <div class="dashboard-card"><h3 class="font-bold text-slate-800 text-lg mb-8 flex items-center gap-2"><i data-lucide="trending-up" class="text-emerald-500"></i> กราฟเปรียบเทียบความเร็วเฉลี่ยรายกะ (m/min)</h3><div class="chart-container"><canvas id="speedChart"></canvas></div></div>
+            <div class="dashboard-card"><div class="chart-container"><canvas id="speedChart"></canvas></div></div>
         </section>
 
         <!-- SECTION 2: LOSS TIME ANALYSIS -->
-        <section id="loss-section">
-            <div class="flex items-center gap-3 mb-6"><div class="h-8 w-1.5 bg-rose-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">2. การวิเคราะห์เวลาสูญเสีย (Loss Time Analysis)</h2></div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="dashboard-card border-t-4 border-t-blue-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i data-lucide="play-circle"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาเดินงานจริงรวม</span></div>
-                    <div class="flex items-baseline gap-2"><span id="mgmtOpTimeTotal" class="text-3xl font-black text-slate-800">0</span><span class="text-sm font-bold text-slate-400 italic">นาที</span></div>
-                </div>
-                <div class="dashboard-card border-t-4 border-t-rose-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i data-lucide="clock-alert"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาสูญเสียรวม</span></div>
-                    <div class="flex items-baseline gap-2"><span id="mgmtLossTimeTotal" class="text-3xl font-black text-rose-600">0</span><span class="text-sm font-bold text-slate-400 italic">นาที</span></div>
-                </div>
-                <div class="dashboard-card border-t-4 border-t-amber-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="percent"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% เวลาสูญเสียภาพรวม</span></div>
-                    <div class="flex items-baseline gap-1"><span id="mgmtLossPercent" class="text-3xl font-black text-amber-600">0.0</span><span class="text-sm font-bold text-slate-400 italic">%</span></div>
-                </div>
-            </div>
-            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8">
-                <div class="p-6 border-b border-slate-100 bg-rose-50/30 flex justify-between items-center"><h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">จัดอันดับประสิทธิภาพ : สรุปเวลาสูญเสียรายกะ (พร้อม %)</h3></div>
+        <section id="loss-section" class="space-y-6">
+            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-rose-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">2. การวิเคราะห์เวลาสูญเสีย (Loss Time)</h2></div>
+            <div id="loss-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
                     <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
-                        <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A (นาที)</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B (นาที)</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
+                        <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
                     </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
                         <th class="px-3 py-2 border-r">เดินงาน</th><th class="px-3 py-2 border-r">สูญเสีย</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">เดินงาน</th><th class="px-3 py-2 border-r">สูญเสีย</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">เดินงาน</th><th class="px-3 py-2 border-r">สูญเสีย</th><th class="px-3 py-2 font-black">%</th>
                     </tr></thead><tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
                 </table></div>
             </div>
-            <div class="dashboard-card"><h3 class="font-bold text-slate-800 text-xl flex items-center gap-3 mb-8"><i data-lucide="bar-chart-3" class="text-rose-500"></i> กราฟเปรียบเทียบเปอร์เซ็นต์เวลาสูญเสียรายกะ (%)</h3><div class="chart-container"><canvas id="lossChart"></canvas></div></div>
+            <div class="dashboard-card"><div class="chart-container"><canvas id="lossChart"></canvas></div></div>
         </section>
 
-        <!-- SECTION 3: ORDER SHORTAGE ANALYSIS (NEW) -->
-        <section id="shortage-section">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="h-8 w-1.5 bg-indigo-500 rounded-full"></div>
-                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">3. การวิเคราะห์งานขาดจำนวน (Order Shortage Analysis)</h2>
+        <!-- SECTION 3: SHORTAGE ANALYSIS -->
+        <section id="short-section" class="space-y-6">
+            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-indigo-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">3. การวิเคราะห์งานขาดจำนวน (Order Shortage)</h2></div>
+            <div id="short-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
+                    <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
+                        <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
+                    </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
+                        <th class="px-3 py-2 border-r">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-500">ขาด</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-500">ขาด</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-600">ขาด</th><th class="px-3 py-2 font-black">%</th>
+                    </tr></thead><tbody id="shortTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                </table></div>
             </div>
-
-            <!-- Shortage KPIs -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="dashboard-card border-t-4 border-t-blue-500">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i data-lucide="clipboard-list"></i></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">ออเดอร์ผลิตทั้งหมด</span>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <span id="shortTotalOrders" class="text-3xl font-black text-slate-800">0</span>
-                        <span class="text-sm font-bold text-slate-400 italic">Order</span>
-                    </div>
-                </div>
-                <div class="dashboard-card border-t-4 border-t-rose-500">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i data-lucide="alert-circle"></i></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">ออเดอร์ขาดจำนวนรวม</span>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <span id="shortTotalShort" class="text-3xl font-black text-rose-600">0</span>
-                        <span class="text-sm font-bold text-slate-400 italic">Order</span>
-                    </div>
-                </div>
-                <div class="dashboard-card border-t-4 border-t-amber-500">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="percent"></i></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% งานขาดจำนวนภาพรวม</span>
-                    </div>
-                    <div class="flex items-baseline gap-1">
-                        <span id="shortTotalPercent" class="text-3xl font-black text-amber-600">0.0</span>
-                        <span class="text-sm font-bold text-slate-400 italic">%</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Shortage Ranking Table -->
-            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8">
-                <div class="p-6 border-b border-slate-100 bg-indigo-50/30 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">จัดอันดับความถูกต้องออเดอร์ (% ขาดน้อยที่สุด = อันดับ 1)</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-center border-collapse min-w-[1100px]">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
-                                <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
-                                <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th>
-                                <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th>
-                                <th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                            </tr>
-                            <tr class="bg-slate-50 text-[9px] font-bold border-b">
-                                <th class="px-3 py-2 border-r text-indigo-600">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-500">ขาด</th><th class="px-3 py-2 border-r font-black">%</th>
-                                <th class="px-3 py-2 border-r text-orange-600">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-500">ขาด</th><th class="px-3 py-2 border-r font-black">%</th>
-                                <th class="px-3 py-2 border-r text-slate-700">ออเดอร์</th><th class="px-3 py-2 border-r text-rose-600">ขาด</th><th class="px-3 py-2 text-rose-700 font-black">%</th>
-                            </tr>
-                        </thead>
-                        <tbody id="shortTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Shortage Chart -->
-            <div class="dashboard-card">
-                <h3 class="font-bold text-slate-800 text-xl flex items-center gap-3 mb-8">
-                    <i data-lucide="bar-chart" class="text-indigo-500"></i> 
-                    กราฟเปรียบเทียบเปอร์เซ็นต์งานขาดจำนวนรายกะ (%)
-                </h3>
-                <div class="chart-container"><canvas id="shortChart"></canvas></div>
-            </div>
+            <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
         </section>
     </main>
 
@@ -211,13 +128,7 @@
         Chart.register(ChartDataLabels);
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
-        
-        const ALL_SHEETS = [
-            { id: 'loss', name: 'เวลาสูญเสีย' },
-            { id: 'op_time', name: 'เวลาเดินงาน' },
-            { id: 'meter', name: 'เมตร' },
-            { id: 'shortage', name: 'ขาดจำนวน' }
-        ];
+        const ALL_SHEETS = [{id:'loss',name:'เวลาสูญเสีย'},{id:'op_time',name:'เวลาเดินงาน'},{id:'meter',name:'เมตร'},{id:'shortage',name:'ขาดจำนวน'}];
 
         let appState = { raw: {}, isRendering: false };
         let charts = {};
@@ -226,175 +137,173 @@
 
         async function fetchSheetData() {
             const overlay = document.getElementById('loadingOverlay');
-            const statusText = document.getElementById('loading-status');
-            const errorLog = document.getElementById('error-log');
             overlay.style.display = 'flex';
-            errorLog.classList.add('hidden');
-            
             try {
-                const results = [];
                 for (const cfg of ALL_SHEETS) {
-                    statusText.innerText = `Syncing: ${cfg.name}...`;
-                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const response = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`);
                     const text = await response.text();
-                    if (text.includes('<html')) throw new Error(`ชีท "${cfg.name}" ดึงข้อมูลล้มเหลว`);
-                    results.push({ id: cfg.id, csv: text });
+                    appState.raw[cfg.id] = parseCSV(text);
                 }
-                processAllData(results);
                 renderDashboard();
-                overlay.style.display = 'none';
-            } catch (err) {
-                console.error(err);
-                errorLog.classList.remove('hidden');
-                errorLog.innerHTML = `⚠️ Error: ${err.message}`;
-                statusText.innerText = "Sync Failed";
-            }
+            } catch (err) { alert("Error syncing data: " + err.message); }
+            finally { overlay.style.display = 'none'; }
         }
 
-        function parseCSV(csv, skipRows = 0) {
+        function parseCSV(csv) {
             const lines = csv.split(/\r?\n/).filter(l => l.trim() !== "");
-            if (lines.length <= skipRows) return [];
-            const headers = lines[skipRows].split(',').map(h => h.replace(/"/g, '').trim());
-            const data = [];
-            for (let i = skipRows + 1; i < lines.length; i++) {
-                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
-                if (row.length < headers.length) continue;
-                const obj = {};
-                headers.forEach((h, idx) => obj[h] = row[idx]);
-                data.push(obj);
-            }
-            return data;
-        }
-
-        function processAllData(results) {
-            results.forEach(res => { appState.raw[res.id] = parseCSV(res.csv, 0); });
-        }
-
-        function parseDateOnly(str) {
-            if (!str) return null;
-            const p = str.split('/');
-            if (p.length < 3) return null;
-            const year = parseInt(p[2]) > 2500 ? parseInt(p[2])-543 : parseInt(p[2]);
-            const d = new Date(year, parseInt(p[1])-1, parseInt(p[0]));
-            d.setHours(0,0,0,0); return d;
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            return lines.slice(1).map(line => {
+                const row = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
+                const obj = {}; headers.forEach((h, idx) => obj[h] = row[idx]);
+                return obj;
+            });
         }
 
         function renderDashboard() {
             if (appState.isRendering) return;
             appState.isRendering = true;
-            try {
-                const fromInput = document.getElementById('mgmtFromDate').value;
-                const toInput = document.getElementById('mgmtToDate').value;
-                if (!fromInput || !toInput) { appState.isRendering = false; return; }
-                const mFrom = new Date(fromInput); const mTo = new Date(toInput);
-                mFrom.setHours(0,0,0,0); mTo.setHours(23,59,59,999);
+            
+            const from = new Date(document.getElementById('mgmtFromDate').value);
+            const to = new Date(document.getElementById('mgmtToDate').value);
+            from.setHours(0,0,0,0); to.setHours(23,59,59,999);
 
-                const filterData = (id) => appState.raw[id]?.filter(row => {
-                    const d = parseDateOnly(row['วันที่']);
-                    return d && d >= mFrom && d <= mTo;
-                }) || [];
+            const filter = (id) => appState.raw[id]?.filter(r => {
+                const d = r['วันที่'].split('/');
+                const dateObj = new Date(d[2]>2500?d[2]-543:d[2], d[1]-1, d[0]);
+                return dateObj >= from && dateObj <= to;
+            }) || [];
 
-                renderAnalyticsView(filterData('loss'), filterData('op_time'), filterData('meter'), filterData('shortage'));
-            } finally { appState.isRendering = false; }
-        }
-
-        function renderAnalyticsView(lossData, opData, meterData, shortData) {
             const stats = MACHINES.map(m => {
-                const sL_A = lossData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A`]) || 0), 0);
-                const sL_B = lossData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B`]) || 0), 0);
-                const sO_A = opData.reduce((acc, row) => acc + (parseFloat(row[`${m} เวลาเดินงานทั้งหมดกะ A`]) || 0), 0);
-                const sO_B = opData.reduce((acc, row) => acc + (parseFloat(row[`${m} เวลาเดินงานทั้งหมดกะ B`]) || 0), 0);
-                const sM_A = meterData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A`]) || 0), 0);
-                const sM_B = meterData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B`]) || 0), 0);
-                const sS_A_Ord = shortData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A เดินงาน order`]) || 0), 0);
-                const sS_B_Ord = shortData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B เดินงาน order`]) || 0), 0);
-                const sS_A_Miss = shortData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A ขาด`]) || 0), 0);
-                const sS_B_Miss = shortData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B ขาด`]) || 0), 0);
+                const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
+                const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
+                
+                const la = getSum(l, `${m} กะ A`), lb = getSum(l, `${m} กะ B`);
+                const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
+                const ma = getSum(met, `${m} กะ A`), mb = getSum(met, `${m} กะ B`);
+                const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
+                const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
 
                 return {
-                    name: m, la: sL_A, lb: sL_B, opa: sO_A, opb: sO_B, metA: sM_A, metB: sM_B,
-                    saOrd: sS_A_Ord, sbOrd: sS_B_Ord, saMiss: sS_A_Miss, sbMiss: sS_B_Miss,
-                    spdTotal: (sO_A + sO_B) > 0 ? (sM_A + sM_B) / (sO_A + sO_B) : 0,
-                    pctTotal: (sO_A + sO_B) > 0 ? ((sL_A + sL_B) / (sO_A + sO_B) * 100) : 0,
-                    pctShortTotal: (sS_A_Ord + sS_B_Ord) > 0 ? ((sS_A_Miss + sS_B_Miss) / (sS_A_Ord + sS_B_Ord) * 100) : 0
+                    name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
+                    spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
+                    pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
+                    pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
+                    // Sub-stats for analysis
+                    spdA: opa>0?ma/opa:0, spdB: opb>0?mb/opb:0,
+                    pctA: opa>0?la/opa*100:0, pctB: opb>0?lb/opb*100:0,
+                    shPctA: shaO>0?shaM/shaO*100:0, shPctB: shbO>0?shbM/shbO*100:0
                 };
             });
 
-            const trophyIcons = ['trophy-1', 'trophy-2', 'trophy-3'];
-
-            // --- SECTION 1: PERFORMANCE ---
-            document.getElementById('perfOpTimeTotal').innerText = formatNum(stats.reduce((acc,s)=>acc+s.opa+s.opb,0));
-            document.getElementById('perfMeterTotal').innerText = formatNum(stats.reduce((acc,s)=>acc+s.metA+s.metB,0));
-            document.getElementById('perfAvgSpeed').innerText = (stats.reduce((acc,s)=>acc+s.metA+s.metB,0) / (stats.reduce((acc,s)=>acc+s.opa+s.opb,0) || 1)).toFixed(1);
+            renderExecutiveAnalysis(stats);
+            renderKPIs(stats);
+            renderTables(stats);
+            renderCharts(stats);
             
-            const perfRanked = [...stats].sort((a,b)=>b.spdTotal - a.spdTotal);
-            document.getElementById('perfTableBody').innerHTML = perfRanked.map((s,i)=>`
-                <tr>
-                    <td class="px-6 py-5 font-black table-sticky-col text-left border-r"><div class="flex items-center gap-4"><i data-lucide="trophy" class="w-6 h-6 ${trophyIcons[i]}"></i><span>${s.name}</span></div></td>
-                    <td class="px-3 py-4 text-slate-400 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-mono">${formatNum(s.metA)}</td><td class="px-3 py-4 font-black">${(s.metA/(s.opa||1)).toFixed(1)}</td>
-                    <td class="px-3 py-4 text-slate-400 font-mono border-l">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-mono">${formatNum(s.metB)}</td><td class="px-3 py-4 font-black">${(s.metB/(s.opb||1)).toFixed(1)}</td>
-                    <td class="px-3 py-4 font-mono border-l">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-mono">${formatNum(s.metA+s.metB)}</td><td class="px-3 py-4 font-black bg-slate-50 underline">${s.spdTotal.toFixed(1)}</td>
-                </tr>`).join('');
-            updateChart('speedChart', MACHINES, stats.map(s=>s.metA/(s.opa||1)), 'กะ A', stats.map(s=>s.metB/(s.opb||1)), 'กะ B', 'bar', '#10b981', '#a7f3d0');
-
-            // --- SECTION 2: LOSS ---
-            const totalOp = stats.reduce((acc,s)=>acc+s.opa+s.opb,0);
-            const totalLoss = stats.reduce((acc,s)=>acc+s.la+s.lb,0);
-            document.getElementById('mgmtOpTimeTotal').innerText = formatNum(totalOp);
-            document.getElementById('mgmtLossTimeTotal').innerText = formatNum(totalLoss);
-            document.getElementById('mgmtLossPercent').innerText = (totalOp > 0 ? (totalLoss/totalOp*100) : 0).toFixed(1);
-            
-            const lossRanked = [...stats].sort((a,b)=>a.pctTotal - b.pctTotal);
-            document.getElementById('mgmtTableBody').innerHTML = lossRanked.map((s,i)=>`
-                <tr>
-                    <td class="px-6 py-5 font-black table-sticky-col text-left border-r"><div class="flex items-center gap-4"><i data-lucide="trophy" class="w-6 h-6 ${trophyIcons[i]}"></i><span>${s.name}</span></div></td>
-                    <td class="px-3 py-4 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 font-mono text-rose-500">${formatNum(s.la)}</td><td class="px-3 py-4 font-black">${(s.opa>0?s.la/s.opa*100:0).toFixed(1)}%</td>
-                    <td class="px-3 py-4 font-mono border-l">${formatNum(s.opb)}</td><td class="px-3 py-4 font-mono text-rose-500">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black">${(s.opb>0?s.lb/s.opb*100:0).toFixed(1)}%</td>
-                    <td class="px-3 py-4 font-mono border-l">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-mono text-rose-600">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50 underline">${s.pctTotal.toFixed(1)}%</td>
-                </tr>`).join('');
-            updateChart('lossChart', MACHINES, stats.map(s=>s.opa>0?s.la/s.opa*100:0), 'กะ A', stats.map(s=>s.opb>0?s.lb/s.opb*100:0), 'กะ B', 'bar', '#f43f5e', '#fecdd3');
-
-            // --- SECTION 3: SHORTAGE ---
-            const tOrd = stats.reduce((acc,s)=>acc+s.saOrd+s.sbOrd,0);
-            const tMiss = stats.reduce((acc,s)=>acc+s.saMiss+s.sbMiss,0);
-            document.getElementById('shortTotalOrders').innerText = formatNum(tOrd);
-            document.getElementById('shortTotalShort').innerText = formatNum(tMiss);
-            document.getElementById('shortTotalPercent').innerText = (tOrd > 0 ? (tMiss/tOrd*100) : 0).toFixed(1);
-
-            const shortRanked = [...stats].sort((a,b)=>a.pctShortTotal - b.pctShortTotal);
-            document.getElementById('shortTableBody').innerHTML = shortRanked.map((s,i)=>`
-                <tr>
-                    <td class="px-6 py-5 font-black table-sticky-col text-left border-r shadow-sm"><div class="flex items-center gap-4"><i data-lucide="trophy" class="w-6 h-6 ${trophyIcons[i]}"></i><span>${s.name}</span></div></td>
-                    <td class="px-3 py-4 font-mono text-indigo-600">${formatNum(s.saOrd)}</td><td class="px-3 py-4 font-mono text-rose-500">${formatNum(s.saMiss)}</td><td class="px-3 py-4 font-black text-amber-600">${(s.saOrd>0?s.saMiss/s.saOrd*100:0).toFixed(1)}%</td>
-                    <td class="px-3 py-4 font-mono border-l text-orange-600">${formatNum(s.sbOrd)}</td><td class="px-3 py-4 font-mono text-rose-500">${formatNum(s.sbMiss)}</td><td class="px-3 py-4 font-black text-amber-600">${(s.sbOrd>0?s.sbMiss/s.sbOrd*100:0).toFixed(1)}%</td>
-                    <td class="px-3 py-4 font-mono font-black border-l">${formatNum(s.saOrd+s.sbOrd)}</td><td class="px-3 py-4 font-mono font-black text-rose-600">${formatNum(s.saMiss+s.sbMiss)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline">${s.pctShortTotal.toFixed(1)}%</td>
-                </tr>`).join('');
-            updateChart('shortChart', MACHINES, stats.map(s=>s.saOrd>0?s.saMiss/s.saOrd*100:0), 'กะ A (%)', stats.map(s=>s.sbOrd>0?s.sbMiss/s.sbOrd*100:0), 'กะ B (%)', 'bar', '#6366f1', '#c7d2fe');
-
+            appState.isRendering = false;
             lucide.createIcons();
         }
 
-        function updateChart(id, labels, d1, l1, d2, l2, type, c1, c2) {
-            const ctx = document.getElementById(id); if (!ctx) return;
+        function renderExecutiveAnalysis(stats) {
+            // Determine Champion (Weighted Score: Speed + Loss% + Short%)
+            const ranked = [...stats].sort((a,b) => {
+                const scoreA = (a.spdTotal/150) - (a.pctLoss/50) - (a.pctShort/20);
+                const scoreB = (b.spdTotal/150) - (b.pctLoss/50) - (b.pctShort/20);
+                return scoreB - scoreA;
+            });
+            const champ = ranked[0];
+            
+            const container = document.getElementById('analysis-content');
+            container.innerHTML = `
+                <div class="lg:col-span-1 flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border-2 border-amber-200">
+                    <div class="text-[10px] font-black uppercase text-amber-600 mb-2">Champion Performance</div>
+                    <i data-lucide="trophy" class="w-16 h-16 trophy-1 mb-4"></i>
+                    <div class="text-3xl font-black text-slate-800">${champ.name}</div>
+                    <div class="text-[10px] font-bold text-slate-400 mt-2">อันดับ 1 ของช่วงเวลานี้</div>
+                </div>
+                <div class="lg:col-span-3 space-y-6 py-2">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        ${stats.map(s => `
+                            <div class="space-y-2">
+                                <div class="font-black text-slate-700 flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full bg-indigo-500"></div> เครื่อง ${s.name}
+                                </div>
+                                <div class="text-[11px] leading-relaxed text-slate-600">
+                                    <b>จุดเด่น:</b> ${s.spdTotal > 100 ? 'ความเร็วสูงสม่ำเสมอ' : s.pctLoss < 5 ? 'คุมเวลาสูญเสียได้เยี่ยม' : 'ทำงานได้เสถียร'}<br/>
+                                    <b>ต้องปรับปรุง:</b> ${s.pctShort > 5 ? 'ความแม่นยำจำนวนออร์เดอร์' : s.pctLoss > 10 ? 'เวลาเตรียมเครื่อง' : 'การรักษาสปีดเฉลี่ย'}<br/>
+                                    <b class="text-indigo-600">กะที่ต้องโฟกัส:</b> ${s.pctA > s.pctB ? 'กะ A (Loss สูงกว่า)' : 'กะ B (Loss สูงกว่า)'}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="bg-white/50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4">
+                        <i data-lucide="info" class="text-blue-500 mt-1"></i>
+                        <p class="text-xs text-slate-600 font-medium">
+                            <b>ข้อเสนอแนะฝ่ายบริหาร:</b> ในช่วงวันนี้ควรเน้นให้เครื่อง <b>${ranked[0].name}</b> รับงาน Meter สูง 
+                            และให้เครื่อง <b>${[...stats].sort((a,b)=>a.pctShort-b.pctShort)[0].name}</b> รับงานที่เน้นความแม่นยำสูงเพื่อลดงานขาดจำนวน
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderKPIs(stats) {
+            const sum = (key) => stats.reduce((acc, s) => acc + s[key], 0);
+            const totalOp = sum('opa') + sum('opb');
+            const totalMet = sum('ma') + sum('mb');
+            const totalLoss = sum('la') + sum('lb');
+            const totalOrd = sum('shaO') + sum('shbO');
+            const totalMiss = sum('shaM') + sum('shbM');
+
+            const kpiBox = (icon, label, val, unit, color) => `
+                <div class="dashboard-card border-t-4 border-t-${color}-500">
+                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-${color}-50 text-${color}-600 rounded-lg"><i data-lucide="${icon}"></i></div><span class="text-xs font-bold text-slate-400 uppercase">${label}</span></div>
+                    <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${val}</span><span class="text-sm font-bold text-slate-400 italic">${unit}</span></div>
+                </div>`;
+
+            document.getElementById('perf-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('layers','เมตรรวม',formatNum(totalMet),'เมตร','emerald') + kpiBox('gauge','สปีดเฉลี่ย',(totalMet/(totalOp||1)).toFixed(1),'m/min','indigo');
+            document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
+            document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
+        }
+
+        function renderTables(stats) {
+            const row = (s, i, type) => {
+                const trophy = i<3 ? `<i data-lucide="trophy" class="w-5 h-5 trophy-${i+1}"></i>` : '';
+                if(type==='perf') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold">${formatNum(s.ma+s.mb)}</td><td class="px-3 py-4 font-black bg-emerald-50">${s.spdTotal.toFixed(1)}</td></tr>`;
+                if(type==='loss') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500">${formatNum(s.la)}</td><td class="px-3 py-4 font-black">${s.pctA.toFixed(1)}%</td><td class="px-3 py-4 border-l">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black">${s.pctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50">${s.pctLoss.toFixed(1)}%</td></tr>`;
+                if(type==='short') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4">${formatNum(s.shaO)}</td><td class="px-3 py-4 text-rose-500">${formatNum(s.shaM)}</td><td class="px-3 py-4 font-black">${s.shPctA.toFixed(1)}%</td><td class="px-3 py-4 border-l">${formatNum(s.shbO)}</td><td class="px-3 py-4 text-rose-500">${formatNum(s.shbM)}</td><td class="px-3 py-4 font-black">${s.shPctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.shaO+s.shbO)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.shaM+s.shbM)}</td><td class="px-3 py-4 font-black bg-indigo-50">${s.pctShort.toFixed(1)}%</td></tr>`;
+            };
+
+            document.getElementById('perfTableBody').innerHTML = [...stats].sort((a,b)=>b.spdTotal-a.spdTotal).map((s,i)=>row(s,i,'perf')).join('');
+            document.getElementById('mgmtTableBody').innerHTML = [...stats].sort((a,b)=>a.pctLoss-b.pctLoss).map((s,i)=>row(s,i,'loss')).join('');
+            document.getElementById('shortTableBody').innerHTML = [...stats].sort((a,b)=>a.pctShort-b.pctShort).map((s,i)=>row(s,i,'short')).join('');
+        }
+
+        function renderCharts(stats) {
+            const machines = MACHINES;
+            updateChart('speedChart', machines, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', '#10b981', '#a7f3d0', false);
+            updateChart('lossChart', machines, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', '#f43f5e', '#fecdd3', true);
+            updateChart('shortChart', machines, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', '#6366f1', '#c7d2fe', true);
+        }
+
+        function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct) {
+            const ctx = document.getElementById(id); if(!ctx) return;
             if (charts[id]) charts[id].destroy();
             charts[id] = new Chart(ctx.getContext('2d'), {
-                type: type,
+                type: 'bar',
                 data: { labels, datasets: [{ label: l1, data: d1, backgroundColor: c1, borderRadius: 8 }, { label: l2, data: d2, backgroundColor: c2, borderRadius: 8 }] },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 40 } },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
                     plugins: { 
-                        legend: { position: 'bottom', labels: { font: { family: 'Sarabun', weight: 'bold' } } },
-                        datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 11 }, formatter: (v) => v > 0 ? (v.toFixed(1) + (id!=='speedChart'?'%':'')) : '', color: '#1e293b' }
+                        legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
+                        datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold', size: 11 }, formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' }
                     },
-                    scales: { y: { beginAtZero: true, grid: { display: false }, ticks: { callback: (v) => v + (id!=='speedChart'?'%':'') } }, x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } } }
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => v+(isPct?'%':'') } } }
                 }
             });
         }
 
         window.onload = () => {
-            lucide.createIcons();
             const now = new Date(); const yes = new Date(now); yes.setDate(now.getDate()-1);
             document.getElementById('mgmtFromDate').value = yes.toISOString().substring(0,10);
             document.getElementById('mgmtToDate').value = now.toISOString().substring(0,10);
