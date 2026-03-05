@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrugator Analytics Pro - Loss Time Focus</title>
+    <title>Corrugator Analytics Pro - Loss Time V2</title>
     <!-- Library Setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -17,15 +17,15 @@
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
         canvas { max-height: 450px; width: 100% !important; }
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
-        .error-badge { background: #fee2e2; color: #b91c1c; padding: 1rem; border-radius: 1rem; border: 1px solid #f87171; margin-top: 10px; font-size: 0.8rem; line-height: 1.5; }
+        .error-badge { background: #fee2e2; color: #b91c1c; padding: 1rem; border-radius: 1rem; border: 1px solid #f87171; margin: 10px auto; max-width: 500px; font-size: 0.85rem; line-height: 1.6; }
     </style>
 </head>
 <body class="pb-12">
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังซิงค์ข้อมูลจาก Google Sheet...<br/><span id="loading-status" class="text-sm font-normal text-slate-400">กำลังตรวจสอบข้อมูลเวลาสูญเสีย</span></p>
-        <div id="error-log" class="hidden error-badge max-w-md mx-auto"></div>
+        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังซิงค์ข้อมูลจาก Google Sheet...<br/><span id="loading-status" class="text-sm font-normal text-slate-400 italic">กำลังตรวจสอบหัวคอลัมน์แถวที่ 1</span></p>
+        <div id="error-log" class="hidden error-badge"></div>
     </div>
 
     <!-- Navigation Header -->
@@ -63,15 +63,15 @@
                 <!-- Date Controls for Management Page -->
                 <div id="date-controls-mgmt" class="hidden flex flex-wrap items-center gap-2 bg-indigo-50 p-2 rounded-2xl border border-indigo-200">
                     <div class="flex flex-col px-2 border-r border-indigo-200">
-                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic">เริ่มวันที่</span>
-                        <input type="date" id="mgmtFromDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
-                    </div>
-                    <div class="flex flex-col px-2 border-r border-indigo-200">
-                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic">ถึงวันที่</span>
-                        <input type="date" id="mgmtToDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
+                        <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic text-center w-full italic">เลือกช่วงวันที่บริหาร (Management)</span>
+                        <div class="flex gap-2">
+                            <input type="date" id="mgmtFromDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
+                            <span class="text-indigo-300">ถึง</span>
+                            <input type="date" id="mgmtToDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
+                        </div>
                     </div>
                     <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
-                        <i data-lucide="search" class="w-4 h-4"></i> ค้นหาข้อมูลบริหาร
+                        <i data-lucide="search" class="w-4 h-4"></i> ค้นหา
                     </button>
                 </div>
             </div>
@@ -80,40 +80,38 @@
 
     <main class="max-w-7xl mx-auto px-6 mt-8">
         
-        <!-- View 1: Production Details (เดิม) -->
+        <!-- View 1: Production Details -->
         <section id="view-production">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="package" class="text-indigo-500"></i> นน. ผลิตแยกตามกะ (กก.)</h3><canvas id="weightChart"></canvas></div>
                 <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="trash-2" class="text-rose-500"></i> นน. ของเสียแยกตามกะ (กก.)</h3><canvas id="wasteChart"></canvas></div>
             </div>
             <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
-                <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800">บันทึกข้อมูลรายละเอียดการผลิต</h3>
-                </div>
+                <div class="p-6 border-b border-slate-100 bg-slate-50 font-bold text-slate-800 uppercase tracking-widest text-xs">รายละเอียดการผลิตรายเครื่อง (รายออร์เดอร์)</div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b text-center">
                                 <th class="px-6 py-4 text-left">เครื่อง</th>
-                                <th class="px-6 py-4">ช่วงเวลา</th>
+                                <th class="px-6 py-4">ช่วงเวลาที่ผลิต</th>
                                 <th class="px-6 py-4">กะ</th>
                                 <th class="px-8 py-4 text-right">น้ำหนัก (กก.)</th>
                                 <th class="px-8 py-4 text-right text-rose-500">ของเสีย (กก.)</th>
                             </tr>
                         </thead>
-                        <tbody id="prodTableBody" class="divide-y divide-slate-100 text-sm italic text-slate-400 text-center">
-                            <tr><td colspan="5" class="py-20">Sync data to load records...</td></tr>
+                        <tbody id="prodTableBody" class="divide-y divide-slate-100 text-sm text-center">
+                            <tr><td colspan="5" class="py-20 text-slate-400 italic">กด Sync เพื่อแสดงข้อมูลรายละเอียด</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- View 2: Management Analytics (เน้นเวลาสูญเสีย) -->
+        <!-- View 2: Management Analytics (เน้นเวลาสูญเสียตามรูปใหม่) -->
         <section id="view-analytics" class="hidden">
             <div class="grid grid-cols-1 gap-8 mb-8">
                 <div class="dashboard-card">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
                         <h3 class="font-bold text-slate-800 text-xl flex items-center gap-3">
                             <i data-lucide="clock-alert" class="text-rose-500 w-6 h-6"></i> 
                             เปรียบเทียบเวลาสูญเสียรายกะ (นาที) : BHS | YUELI | ISOWA
@@ -131,21 +129,21 @@
             
             <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
                 <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm">สรุปเวลาสูญเสียรายเครื่อง (ข้อมูลจากชีทสรุป)</h3>
-                    <div id="analytics-date-range" class="text-xs text-indigo-600 font-bold bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
+                    <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm">สรุปเวลาสูญเสียสะสมแยกตามกะ (นาที)</h3>
+                    <div id="analytics-date-range-display" class="text-[10px] text-indigo-600 font-black bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b">
-                                <th class="px-8 py-4">รายชื่อเครื่องจักร</th>
+                                <th class="px-8 py-4">เครื่องจักร</th>
                                 <th class="px-8 py-4 text-right">เวลาสูญเสีย กะ A (นาที)</th>
                                 <th class="px-8 py-4 text-right">เวลาสูญเสีย กะ B (นาที)</th>
-                                <th class="px-8 py-4 text-right bg-rose-50 text-rose-600 font-black">รวมเวลาสูญเสีย (นาที)</th>
+                                <th class="px-8 py-4 text-right bg-rose-50 text-rose-600 font-black">รวมเวลาสูญเสีย</th>
                             </tr>
                         </thead>
                         <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm">
-                            <!-- Data populated via JS -->
+                            <!-- Populated by JS -->
                         </tbody>
                     </table>
                 </div>
@@ -156,7 +154,7 @@
     <script>
         Chart.register(ChartDataLabels);
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
-        // เรียงตามลำดับที่คุณต้องการ
+        // เรียงลำดับ: BHS -> YUELI -> ISOWA
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         
         const ALL_SHEETS = [
@@ -166,7 +164,7 @@
             { id: 'loss', name: 'เวลาสูญเสีย', isSummary: true }
         ];
 
-        let appState = { view: 'production', raw: {}, processed: { production: [], lossSummary: [] } };
+        let appState = { view: 'production', raw: {}, processed: { production: [], lossData: [] } };
         let charts = {};
 
         function formatNum(n) { return new Intl.NumberFormat('th-TH').format(Math.round(n || 0)); }
@@ -176,13 +174,10 @@
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active', 'text-indigo-600', 'text-slate-400'));
             document.getElementById(`tab-${viewName}`).classList.add('active');
             document.getElementById(`tab-${viewName==='production'?'analytics':'production'}`).classList.add('text-slate-400');
-            
             document.getElementById('view-production').classList.toggle('hidden', viewName !== 'production');
             document.getElementById('view-analytics').classList.toggle('hidden', viewName !== 'analytics');
-            
             document.getElementById('date-controls-prod').classList.toggle('hidden', viewName !== 'production');
             document.getElementById('date-controls-mgmt').classList.toggle('hidden', viewName !== 'analytics');
-            
             lucide.createIcons();
             renderDashboard();
         }
@@ -203,7 +198,7 @@
                     const text = await response.text();
                     
                     if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-                        throw new Error(`ไม่สามารถอ่านชีท "${cfg.name}" ได้ กรุณากด Publish to web ใน Google Sheet`);
+                        throw new Error(`ชีท "${cfg.name}" ดึงไม่ได้! โปรดตรวจสอบว่าได้เลือก "เผยแพร่ไปยังเว็บ" (Publish to web) เป็นไฟล์ CSV หรือยัง?`);
                     }
                     results.push({ id: cfg.id, machine: cfg.machine, csv: text, isSummary: cfg.isSummary });
                 }
@@ -213,13 +208,14 @@
             } catch (err) {
                 overlay.style.display = 'flex';
                 errorLog.classList.remove('hidden');
-                errorLog.innerHTML = `⚠️ <b>Error:</b> ${err.message}`;
-                statusText.innerText = "การดึงข้อมูลผิดพลาด";
+                errorLog.innerHTML = `⚠️ <b>พบข้อผิดพลาด:</b><br/>${err.message}`;
+                statusText.innerText = "การซิงค์ล้มเหลว";
             }
         }
 
         function parseCSV(csv, skipRows = 0) {
             const lines = csv.split(/\r?\n/).filter(l => l.trim() !== "");
+            // หัวตารางอยู่แถวที่ 1 (index 0)
             const headers = lines[skipRows].split(',').map(h => h.replace(/"/g, '').trim());
             const data = [];
             for (let i = skipRows + 1; i < lines.length; i++) {
@@ -249,8 +245,8 @@
                         });
                     });
                 } else if (res.id === 'loss') {
-                    // แถวที่ 2 เป็นหัวตาราง (index 1)
-                    appState.raw.loss = parseCSV(res.csv, 1);
+                    // ชีทเวลาสูญเสีย หัวตารางแถวที่ 1 (index 0) ตามที่คุณระบุล่าสุด
+                    appState.raw.loss = parseCSV(res.csv, 0);
                 }
             });
         }
@@ -269,10 +265,8 @@
             if (!str) return null;
             const p = str.split('/');
             if (p.length < 3) return null;
-            const day = parseInt(p[0]);
-            const month = parseInt(p[1]) - 1;
-            const year = parseInt(p[2]) > 2500 ? parseInt(p[2]) - 543 : parseInt(p[2]);
-            const d = new Date(year, month, day);
+            const year = parseInt(p[2]) > 2500 ? parseInt(p[2])-543 : parseInt(p[2]);
+            const d = new Date(year, parseInt(p[1])-1, parseInt(p[0]));
             d.setHours(0,0,0,0);
             return d;
         }
@@ -293,7 +287,7 @@
                     return d && d >= mFrom && d <= mTo;
                 }) || [];
 
-                document.getElementById('analytics-date-range').innerText = `ช่วงวันที่: ${document.getElementById('mgmtFromDate').value} ถึง ${document.getElementById('mgmtToDate').value}`;
+                document.getElementById('analytics-date-range-display').innerText = `${document.getElementById('mgmtFromDate').value} ถึง ${document.getElementById('mgmtToDate').value}`;
                 renderAnalyticsView(filteredLoss);
             }
         }
@@ -304,10 +298,10 @@
             tbody.innerHTML = data.length ? data.map(d => `
                 <tr class="hover:bg-slate-50 transition-colors text-slate-700">
                     <td class="px-6 py-4 font-black">${d.machine}</td>
-                    <td class="px-6 py-4 text-center font-mono text-[10px] text-slate-400">${d.rawStart} - ${d.rawEnd}</td>
+                    <td class="px-6 py-4 text-center font-mono text-[10px] text-slate-400 leading-tight">${d.rawStart} ถึง<br/>${d.rawEnd}</td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700'}">กะ ${d.shift}</span></td>
                     <td class="px-8 py-4 text-right font-mono font-bold">${formatNum(d.weight)}</td>
-                    <td class="px-8 py-4 text-right font-mono text-rose-500">${formatNum(d.waste)}</td>
+                    <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(d.waste)}</td>
                 </tr>
             `).join('') : '<tr><td colspan="5" class="py-20 text-center font-bold text-slate-300 italic">ไม่พบข้อมูลออร์เดอร์ในช่วงที่เลือก</td></tr>';
 
@@ -321,10 +315,11 @@
         }
 
         function renderAnalyticsView(lossData) {
-            // คำนวณสรุปเวลาสูญเสียแยกตามหัวคอลัมน์ในชีท (ตามภาพที่ส่งมา)
+            // จับคู่หัวคอลัมน์ตามรูปใหม่ (image_4033e1.png)
+            // คอลัมน์คือ: "BHS กะ A", "BHS กะ B", "YUELI กะ A" ...
             const stats = MACHINES.map(m => {
-                const keyA = `${m} เวลาสูญเสียกะ A`;
-                const keyB = `${m} เวลาสูญเสียกะ B`;
+                const keyA = `${m} กะ A`;
+                const keyB = `${m} กะ B`;
                 const sumA = lossData.reduce((acc, row) => acc + (parseFloat(row[keyA]) || 0), 0);
                 const sumB = lossData.reduce((acc, row) => acc + (parseFloat(row[keyB]) || 0), 0);
                 return { name: m, a: Math.round(sumA), b: Math.round(sumB) };
@@ -335,10 +330,10 @@
             const tbody = document.getElementById('mgmtTableBody');
             tbody.innerHTML = stats.map(s => `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-8 py-5 font-black text-slate-700 underline decoration-indigo-100 underline-offset-4">${s.name}</td>
+                    <td class="px-8 py-5 font-black text-slate-700 underline decoration-indigo-200 underline-offset-4">${s.name}</td>
                     <td class="px-8 py-5 text-right font-mono font-bold text-indigo-600">${formatNum(s.a)}</td>
                     <td class="px-8 py-5 text-right font-mono font-bold text-indigo-400">${formatNum(s.b)}</td>
-                    <td class="px-8 py-5 text-right font-mono font-black bg-rose-50 text-rose-600">${formatNum(s.a + s.b)}</td>
+                    <td class="px-8 py-5 text-right font-mono font-black bg-rose-50 text-rose-600 italic">${formatNum(s.a + s.b)}</td>
                 </tr>
             `).join('');
         }
@@ -347,7 +342,7 @@
             if (charts[id]) charts[id].destroy();
             charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
                 type: type,
-                data: { labels: labels, datasets: [{ label: l1, data: d1, backgroundColor: '#4f46e5', borderRadius: 10, tension: 0.3 }, { label: l2, data: d2, backgroundColor: '#a5b4fc', borderRadius: 10, tension: 0.3 }] },
+                data: { labels: labels, datasets: [{ label: l1, data: d1, backgroundColor: '#4f46e5', borderRadius: 8, tension: 0.3 }, { label: l2, data: d2, backgroundColor: '#a5b4fc', borderRadius: 8, tension: 0.3 }] },
                 options: { 
                     responsive: true, maintainAspectRatio: false, layout: { padding: { top: 40 } },
                     plugins: { 
@@ -362,7 +357,7 @@
         window.onload = () => {
             lucide.createIcons();
             const now = new Date();
-            const yesterday = new Date(now); yesterday.setDate(now.getDate()-7); // Default ย้อนหลัง 7 วัน
+            const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
             document.getElementById('fromDateTimeInput').value = `${yesterday.toISOString().substring(0,10)}T08:00`;
             document.getElementById('toDateTimeInput').value = `${now.toISOString().substring(0,10)}T08:00`;
             document.getElementById('mgmtFromDate').value = yesterday.toISOString().substring(0,10);
