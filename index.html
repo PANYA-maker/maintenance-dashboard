@@ -18,6 +18,7 @@
         canvas { max-height: 450px; width: 100% !important; }
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         .error-badge { background: #fee2e2; color: #b91c1c; padding: 1rem; border-radius: 1rem; border: 1px solid #f87171; margin: 10px auto; max-width: 500px; font-size: 0.85rem; line-height: 1.6; }
+        .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
     </style>
 </head>
 <body class="pb-12">
@@ -80,7 +81,7 @@
 
     <main class="max-w-7xl mx-auto px-6 mt-8">
         
-        <!-- View 1: Production Details (หน้ารายละเอียดออร์เดอร์) -->
+        <!-- View 1: Production Details -->
         <section id="view-production">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="package" class="text-indigo-500"></i> นน. ผลิตแยกตามกะ (กก.)</h3><canvas id="weightChart"></canvas></div>
@@ -107,14 +108,14 @@
             </div>
         </section>
 
-        <!-- View 2: Management Analytics (หน้าวิเคราะห์ภาพรวม) -->
+        <!-- View 2: Management Analytics (เน้นเวลาสูญเสียและเวลาเดินงาน) -->
         <section id="view-analytics" class="hidden">
             <!-- 1. การ์ดสรุปภาพรวม 3 ใบด้านบน -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="dashboard-card border-t-4 border-t-blue-500">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i data-lucide="play-circle"></i></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาเดินงานจริงรวม</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาเดินงานจริงรวม (3 เครื่อง)</span>
                     </div>
                     <div class="flex items-baseline gap-2">
                         <span id="mgmtOpTimeTotal" class="text-3xl font-black text-slate-800">0</span>
@@ -124,7 +125,7 @@
                 <div class="dashboard-card border-t-4 border-t-rose-500">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i data-lucide="clock-alert"></i></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาสูญเสียรวม</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">เวลาสูญเสียรวม (3 เครื่อง)</span>
                     </div>
                     <div class="flex items-baseline gap-2">
                         <span id="mgmtLossTimeTotal" class="text-3xl font-black text-rose-600">0</span>
@@ -134,7 +135,7 @@
                 <div class="dashboard-card border-t-4 border-t-amber-500">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="percent"></i></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% เวลาสูญเสีย</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% เวลาสูญเสียภาพรวม</span>
                     </div>
                     <div class="flex items-baseline gap-1">
                         <span id="mgmtLossPercent" class="text-3xl font-black text-amber-600">0.0</span>
@@ -143,20 +144,31 @@
                 </div>
             </div>
 
-            <!-- 2. ตารางสรุปรายเครื่องแยกกะ -->
+            <!-- 2. ตารางสรุปรายเครื่องแยกกะ พร้อมเวลาเดินงานและสูญเสีย -->
             <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm mb-8">
-                <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">สรุปเวลาสูญเสียรายกะ : สะสมตามช่วงวันที่เลือก</h3>
+                <div class="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">สรุปผลการเดินเครื่องและเวลาสูญเสียรายกะ</h3>
+                        <p class="text-[10px] text-slate-400 font-bold mt-1">ข้อมูลสะสมตามช่วงวันที่เลือกจากชีท "เวลาเดินงาน" และ "เวลาสูญเสีย"</p>
+                    </div>
                     <div id="analytics-date-range-display" class="text-[10px] text-indigo-600 font-black bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left">
+                    <table class="w-full text-center border-collapse">
                         <thead>
-                            <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b">
-                                <th class="px-8 py-4">รายชื่อเครื่องจักร</th>
-                                <th class="px-8 py-4 text-right">เวลาสูญเสีย กะ A (นาที)</th>
-                                <th class="px-8 py-4 text-right">เวลาสูญเสีย กะ B (นาที)</th>
-                                <th class="px-8 py-4 text-right bg-rose-50 text-rose-600 font-black italic">รวม (นาที)</th>
+                            <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
+                                <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col">เครื่องจักร</th>
+                                <th colspan="2" class="px-4 py-2 border-r border-indigo-100 bg-indigo-50/30 text-indigo-700">กะ A (นาที)</th>
+                                <th colspan="2" class="px-4 py-2 border-r border-orange-100 bg-orange-50/30 text-orange-700">กะ B (นาที)</th>
+                                <th colspan="2" class="px-4 py-2 bg-slate-100 text-slate-800">รวมทั้งหมด (นาที)</th>
+                            </tr>
+                            <tr class="bg-slate-50 text-[9px] font-bold uppercase tracking-tighter border-b">
+                                <th class="px-4 py-2 border-r text-indigo-600">เดินงาน</th>
+                                <th class="px-4 py-2 border-r text-rose-500">สูญเสีย</th>
+                                <th class="px-4 py-2 border-r text-orange-600">เดินงาน</th>
+                                <th class="px-4 py-2 border-r text-rose-500">สูญเสีย</th>
+                                <th class="px-4 py-2 border-r text-slate-700">เดินงาน</th>
+                                <th class="px-4 py-2 text-rose-600 font-black">สูญเสีย</th>
                             </tr>
                         </thead>
                         <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm">
@@ -166,7 +178,7 @@
                 </div>
             </div>
 
-            <!-- 3. กราฟเปรียบเทียบเวลาสูญเสีย (ย้ายมาล่างสุด) -->
+            <!-- 3. กราฟเปรียบเทียบเวลาสูญเสีย -->
             <div class="dashboard-card">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <h3 class="font-bold text-slate-800 text-xl flex items-center gap-3">
@@ -278,9 +290,9 @@
                         });
                     });
                 } else if (res.id === 'loss') {
-                    appState.raw.loss = parseCSV(res.csv, 0); // หัวตารางแถวที่ 1
+                    appState.raw.loss = parseCSV(res.csv, 0); 
                 } else if (res.id === 'op_time') {
-                    appState.raw.op_time = parseCSV(res.csv, 0); // หัวตารางแถวที่ 1
+                    appState.raw.op_time = parseCSV(res.csv, 0); 
                 }
             });
         }
@@ -334,8 +346,8 @@
             data.sort((a,b) => b.startObj - a.startObj);
             tbody.innerHTML = data.length ? data.map(d => `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 font-black text-slate-700">${d.machine}</td>
-                    <td class="px-6 py-4 text-center font-mono text-[10px] text-slate-400 leading-tight">${d.rawStart} - ${d.rawEnd}</td>
+                    <td class="px-6 py-4 font-black text-slate-700 underline decoration-indigo-100">${d.machine}</td>
+                    <td class="px-6 py-4 text-center font-mono text-[10px] text-slate-400 leading-tight">${d.rawStart} ถึง<br/>${d.rawEnd}</td>
                     <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700'}">กะ ${d.shift}</span></td>
                     <td class="px-8 py-4 text-right font-mono font-bold">${formatNum(d.weight)}</td>
                     <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(d.waste)}</td>
@@ -357,10 +369,11 @@
                 const sumLA = lossData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ A`]) || 0), 0);
                 const sumLB = lossData.reduce((acc, row) => acc + (parseFloat(row[`${m} กะ B`]) || 0), 0);
                 
+                // หัวคอลัมน์จากชีทเดินงาน
                 const sumOpA = opData.reduce((acc, row) => acc + (parseFloat(row[`${m} เวลาเดินงานทั้งหมดกะ A`]) || 0), 0);
                 const sumOpB = opData.reduce((acc, row) => acc + (parseFloat(row[`${m} เวลาเดินงานทั้งหมดกะ B`]) || 0), 0);
 
-                return { name: m, la: Math.round(sumLA), lb: Math.round(sumLB), opa: sumOpA, opb: sumOpB };
+                return { name: m, la: Math.round(sumLA), lb: Math.round(sumLB), opa: Math.round(sumOpA), opb: Math.round(sumOpB) };
             });
 
             // 2. คำนวณภาพรวม (การ์ดด้านบน)
@@ -375,14 +388,17 @@
             // 3. กราฟเปรียบเทียบ (ย้ายมาล่างสุด)
             updateChart('lossChart', MACHINES, stats.map(s=>s.la), 'กะ A (นาที)', stats.map(s=>s.lb), 'กะ B (นาที)', 'bar');
 
-            // 4. ตารางสรุปรายเครื่อง
+            // 4. ตารางสรุปรายเครื่องละเอียด
             const tbody = document.getElementById('mgmtTableBody');
             tbody.innerHTML = stats.map(s => `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-8 py-5 font-black text-slate-700 underline decoration-indigo-200 underline-offset-4">${s.name}</td>
-                    <td class="px-8 py-5 text-right font-mono font-bold text-indigo-600">${formatNum(s.la)}</td>
-                    <td class="px-8 py-5 text-right font-mono font-bold text-indigo-400">${formatNum(s.lb)}</td>
-                    <td class="px-8 py-5 text-right font-mono font-black bg-rose-50 text-rose-600 italic underline">${formatNum(s.la + s.lb)}</td>
+                    <td class="px-6 py-4 font-black text-slate-700 table-sticky-col text-left underline decoration-indigo-200">${s.name}</td>
+                    <td class="px-4 py-4 font-mono font-bold text-indigo-600">${formatNum(s.opa)}</td>
+                    <td class="px-4 py-4 font-mono font-bold text-rose-500">${formatNum(s.la)}</td>
+                    <td class="px-4 py-4 font-mono font-bold text-orange-600 border-l border-slate-100">${formatNum(s.opb)}</td>
+                    <td class="px-4 py-4 font-mono font-bold text-rose-500">${formatNum(s.lb)}</td>
+                    <td class="px-4 py-4 font-mono font-black text-slate-800 border-l border-slate-100">${formatNum(s.opa + s.opb)}</td>
+                    <td class="px-4 py-4 font-mono font-black text-rose-600 bg-rose-50/50">${formatNum(s.la + s.lb)}</td>
                 </tr>
             `).join('');
         }
@@ -391,7 +407,7 @@
             if (charts[id]) charts[id].destroy();
             charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
                 type: type,
-                data: { labels: labels, datasets: [{ label: l1, data: d1, backgroundColor: '#4f46e5', borderRadius: 8, tension: 0.3 }, { label: l2, data: d2, backgroundColor: '#a5b4fc', borderRadius: 8, tension: 0.3 }] },
+                data: { labels: labels, datasets: [{ label: l1, data: d1, backgroundColor: '#4f46e5', borderRadius: 10, tension: 0.3 }, { label: l2, data: d2, backgroundColor: '#a5b4fc', borderRadius: 10, tension: 0.3 }] },
                 options: { 
                     responsive: true, maintainAspectRatio: false, layout: { padding: { top: 40 } },
                     plugins: { 
