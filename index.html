@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrugator Management Analytics - Pro V5</title>
+    <title>Corrugator Executive Dashboard - Final v6</title>
     <!-- Library Setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,135 +13,139 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
         body { background-color: #f8fafc; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .chart-container { position: relative; height: 350px; width: 100%; }
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .chart-container { position: relative; height: 320px; width: 100%; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
         .trophy-1 { color: #fbbf24; fill: #fef3c7; } 
         .trophy-2 { color: #94a3b8; fill: #f1f5f9; } 
         .trophy-3 { color: #b45309; fill: #ffedd5; }
-        .analysis-gradient { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 6px solid #0284c7; }
-        input[type="date"] { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.25rem 0.5rem; font-weight: bold; color: #1e293b; background: white; }
+        .analysis-gradient { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 6px solid #0369a1; }
+        input[type="date"] { border: 1px solid #cbd5e1; border-radius: 0.5rem; padding: 0.3rem 0.5rem; font-weight: bold; font-size: 13px; }
     </style>
 </head>
 <body class="pb-24">
 
     <div id="loadingOverlay" class="loading-overlay">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p id="loading-text" class="font-bold text-slate-700 text-lg">กำลังซิงค์ข้อมูลและประมวลผล...</p>
-        <p id="error-display" class="hidden mt-4 p-4 bg-red-100 text-red-700 rounded-xl max-w-md text-sm text-center font-bold"></p>
+        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
+        <p id="loading-text" class="font-bold text-slate-700">กำลังซิงค์ข้อมูลจาก Google Sheets...</p>
+        <p id="error-display" class="hidden mt-4 p-4 bg-red-50 text-red-700 rounded-xl max-w-lg text-sm text-center border border-red-200"></p>
     </div>
 
     <!-- Top Navigation -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-4">
-                <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-lg"><i data-lucide="layout-dashboard"></i></div>
+        <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-xl text-white"><i data-lucide="layout-dashboard"></i></div>
                 <div>
-                    <h1 class="text-xl font-black text-slate-800 uppercase italic leading-none">Corrugator <span class="text-indigo-600">Analytics</span></h1>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Management Pro v5.0</p>
+                    <h1 class="text-xl font-black text-slate-800 uppercase italic leading-none tracking-tight">Executive <span class="text-indigo-600">Analytics</span></h1>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Real-time Performance Monitoring</p>
                 </div>
             </div>
             
-            <div class="flex items-center gap-3 bg-indigo-50 p-2 rounded-2xl border border-indigo-100">
-                <div class="flex flex-col px-4 border-r border-indigo-100">
-                    <span class="text-[9px] font-bold text-indigo-600 uppercase text-center mb-1">ช่วงวันที่วิเคราะห์</span>
-                    <div class="flex gap-2 items-center">
-                        <input type="date" id="mgmtFromDate" onchange="debouncedRender()">
-                        <span class="text-indigo-300 font-bold">ถึง</span>
-                        <input type="date" id="mgmtToDate" onchange="debouncedRender()">
-                    </div>
+            <div class="flex items-center gap-2 bg-indigo-50 p-2 rounded-2xl border border-indigo-100">
+                <div class="flex items-center gap-2 px-3 border-r border-indigo-100">
+                    <span class="text-[10px] font-bold text-indigo-600 uppercase">วันที่</span>
+                    <input type="date" id="mgmtFromDate">
+                    <span class="text-indigo-300 font-bold">-</span>
+                    <input type="date" id="mgmtToDate">
                 </div>
-                <button onclick="fetchSheetData()" class="bg-white text-indigo-600 px-5 py-2.5 rounded-xl text-xs font-black shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-all flex items-center gap-2">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> ซิงค์ข้อมูลล่าสุด
+                <button onclick="fetchSheetData()" class="bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-black shadow-sm border border-indigo-200 hover:bg-indigo-100 transition-all flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i> Sync
                 </button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 mt-8 space-y-12">
+    <main id="mainContent" class="max-w-7xl mx-auto px-6 mt-8 space-y-12 opacity-0 transition-opacity duration-500">
 
         <!-- EXECUTIVE ANALYSIS SECTION -->
         <section id="executive-summary" class="dashboard-card analysis-gradient border-none">
             <div class="flex items-center gap-3 mb-6">
-                <div class="p-2 bg-white rounded-xl shadow-sm"><i data-lucide="sparkles" class="text-indigo-600"></i></div>
-                <h2 class="text-lg font-black text-slate-800 tracking-tight">Executive Summary & AI Analysis (บทวิเคราะห์)</h2>
+                <div class="p-2 bg-white rounded-xl shadow-sm"><i data-lucide="brain-circuit" class="text-sky-600"></i></div>
+                <h2 class="text-lg font-black text-slate-800">สรุปบทวิเคราะห์ภาพรวม (Executive AI Summary)</h2>
             </div>
             <div id="analysis-content" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <div class="lg:col-span-4 py-8 text-center text-slate-400 italic">กำลังวิเคราะห์ข้อมูล...</div>
+                <!-- Analysis Content Injected Here -->
             </div>
         </section>
 
         <!-- SECTION 1: SPEED & METER -->
-        <section id="perf-section" class="space-y-6">
-            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
+        <section class="space-y-6">
+            <div class="flex items-center gap-3"><div class="h-6 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
             <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
             <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
-                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500 italic">
-                        <tr class="border-b">
-                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
-                            <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th>
-                            <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th>
-                            <th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                        </tr>
-                        <tr class="text-[9px] border-b">
-                            <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 border-r font-black">Speed</th>
-                            <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 border-r font-black">Speed</th>
-                            <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 font-black">Speed</th>
-                        </tr>
-                    </thead>
-                    <tbody id="perfTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
-                </table></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center border-collapse min-w-[1000px]">
+                        <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                            <tr class="border-b">
+                                <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                                <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th>
+                                <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th>
+                                <th colspan="3" class="px-4 py-2 bg-slate-100 font-bold">รวมทั้งหมด</th>
+                            </tr>
+                            <tr class="text-[9px] border-b">
+                                <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 border-r">Speed</th>
+                                <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 border-r">Speed</th>
+                                <th class="py-2 border-r">นาที</th><th class="py-2 border-r">เมตร</th><th class="py-2 font-black">Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="perfTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
             </div>
             <div class="dashboard-card"><div class="chart-container"><canvas id="speedChart"></canvas></div></div>
         </section>
 
         <!-- SECTION 2: LOSS TIME -->
-        <section id="loss-section" class="space-y-6">
-            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-rose-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">2. การวิเคราะห์เวลาสูญเสีย (Loss Time)</h2></div>
+        <section class="space-y-6">
+            <div class="flex items-center gap-3"><div class="h-6 w-1.5 bg-rose-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800">2. การวิเคราะห์เวลาสูญเสีย (Loss Time)</h2></div>
             <div id="loss-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
             <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
-                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500 italic">
-                        <tr class="border-b">
-                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
-                            <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A (นาที)</th>
-                            <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B (นาที)</th>
-                            <th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด (นาที)</th>
-                        </tr>
-                        <tr class="text-[9px] border-b">
-                            <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 border-r font-black">%</th>
-                            <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 border-r font-black">%</th>
-                            <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 font-black">%</th>
-                        </tr>
-                    </thead>
-                    <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
-                </table></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center border-collapse min-w-[1000px]">
+                        <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                            <tr class="border-b">
+                                <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                                <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A (%)</th>
+                                <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B (%)</th>
+                                <th colspan="3" class="px-4 py-2 bg-slate-100 font-bold">รวมทั้งหมด (%)</th>
+                            </tr>
+                            <tr class="text-[9px] border-b">
+                                <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 border-r">Loss%</th>
+                                <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 border-r">Loss%</th>
+                                <th class="py-2 border-r">เดินงาน</th><th class="py-2 border-r">สูญเสีย</th><th class="py-2 font-black">Loss%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mgmtTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
             </div>
             <div class="dashboard-card"><div class="chart-container"><canvas id="lossChart"></canvas></div></div>
         </section>
 
-        <!-- SECTION 3: ORDER SHORTAGE -->
-        <section id="short-section" class="space-y-6">
-            <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-indigo-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">3. การวิเคราะห์งานขาดจำนวน (Order Shortage)</h2></div>
+        <!-- SECTION 3: SHORTAGE -->
+        <section class="space-y-6">
+            <div class="flex items-center gap-3"><div class="h-6 w-1.5 bg-sky-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800">3. งานขาดจำนวน (Shortage Analysis)</h2></div>
             <div id="short-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
             <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
-                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500 italic">
-                        <tr class="border-b">
-                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
-                            <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th>
-                            <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th>
-                            <th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                        </tr>
-                        <tr class="text-[9px] border-b">
-                            <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 border-r font-black">%</th>
-                            <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 border-r font-black">%</th>
-                            <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 font-black">%</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shortTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
-                </table></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center border-collapse min-w-[1000px]">
+                        <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                            <tr class="border-b">
+                                <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                                <th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th>
+                                <th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th>
+                                <th colspan="3" class="px-4 py-2 bg-slate-100 font-bold">รวมทั้งหมด</th>
+                            </tr>
+                            <tr class="text-[9px] border-b">
+                                <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 border-r">Short%</th>
+                                <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 border-r">Short%</th>
+                                <th class="py-2 border-r">ออเดอร์</th><th class="py-2 border-r">ขาด</th><th class="py-2 font-black">Short%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shortTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
             </div>
             <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
         </section>
@@ -159,31 +163,33 @@
             {id:'shortage',name:'ขาดจำนวน'}
         ];
 
-        let appState = { raw: {}, isRendering: false, debounceTimer: null };
+        let appState = { raw: {}, isRendering: false };
         let charts = {};
 
         const formatNum = (n) => new Intl.NumberFormat('th-TH').format(Math.round(n || 0));
 
         async function fetchSheetData() {
             const overlay = document.getElementById('loadingOverlay');
-            const errorDisplay = document.getElementById('error-display');
+            const errDiv = document.getElementById('error-display');
             overlay.style.display = 'flex';
-            errorDisplay.classList.add('hidden');
+            errDiv.classList.add('hidden');
             
             try {
                 for (const cfg of ALL_SHEETS) {
                     const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`ไม่สามารถโหลดชีท "${cfg.name}"`);
-                    const text = await response.text();
-                    if (text.includes('<html')) throw new Error(`กรุณา Publish ชีท "${cfg.name}" เป็น CSV`);
-                    appState.raw[cfg.id] = parseCSV(text);
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`โหลดชีท "${cfg.name}" ไม่สำเร็จ`);
+                    const csv = await res.text();
+                    if (csv.includes('<html')) throw new Error(`ชีท "${cfg.name}" ยังไม่ได้ Publish เป็น CSV`);
+                    appState.raw[cfg.id] = parseCSV(csv);
                 }
+                document.getElementById('mainContent').style.opacity = '1';
                 renderDashboard();
                 overlay.style.display = 'none';
             } catch (err) {
-                errorDisplay.innerText = "❌ Sync Failed: " + err.message;
-                errorDisplay.classList.remove('hidden');
+                errDiv.innerText = `⚠️ ข้อมูลไม่พร้อม: ${err.message}`;
+                errDiv.classList.remove('hidden');
+                console.error(err);
             }
         }
 
@@ -193,15 +199,9 @@
             const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
             return lines.slice(1).map(line => {
                 const row = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
-                const obj = {}; 
-                headers.forEach((h, idx) => obj[h] = row[idx]);
+                const obj = {}; headers.forEach((h, idx) => obj[h] = row[idx]);
                 return obj;
             });
-        }
-
-        function debouncedRender() {
-            if (appState.debounceTimer) clearTimeout(appState.debounceTimer);
-            appState.debounceTimer = setTimeout(() => renderDashboard(), 250);
         }
 
         function renderDashboard() {
@@ -209,40 +209,41 @@
             appState.isRendering = true;
 
             try {
-                const fromStr = document.getElementById('mgmtFromDate').value;
-                const toStr = document.getElementById('mgmtToDate').value;
-                if (!fromStr || !toStr) { appState.isRendering = false; return; }
+                const fStr = document.getElementById('mgmtFromDate').value;
+                const tStr = document.getElementById('mgmtToDate').value;
+                if (!fStr || !tStr) return;
 
-                const from = new Date(fromStr); from.setHours(0,0,0,0);
-                const to = new Date(toStr); to.setHours(23,59,59,999);
+                const fD = new Date(fStr); fD.setHours(0,0,0,0);
+                const tD = new Date(tStr); tD.setHours(23,59,59,999);
 
                 const filter = (id) => appState.raw[id]?.filter(r => {
-                    const d = r['วันที่']?.split('/') || [];
-                    if (d.length < 3) return false;
+                    const d = r['วันที่']?.split('/');
+                    if (!d) return false;
                     const dateObj = new Date(d[2]>2500?d[2]-543:d[2], d[1]-1, d[0]);
-                    return dateObj >= from && dateObj <= to;
+                    return dateObj >= fD && dateObj <= tD;
                 }) || [];
 
                 const stats = MACHINES.map(m => {
-                    const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
+                    const sum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
                     const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
                     
-                    // ปรับชื่อคอลัมน์ตามรูปภาพที่ส่งมา
-                    const la = getSum(l, `${m} เวลาสูญเสียกะ A`), lb = getSum(l, `${m} เวลาสูญเสียกะ B`);
-                    const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
-                    const ma = getSum(met, `${m} กะ A`), mb = getSum(met, `${m} กะ B`);
-                    
-                    const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
-                    const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
+                    const la = sum(l, `${m} เวลาสูญเสียกะ A`), lb = sum(l, `${m} เวลาสูญเสียกะ B`);
+                    const opa = sum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = sum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
+                    const ma = sum(met, `${m} กะ A`), mb = sum(met, `${m} กะ B`);
+                    const saO = sum(sh, `${m} กะ A เดินงาน order`), sbO = sum(sh, `${m} กะ B เดินงาน order`);
+                    const saM = sum(sh, `${m} กะ A ขาด`), sbM = sum(sh, `${m} กะ B ขาด`);
+
+                    const totalOp = opa + opb, totalMet = ma + mb, totalLoss = la + lb, totalOrd = saO + sbO, totalMiss = saM + sbM;
 
                     return {
-                        name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
-                        spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
-                        pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
-                        pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
+                        name: m, la, lb, opa, opb, ma, mb, saO, sbO, saM, sbM,
+                        spdTotal: totalOp > 0 ? totalMet/totalOp : 0,
+                        pctLoss: totalOp > 0 ? (totalLoss/totalOp)*100 : 0,
+                        pctShort: totalOrd > 0 ? (totalMiss/totalOrd)*100 : 0,
                         spdA: opa>0?ma/opa:0, spdB: opb>0?mb/opb:0,
-                        pctA: opa>0?la/opa*100:0, pctB: opb>0?lb/opb*100:0,
-                        shPctA: shaO>0?shaM/shaO*100:0, shPctB: shbO>0?shbM/shbO*100:0
+                        plA: opa>0?(la/opa)*100:0, plB: opb>0?(lb/opb)*100:0,
+                        psA: saO>0?(saM/saO)*100:0, psB: sbO>0?(sbM/sbO)*100:0,
+                        totalOp, totalMet, totalLoss, totalOrd, totalMiss
                     };
                 });
 
@@ -252,22 +253,21 @@
                 renderCharts(stats);
                 lucide.createIcons();
             } catch (err) {
-                console.error("Render Error:", err);
-            } finally {
-                appState.isRendering = false;
-            }
+                console.error("Render error:", err);
+            } finally { appState.isRendering = false; }
         }
 
         function renderSummary(stats) {
-            const ranked = [...stats].sort((a,b) => (b.spdTotal/150 - a.spdTotal/150) + (a.pctLoss/50 - b.pctLoss/50));
+            // Rank by weighted score (Speed/150 - Loss%/30 - Short%/10)
+            const ranked = [...stats].sort((a,b) => (b.spdTotal/150 - b.pctLoss/30 - b.pctShort/10) - (a.spdTotal/150 - a.pctLoss/30 - a.pctShort/10));
             const champ = ranked[0];
             const content = document.getElementById('analysis-content');
             content.innerHTML = `
                 <div class="lg:col-span-1 flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border-2 border-amber-200">
-                    <div class="text-[10px] font-black uppercase text-amber-600 mb-2 italic tracking-widest">Champion Machine</div>
-                    <i data-lucide="trophy" class="w-16 h-16 trophy-1 mb-3"></i>
-                    <div class="text-3xl font-black text-slate-800 tracking-tight">${champ.name}</div>
-                    <div class="text-[10px] font-bold text-slate-400 mt-2 uppercase">ประสิทธิภาพภาพรวมอันดับ 1</div>
+                    <div class="text-[10px] font-black uppercase text-amber-600 mb-2 italic">Productivity Champ</div>
+                    <i data-lucide="trophy" class="w-16 h-16 trophy-1 mb-4"></i>
+                    <div class="text-3xl font-black text-slate-800">${champ.name}</div>
+                    <div class="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Performance อันดับ 1</div>
                 </div>
                 <div class="lg:col-span-3 space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -275,53 +275,49 @@
                             <div class="space-y-1">
                                 <div class="font-black text-slate-800 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-indigo-500"></div> เครื่อง ${s.name}</div>
                                 <div class="text-[11px] text-slate-600 leading-relaxed italic">
-                                    <b>จุดเด่น:</b> ${s.spdTotal > 100 ? 'สปีดเดินเครื่องดีเยี่ยม' : 'ควบคุม Loss ได้สม่ำเสมอ'}<br/>
-                                    <b>ปรับปรุง:</b> ${s.pctLoss > 12 ? 'ลดเวลาหยุดเปลี่ยนกะ' : (s.pctShort > 5 ? 'ความแม่นยำจำนวนผลิต' : 'รักษามาตรฐานเดิม')}<br/>
-                                    <b class="text-indigo-600 underline">กะที่ต้องเน้น:</b> ${s.pctA > s.pctB ? 'กะ A' : 'กะ B'}
+                                    <b>จุดเด่น:</b> ${s.spdTotal > 105 ? 'สปีดเดินงานเฉลี่ยสูง' : 'คุม Loss ได้ดีเยี่ยม'}<br/>
+                                    <b>ปรับปรุง:</b> ${s.pctLoss > 10 ? 'ลดเวลาหยุดเปลี่ยนกะ' : (s.pctShort > 4 ? 'ความแม่นยำจำนวนออร์เดอร์' : 'รักษามาตรฐานเดิม')}<br/>
+                                    <b class="text-indigo-600">กะที่ต้องเน้น:</b> ${s.plA > s.plB ? 'กะ A' : 'กะ B'}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <div class="p-3 bg-white/60 rounded-2xl border border-indigo-100 flex items-start gap-3 shadow-inner">
-                        <i data-lucide="lightbulb" class="text-amber-500 w-5 h-5 shrink-0 mt-0.5"></i>
-                        <p class="text-[11px] text-slate-600 font-medium italic"><b>คำแนะนำ:</b> ช่วงเวลานี้ควรเน้นออเดอร์งานยาวให้เครื่อง <b>${ranked[0].name}</b> และงานด่วนที่เน้นความเป๊ะให้เครื่องที่มี %งานขาดน้อยที่สุด</p>
+                    <div class="p-4 bg-white/60 rounded-2xl border border-sky-100 flex items-start gap-4 shadow-inner">
+                        <i data-lucide="info" class="text-sky-600 w-5 h-5 mt-1 shrink-0"></i>
+                        <p class="text-xs text-slate-600 font-medium"><b>คำแนะนำฝ่ายบริหาร:</b> ในช่วงที่ผ่านมาเครื่อง <b>${champ.name}</b> ทำผลงานได้เสถียรที่สุด แนะนำให้จัดลำดับงานด่วนและงานเมตรสูงให้เครื่องนี้ก่อน ส่วนเครื่องที่งานขาดจำนวนบ่อยครั้งควรตรวจสอบระบบตรวจนับหน้าเครื่องอีกครั้ง</p>
                     </div>
                 </div>`;
         }
 
         function renderKPIs(stats) {
-            const sum = (key) => stats.reduce((acc, s) => acc + s[key], 0);
-            const tOp = sum('opa') + sum('opb');
-            const tMet = sum('ma') + sum('mb');
-            const tLoss = sum('la') + sum('lb');
-            const tOrd = sum('shaO') + sum('shbO');
-            const tMiss = sum('shaM') + sum('shbM');
+            const sum = (k) => stats.reduce((a,s)=>a+s[k],0);
+            const tOp = sum('totalOp'), tMet = sum('totalMet'), tLoss = sum('totalLoss'), tOrd = sum('totalOrd'), tMiss = sum('totalMiss');
 
-            const kpi = (icon, label, val, unit, color) => `
-                <div class="dashboard-card border-t-4 border-t-${color}-500">
-                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-${color}-50 text-${color}-600 rounded-lg"><i data-lucide="${icon}"></i></div><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${label}</span></div>
-                    <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${val}</span><span class="text-xs font-bold text-slate-400 italic">${unit}</span></div>
+            const kpi = (icon, lbl, val, unit, col) => `
+                <div class="dashboard-card border-t-4 border-t-${col}-500">
+                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-${col}-50 text-${col}-600 rounded-lg"><i data-lucide="${icon}" class="w-4 h-4"></i></div><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${lbl}</span></div>
+                    <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${val}</span><span class="text-[10px] font-bold text-slate-400 italic">${unit}</span></div>
                 </div>`;
 
             document.getElementById('perf-kpis').innerHTML = kpi('clock','เวลาเดินงานรวม',formatNum(tOp),'นาที','blue') + kpi('layers','เมตรรวม',formatNum(tMet),'เมตร','emerald') + kpi('gauge','สปีดเฉลี่ย',(tMet/(tOp||1)).toFixed(1),'m/min','indigo');
-            document.getElementById('loss-kpis').innerHTML = kpi('clock','เวลาเดินงานรวม',formatNum(tOp),'นาที','blue') + kpi('clock-alert','เวลาสูญเสียรวม',formatNum(tLoss),'นาที','rose') + kpi('percent','% สูญเสีย',(tLoss/(tOp||1)*100).toFixed(1),'%','amber');
-            document.getElementById('short-kpis').innerHTML = kpi('clipboard-list','ออเดอร์รวม',formatNum(tOrd),'Orders','blue') + kpi('alert-circle','ออเดอร์ขาด',formatNum(tMiss),'Orders','rose') + kpi('percent','% ขาดจำนวน',(tMiss/(tOrd||1)*100).toFixed(1),'%','indigo');
+            document.getElementById('loss-kpis').innerHTML = kpi('clock','เวลาเดินงานรวม',formatNum(tOp),'นาที','blue') + kpi('clock-alert','เวลาสูญเสียรวม',formatNum(tLoss),'นาที','rose') + kpi('percent','% สูญเสียรวม',(tLoss/(tOp||1)*100).toFixed(1),'%','amber');
+            document.getElementById('short-kpis').innerHTML = kpi('clipboard-list','ออเดอร์รวม',formatNum(tOrd),'Order','blue') + kpi('alert-triangle','งานขาดจำนวนรวม',formatNum(tMiss),'Order','rose') + kpi('percent','% งานขาดรวม',(tMiss/(tOrd||1)*100).toFixed(1),'%','indigo');
         }
 
         function renderTables(stats) {
             const trophy = (i) => i < 3 ? `<i data-lucide="trophy" class="w-5 h-5 trophy-${i+1}"></i>` : '';
             
-            const pRank = [...stats].sort((a,b)=>b.spdTotal-a.spdTotal);
-            document.getElementById('perfTableBody').innerHTML = pRank.map((s,i)=>`
-                <tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy(i)}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400 font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold">${formatNum(s.ma+s.mb)}</td><td class="px-3 py-4 font-black bg-emerald-50">${s.spdTotal.toFixed(1)}</td></tr>`).join('');
+            const pR = [...stats].sort((a,b)=>b.spdTotal-a.spdTotal);
+            document.getElementById('perfTableBody').innerHTML = pR.map((s,i)=>`
+                <tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy(i)}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-bold">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-bold">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.totalOp)}</td><td class="px-3 py-4 font-bold text-emerald-700">${formatNum(s.totalMet)}</td><td class="px-3 py-4 font-black bg-emerald-50">${s.spdTotal.toFixed(1)}</td></tr>`).join('');
 
-            const lRank = [...stats].sort((a,b)=>a.pctLoss-b.pctLoss);
-            document.getElementById('mgmtTableBody').innerHTML = lRank.map((s,i)=>`
-                <tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy(i)}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.la)}</td><td class="px-3 py-4 font-black">${s.pctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black">${s.pctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50">${s.pctLoss.toFixed(1)}%</td></tr>`).join('');
+            const lR = [...stats].sort((a,b)=>a.pctLoss-b.pctLoss);
+            document.getElementById('mgmtTableBody').innerHTML = lR.map((s,i)=>`
+                <tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy(i)}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500 font-bold">${formatNum(s.la)}</td><td class="px-3 py-4 font-black text-amber-600">${s.plA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500 font-bold">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black text-amber-600">${s.plB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.totalOp)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.totalLoss)}</td><td class="px-3 py-4 font-black bg-rose-50">${s.pctLoss.toFixed(1)}%</td></tr>`).join('');
 
-            const sRank = [...stats].sort((a,b)=>a.pctShort-b.pctShort);
-            document.getElementById('shortTableBody').innerHTML = sRank.map((s,i)=>`
-                <tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm"><div class="flex items-center gap-3">${trophy(i)}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.shaO)}</td><td class="px-3 py-4 text-rose-500 font-bold">${formatNum(s.shaM)}</td><td class="px-3 py-4 font-black">${s.shPctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.shbO)}</td><td class="px-3 py-4 text-rose-500 font-bold">${formatNum(s.shbM)}</td><td class="px-3 py-4 font-black">${s.shPctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.shaO+s.shbO)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.shaM+s.shbM)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline">${s.pctShort.toFixed(1)}%</td></tr>`).join('');
+            const sR = [...stats].sort((a,b)=>a.pctShort-b.pctShort);
+            document.getElementById('shortTableBody').innerHTML = sR.map((s,i)=>`
+                <tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm"><div class="flex items-center gap-3">${trophy(i)}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.saO)}</td><td class="px-3 py-4 text-rose-500 font-bold">${formatNum(s.saM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.psA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.sbO)}</td><td class="px-3 py-4 text-rose-500 font-bold">${formatNum(s.sbM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.psB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.totalOrd)}</td><td class="px-3 py-4 font-bold text-rose-700">${formatNum(s.totalMiss)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline">${s.pctShort.toFixed(1)}%</td></tr>`).join('');
         }
 
         function renderCharts(stats) {
@@ -333,17 +329,16 @@
                     options: {
                         responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { position: 'bottom' }, datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold' }, formatter: v => v>0 ? v.toFixed(1)+unit : '' } },
-                        scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+                        scales: { y: { beginAtZero: true, grid: { display: false }, ticks: { callback: v => v+unit } }, x: { grid: { display: false } } }
                     }
                 });
             };
             draw('speedChart', stats.map(s=>s.spdA), stats.map(s=>s.spdB), '#10b981', '#a7f3d0', '');
-            draw('lossChart', stats.map(s=>s.pctA), stats.map(s=>s.pctB), '#f43f5e', '#fecdd3', '%');
-            draw('shortChart', stats.map(s=>s.shPctA), stats.map(s=>s.shPctB), '#6366f1', '#c7d2fe', '%');
+            draw('lossChart', stats.map(s=>s.plA), stats.map(s=>s.plB), '#f43f5e', '#fecdd3', '%');
+            draw('shortChart', stats.map(s=>s.psA), stats.map(s=>s.psB), '#6366f1', '#c7d2fe', '%');
         }
 
         window.onload = () => {
-            lucide.createIcons();
             const now = new Date(); const yes = new Date(now); yes.setDate(now.getDate()-1);
             document.getElementById('mgmtFromDate').value = yes.toISOString().substring(0,10);
             document.getElementById('mgmtToDate').value = now.toISOString().substring(0,10);
