@@ -22,13 +22,16 @@
         .trophy-1 { color: #fbbf24; } /* Gold */
         .trophy-2 { color: #94a3b8; } /* Silver */
         .trophy-3 { color: #b45309; } /* Bronze */
+
+        /* Input Date Styles */
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; border-radius: 4px; padding: 2px; filter: invert(30%) sepia(50%) saturate(1000%) hue-rotate(220deg) brightness(90%) contrast(90%); }
     </style>
 </head>
 <body class="pb-12">
 
     <div id="loadingOverlay" class="loading-overlay">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังประมวลผลข้อมูลบริหาร...<br/><span id="loading-status" class="text-sm font-normal text-slate-400 italic">กรุณารอสักครู่</span></p>
+        <p class="font-bold text-slate-700 animate-pulse text-lg text-center">กำลังซิงค์ข้อมูลล่าสุด...<br/><span id="loading-status" class="text-sm font-normal text-slate-400 italic">กรุณารอสักครู่</span></p>
         <div id="error-log" class="hidden error-badge shadow-2xl"></div>
     </div>
 
@@ -42,21 +45,21 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Analytics</span> Pro</h1>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Management Analytics System</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Real-time Performance Dashboard</p>
                     </div>
                 </div>
                 
-                <div class="flex flex-wrap items-center justify-center gap-2 bg-indigo-50 p-2 rounded-2xl border border-indigo-200">
-                    <div class="flex flex-col px-4 border-r border-indigo-200">
+                <div class="flex flex-wrap items-center justify-center gap-2 bg-indigo-50 p-2 rounded-2xl border border-indigo-100">
+                    <div class="flex flex-col px-4 border-r border-indigo-100">
                         <span class="text-[9px] font-bold text-indigo-600 uppercase tracking-tighter italic text-center w-full italic">เลือกช่วงวันที่บริหาร</span>
                         <div class="flex gap-2">
-                            <input type="date" id="mgmtFromDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
+                            <input type="date" id="mgmtFromDate" onchange="renderDashboard()" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
                             <span class="text-indigo-300">ถึง</span>
-                            <input type="date" id="mgmtToDate" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
+                            <input type="date" id="mgmtToDate" onchange="renderDashboard()" class="bg-transparent border-none focus:outline-none font-bold text-indigo-700 text-xs">
                         </div>
                     </div>
-                    <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
-                        <i data-lucide="search" class="w-4 h-4"></i> ค้นหาข้อมูล
+                    <button onclick="fetchSheetData()" class="bg-white text-indigo-600 px-6 py-3 rounded-xl text-xs font-black shadow-sm border border-indigo-100 hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Sync Data
                     </button>
                 </div>
             </div>
@@ -65,7 +68,7 @@
 
     <main class="max-w-7xl mx-auto px-6 mt-8">
         
-        <!-- View 2: Management Analytics (Single Page Now) -->
+        <!-- View Management Analytics -->
         <section id="view-analytics">
             <!-- KPIs -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 text-center sm:text-left">
@@ -106,7 +109,7 @@
                 <div class="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h3 class="font-bold text-slate-800 uppercase tracking-widest text-sm italic">จัดอันดับประสิทธิภาพ : สรุปเวลาสูญเสียรายกะ (พร้อม %)</h3>
-                        <p class="text-[10px] text-slate-400 font-bold mt-1 uppercase">Ranking by efficiency (Lowest % Loss = Rank 1)</p>
+                        <p class="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">Automatic ranking based on selected date range</p>
                     </div>
                     <div id="analytics-date-range-display" class="text-[10px] text-indigo-600 font-black bg-white px-4 py-1.5 rounded-full border shadow-sm"></div>
                 </div>
@@ -154,7 +157,6 @@
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         
-        // กรองเอาเฉพาะชีทที่จำเป็นต่อหน้าบริหารออก
         const ALL_SHEETS = [
             { id: 'loss', name: 'เวลาสูญเสีย' },
             { id: 'op_time', name: 'เวลาเดินงาน' }
@@ -215,7 +217,6 @@
 
         function processAllData(results) {
             results.forEach(res => {
-                // ข้อมูลบริหารทุกตัวเริ่มหัวคอลัมน์ที่แถวแรก (index 0)
                 appState.raw[res.id] = parseCSV(res.csv, 0);
             });
         }
@@ -231,11 +232,21 @@
         }
 
         function renderDashboard() {
+            // ป้องกันการเรียกซ้ำซ้อน
             if (appState.isRendering) return;
             appState.isRendering = true;
+            
             try {
-                const mFrom = new Date(document.getElementById('mgmtFromDate').value);
-                const mTo = new Date(document.getElementById('mgmtToDate').value);
+                const fromInput = document.getElementById('mgmtFromDate').value;
+                const toInput = document.getElementById('mgmtToDate').value;
+                
+                if (!fromInput || !toInput) {
+                    appState.isRendering = false;
+                    return;
+                }
+
+                const mFrom = new Date(fromInput);
+                const mTo = new Date(toInput);
                 mFrom.setHours(0,0,0,0); mTo.setHours(23,59,59,999);
 
                 const filterData = (id) => appState.raw[id]?.filter(row => {
@@ -246,9 +257,13 @@
                 const filteredLoss = filterData('loss');
                 const filteredOp = filterData('op_time');
 
-                document.getElementById('analytics-date-range-display').innerText = `${document.getElementById('mgmtFromDate').value} TO ${document.getElementById('mgmtToDate').value}`;
+                document.getElementById('analytics-date-range-display').innerText = `${fromInput} TO ${toInput}`;
                 renderAnalyticsView(filteredLoss, filteredOp);
-            } finally { appState.isRendering = false; }
+            } catch (err) {
+                console.error("Render Error:", err);
+            } finally { 
+                appState.isRendering = false; 
+            }
         }
 
         function renderAnalyticsView(lossData, opData) {
@@ -272,19 +287,21 @@
                 };
             });
 
+            // Update KPI Cards
             const totalLossValue = stats.reduce((acc, s) => acc + s.la + s.lb, 0);
             const totalOpValue = stats.reduce((acc, s) => acc + s.opa + s.opb, 0);
             document.getElementById('mgmtLossTimeTotal').innerText = formatNum(totalLossValue);
             document.getElementById('mgmtOpTimeTotal').innerText = formatNum(totalOpValue);
             document.getElementById('mgmtLossPercent').innerText = totalOpValue > 0 ? ((totalLossValue / totalOpValue) * 100).toFixed(1) : "0.0";
 
-            stats.sort((a, b) => parseFloat(a.pctTotal) - parseFloat(b.pctTotal));
+            // Sorting for Ranking (In-place copy to not affect machines order for chart)
+            const rankedStats = [...stats].sort((a, b) => parseFloat(a.pctTotal) - parseFloat(b.pctTotal));
             
             const medalColors = ['trophy-1', 'trophy-2', 'trophy-3'];
             const rankNames = ['อันดับที่ 1', 'อันดับที่ 2', 'อันดับที่ 3'];
 
             const tbody = document.getElementById('mgmtTableBody');
-            tbody.innerHTML = stats.map((s, index) => {
+            tbody.innerHTML = rankedStats.map((s, index) => {
                 const trophyClass = medalColors[index] || 'text-slate-400';
                 return `
                 <tr class="hover:bg-slate-50 transition-colors">
@@ -313,11 +330,11 @@
 
             lucide.createIcons();
 
-            const chartStats = MACHINES.map(m => stats.find(s => s.name === m));
-            updateChart('lossChart', MACHINES, chartStats.map(s=>s.pctRawA), 'กะ A (%)', chartStats.map(s=>s.pctRawB), 'กะ B (%)', 'bar', '%');
+            // Chart Update (Using original MACHINES order)
+            updateChart('lossChart', MACHINES, stats.map(s=>s.pctRawA), 'กะ A (%)', stats.map(s=>s.pctRawB), 'กะ B (%)', 'bar');
         }
 
-        function updateChart(id, labels, d1, l1, d2, l2, type, unit) {
+        function updateChart(id, labels, d1, l1, d2, l2, type) {
             const ctx = document.getElementById(id);
             if (!ctx) return;
             if (charts[id]) charts[id].destroy();
@@ -347,8 +364,11 @@
             const now = new Date();
             const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
             
+            // ตั้งค่าเริ่มต้น
             document.getElementById('mgmtFromDate').value = yesterday.toISOString().substring(0,10);
             document.getElementById('mgmtToDate').value = now.toISOString().substring(0,10);
+            
+            // ดึงข้อมูลครั้งแรก
             fetchSheetData();
         };
     </script>
