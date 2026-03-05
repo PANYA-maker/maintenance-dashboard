@@ -3,159 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corrugator Multi-Sheet Analytics</title>
-    <!-- โหลด Library พื้นฐาน -->
+    <title>Corrugator Analytics Pro</title>
+    <!-- Library Setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- เพิ่มปลั๊กอินสำหรับแสดงตัวเลขบนกราฟ -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
-        body { background-color: #f1f5f9; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
-        .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s ease; }
-        .dashboard-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .kpi-title { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-        .kpi-value { font-size: 1.875rem; font-weight: 800; color: #1e293b; line-height: 1; margin-top: 0.5rem; }
-        canvas { max-height: 250px; }
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 100; flex-direction: column; }
+        body { background-color: #f8fafc; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
+        .nav-tab { transition: all 0.3s; cursor: pointer; border-bottom: 3px solid transparent; }
+        .nav-tab.active { border-bottom-color: #4f46e5; color: #4f46e5; font-weight: 800; }
+        .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        canvas { max-height: 280px; width: 100% !important; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
     </style>
 </head>
 <body class="pb-12">
 
     <div id="loadingOverlay" class="loading-overlay">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        <p class="mt-4 font-bold text-slate-600 italic">กำลังดึงข้อมูลและกรองตามเวลาเริ่ม-สิ้นสุด...</p>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
+        <p class="font-bold text-slate-700 animate-pulse text-lg">กำลังประมวลผลข้อมูลจาก 7 ชีท...</p>
     </div>
 
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-200">
-                    <i data-lucide="layers" class="w-6 h-6"></i>
+    <!-- Navigation Header -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col lg:flex-row justify-between items-center py-4 gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                        <i data-lucide="bar-chart-big"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Analytics</span> Pro</h1>
+                        <div class="flex gap-6 mt-3">
+                            <div id="tab-production" class="nav-tab active pb-1 text-sm uppercase tracking-widest font-bold" onclick="switchView('production')">Production Detail</div>
+                            <div id="tab-analytics" class="nav-tab pb-1 text-sm uppercase tracking-widest font-bold text-slate-400" onclick="switchView('analytics')">Management Analytics</div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none uppercase italic">Corrugator <span class="text-indigo-600">Multi-Sync</span></h1>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">วิเคราะห์ตามคอลัมน์เวลาเริ่ม - เวลาสิ้นสุด (BHS | YUELI | ISOWA)</p>
+                
+                <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
+                    <div class="flex flex-col px-2 border-r border-slate-200">
+                        <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">เริ่มวันที่-เวลา</span>
+                        <input type="datetime-local" id="fromDateTimeInput" class="bg-transparent border-none focus:outline-none font-bold text-slate-700 text-xs">
+                    </div>
+                    <div class="flex flex-col px-2 border-r border-slate-200">
+                        <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">สิ้นสุดวันที่-เวลา</span>
+                        <input type="datetime-local" id="toDateTimeInput" class="bg-transparent border-none focus:outline-none font-bold text-slate-700 text-xs">
+                    </div>
+                    <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
+                        <i data-lucide="refresh-ccw" class="w-4 h-4"></i> Sync Data
+                    </button>
                 </div>
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
-                <div class="flex flex-col px-2 border-r border-slate-200">
-                    <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">เริ่มต้น (เวลาเริ่ม)</span>
-                    <input type="datetime-local" id="fromDateTimeInput" class="bg-transparent border-none focus:outline-none font-bold text-slate-700 text-xs">
-                </div>
-                <div class="flex flex-col px-2">
-                    <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">สิ้นสุด (เวลาสิ้นสุด)</span>
-                    <input type="datetime-local" id="toDateTimeInput" class="bg-transparent border-none focus:outline-none font-bold text-slate-700 text-xs">
-                </div>
-                <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-2">
-                    <i data-lucide="refresh-ccw" class="w-3 h-3"></i> อัปเดตข้อมูล
-                </button>
             </div>
         </div>
     </nav>
 
+    <!-- Main Content Area -->
     <main class="max-w-7xl mx-auto px-6 mt-8">
-        <!-- KPI Row -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-center sm:text-left">
-            <div class="dashboard-card border-l-4 border-l-blue-500">
-                <p class="kpi-title">นน. ผลิตรวม 3 เครื่อง</p>
-                <div id="kpiWeight" class="kpi-value">0</div>
+        
+        <!-- KPI Summary (Shared) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="dashboard-card border-l-4 border-l-indigo-500">
+                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">นน. ผลิตรวม (กก.)</p>
+                <div id="kpiWeight" class="text-2xl font-black text-slate-800">0</div>
             </div>
-            <div class="dashboard-card border-l-4 border-l-emerald-500">
-                <p class="kpi-title">สปีดเฉลี่ยภาพรวม</p>
-                <div id="kpiSpeed" class="kpi-value">0</div>
+            <div id="kpi-extra-1" class="dashboard-card border-l-4 border-l-emerald-500">
+                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">เมตรที่ผลิตได้จริง (M)</p>
+                <div id="kpiMeters" class="text-2xl font-black text-slate-800">0</div>
             </div>
             <div class="dashboard-card border-l-4 border-l-rose-500">
-                <p class="kpi-title">ของเสียรวมสะสม (กก.)</p>
-                <div id="kpiWaste" class="kpi-value text-rose-600">0</div>
+                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">เวลาสูญเสียรวม (นาที)</p>
+                <div id="kpiLoss" class="text-2xl font-black text-rose-600">0</div>
             </div>
             <div class="dashboard-card border-l-4 border-l-amber-500">
-                <p class="kpi-title">เวลาหยุดสะสม (นาที)</p>
-                <div id="kpiDowntime" class="kpi-value text-amber-600">0</div>
+                <p class="kpi-title text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">จำนวนครั้งที่หยุดเครื่อง</p>
+                <div id="kpiStopCount" class="text-2xl font-black text-amber-600">0</div>
             </div>
         </div>
 
-        <!-- Charts Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="dashboard-card">
-                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="bar-chart-2"></i> นน. ผลิตเปรียบเทียบ (กก.)</h3>
-                <div class="h-[250px]"><canvas id="weightChart"></canvas></div>
+        <!-- View 1: Production Details -->
+        <section id="view-production">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6">Production Weight by Shift (kg)</h3><canvas id="weightChart"></canvas></div>
+                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6">Production Waste by Shift (kg)</h3><canvas id="wasteChart"></canvas></div>
             </div>
-            <div class="dashboard-card">
-                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="alert-circle"></i> ของเสียเปรียบเทียบ (กก.)</h3>
-                <div class="h-[250px]"><canvas id="wasteChart"></canvas></div>
-            </div>
-            <div class="dashboard-card">
-                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="gauge"></i> ความเร็วเฉลี่ย (m/min)</h3>
-                <div class="h-[250px]"><canvas id="speedChart"></canvas></div>
-            </div>
-            <div class="dashboard-card">
-                <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="clock"></i> เวลาหยุดสะสม (นาที)</h3>
-                <div class="h-[250px]"><canvas id="downtimeChart"></canvas></div>
-            </div>
-        </div>
-
-        <!-- Combined Data Table -->
-        <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
-            <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                <h3 class="font-bold text-slate-800">รายการผลิตที่เริ่มและจบในช่วงเวลาที่เลือก</h3>
-                <div id="timeRangeDisplay" class="text-[10px] font-bold text-indigo-600 bg-white px-4 py-1.5 rounded-full border shadow-sm uppercase tracking-widest italic">
-                    Ready to Fetch
+            <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
+                <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800">Detailed Production Record</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b text-center">
+                                <th class="px-6 py-4 text-left">Machine</th>
+                                <th class="px-6 py-4">Time Range</th>
+                                <th class="px-6 py-4">Shift</th>
+                                <th class="px-6 py-4 text-right">Weight (kg)</th>
+                                <th class="px-6 py-4 text-right text-rose-500">Waste (kg)</th>
+                                <th class="px-6 py-4 text-right">Avg Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prodTableBody" class="divide-y divide-slate-100 text-sm italic text-slate-400">
+                            <tr><td colspan="6" class="py-20 text-center">Sync data to load records...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b">
-                            <th class="px-8 py-4">เครื่องจักร</th>
-                            <th class="px-8 py-4 text-center">เวลาเริ่ม - เวลาสิ้นสุด</th>
-                            <th class="px-8 py-4 text-center">กะ</th>
-                            <th class="px-8 py-4 text-right">น้ำหนักรวม (กก.)</th>
-                            <th class="px-8 py-4 text-right">สปีดเฉลี่ย</th>
-                            <th class="px-8 py-4 text-right text-rose-500 font-bold">ของเสีย (กก.)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dataTableBody" class="divide-y divide-slate-100 text-sm">
-                        <tr><td colspan="6" class="px-8 py-10 text-center text-slate-400 italic font-bold">กรุณากดดึงข้อมูลใหม่</td></tr>
-                    </tbody>
-                </table>
+        </section>
+
+        <!-- View 2: Management Analytics -->
+        <section id="view-analytics" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="timer" class="text-rose-500"></i> เวลาสูญเสียเปรียบเทียบ (นาที)</h3><canvas id="lossChart"></canvas></div>
+                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="activity" class="text-blue-500"></i> เมตรที่ผลิตได้จริง (Meters)</h3><canvas id="metersChart"></canvas></div>
+                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="trending-up" class="text-emerald-500"></i> เวลาเดินเครื่องจริง vs ทั้งหมด (นาที)</h3><canvas id="opTimeChart"></canvas></div>
+                <div class="dashboard-card"><h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="alert-circle" class="text-amber-500"></i> อัตราการขาดจำนวน (%)</h3><canvas id="shortageChart"></canvas></div>
             </div>
-        </div>
+            
+            <!-- Summary Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div id="summary-bhs" class="dashboard-card border-t-4 border-indigo-600">
+                    <h4 class="font-black text-indigo-600 mb-4">BHS Summary</h4>
+                    <div class="space-y-3 text-sm" id="sum-bhs-content">Loading...</div>
+                </div>
+                <div id="summary-yueli" class="dashboard-card border-t-4 border-indigo-600">
+                    <h4 class="font-black text-indigo-600 mb-4">YUELI Summary</h4>
+                    <div class="space-y-3 text-sm" id="sum-yueli-content">Loading...</div>
+                </div>
+                <div id="summary-isowa" class="dashboard-card border-t-4 border-indigo-600">
+                    <h4 class="font-black text-indigo-600 mb-4">ISOWA Summary</h4>
+                    <div class="space-y-3 text-sm" id="sum-isowa-content">Loading...</div>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <script>
-        // ลงทะเบียนปลั๊กอิน DataLabels
         Chart.register(ChartDataLabels);
-
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
-        
-        // กำหนดลำดับเครื่องจักร: BHS -> YUELI -> ISOWA
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
-        const SHEETS_CONFIG = [
-            { machine: 'BHS', sheetName: 'DATA BHS' },
-            { machine: 'YUELI', sheetName: 'DATA YUELI' },
-            { machine: 'ISOWA', sheetName: 'DATA ISOWA' }
-        ];
         
-        let dashboardData = [];
+        // รายชื่อชีททั้งหมดที่จะดึง
+        const ALL_SHEETS = [
+            { id: 'detail_bhs', name: 'DATA BHS', machine: 'BHS' },
+            { id: 'detail_yueli', name: 'DATA YUELI', machine: 'YUELI' },
+            { id: 'detail_isowa', name: 'DATA ISOWA', machine: 'ISOWA' },
+            { id: 'loss', name: 'เวลาสูญเสีย', isSummary: true },
+            { id: 'op_time', name: 'เวลาเดินงาน', isSummary: true },
+            { id: 'meters', name: 'เมตร', isSummary: true },
+            { id: 'shortage', name: 'ขาดจำนวน', isSummary: true }
+        ];
+
+        let appState = {
+            view: 'production',
+            raw: {}, // เก็บข้อมูลดิบแยกตามไอดีชีท
+            processed: {
+                production: [],
+                analytics: { loss: [], opTime: [], meters: [], shortage: [] }
+            }
+        };
+
         let charts = {};
 
-        function formatNum(n) { return new Intl.NumberFormat('th-TH').format(n); }
+        function formatNum(n) { return new Intl.NumberFormat('th-TH').format(Math.round(n)); }
 
-        function parseSheetDateTime(dateTimeStr) {
-            if (!dateTimeStr) return null;
-            const parts = dateTimeStr.split(' ');
-            if (!parts[0]) return null;
-            const dateParts = parts[0].split('/');
-            const timeParts = parts[1] ? parts[1].split(':') : [0, 0];
-            const day = parseInt(dateParts[0]);
-            const month = parseInt(dateParts[1]) - 1;
-            const year = parseInt(dateParts[2]);
-            const hour = parseInt(timeParts[0]);
-            const min = parseInt(timeParts[1]);
-            return new Date(year, month, day, hour, min);
+        function switchView(viewName) {
+            appState.view = viewName;
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active', 'text-indigo-600'));
+            document.getElementById(`tab-${viewName}`).classList.add('active');
+            
+            document.getElementById('view-production').classList.toggle('hidden', viewName !== 'production');
+            document.getElementById('view-analytics').classList.toggle('hidden', viewName !== 'analytics');
+            
+            lucide.createIcons();
+            renderDashboard();
         }
 
         async function fetchSheetData() {
@@ -163,187 +187,239 @@
             overlay.style.display = 'flex';
             
             try {
-                const fetchPromises = SHEETS_CONFIG.map(async (config) => {
-                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(config.sheetName)}`;
+                const fetchPromises = ALL_SHEETS.map(async (cfg) => {
+                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.name)}`;
                     const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Cannot fetch ${config.sheetName}`);
                     const csvText = await response.text();
-                    return processCSV(csvText, config.machine);
+                    return { id: cfg.id, machine: cfg.machine, csv: csvText, isSummary: cfg.isSummary };
                 });
 
                 const results = await Promise.all(fetchPromises);
-                dashboardData = results.flat();
-                updateDashboard();
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                alert("ไม่สามารถดึงข้อมูลได้: " + error.message);
+                processAllData(results);
+                renderDashboard();
+            } catch (err) {
+                console.error(err);
+                alert("Error fetching data. Check Sheet names and Publish status.");
             } finally {
                 overlay.style.display = 'none';
             }
         }
 
-        function processCSV(csv, machineName) {
-            const lines = csv.split(/\r?\n/);
-            if (lines.length < 2) return [];
-
-            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-            const colIdx = {
-                shift: headers.indexOf('กะ'),
-                startTime: headers.indexOf('เวลาเริ่ม'),
-                endTime: headers.indexOf('เวลาสิ้นสุด'),
-                speed: headers.indexOf('AVG_Speed(M/min)'),
-                weight: headers.indexOf('นน.ทั้งหมด(กก)'),
-                wasteCount: headers.indexOf('แผ่นใหญ่เสีย'),
-                multiplier: headers.indexOf('T'),
-                unitWeight: headers.indexOf('นน/แผ่น(กก)'),
-                downtime: headers.indexOf('เวลาที่หยุด')
-            };
-
-            const data = [];
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                const cleanRow = row.map(v => v.replace(/"/g, '').trim());
-                
-                const rawStart = cleanRow[colIdx.startTime] || "";
-                const rawEnd = cleanRow[colIdx.endTime] || "";
-                const startObj = parseSheetDateTime(rawStart);
-                const endObj = parseSheetDateTime(rawEnd);
-                
-                let shiftVal = (cleanRow[colIdx.shift] || "A").toUpperCase();
-                if (shiftVal.includes('เช้า')) shiftVal = 'A';
-                if (shiftVal.includes('ดึก')) shiftVal = 'B';
-
-                const wasteSheets = parseFloat(cleanRow[colIdx.wasteCount]) || 0;
-                const T = parseFloat(cleanRow[colIdx.multiplier]) || 0;
-                const unitWeight = parseFloat(cleanRow[colIdx.unitWeight]) || 0;
-                const calculatedWaste = wasteSheets * T * unitWeight;
-
-                data.push({
-                    startTimeObj: startObj,
-                    endTimeObj: endObj,
-                    displayStart: rawStart,
-                    displayEnd: rawEnd,
-                    machine: machineName,
-                    shift: shiftVal,
-                    weight: parseFloat((cleanRow[colIdx.weight] || "0").replace(/,/g, '')) || 0,
-                    waste: calculatedWaste,
-                    speed: parseFloat(cleanRow[colIdx.speed]) || 0,
-                    downtime: parseFloat(cleanRow[colIdx.downtime]) || 0
-                });
+        function parseCSV(csv, skipRows = 0) {
+            const lines = csv.split(/\r?\n/).filter(line => line.trim() !== "");
+            const result = [];
+            const headerRowIdx = skipRows;
+            const headers = lines[headerRowIdx].split(',').map(h => h.replace(/"/g, '').trim());
+            
+            for (let i = headerRowIdx + 1; i < lines.length; i++) {
+                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/"/g, '').trim());
+                if (row.length < headers.length) continue;
+                const obj = {};
+                headers.forEach((h, idx) => obj[h] = row[idx]);
+                result.push(obj);
             }
-            return data;
+            return { data: result, headers: headers };
         }
 
-        function updateDashboard() {
-            const fromVal = document.getElementById('fromDateTimeInput').value;
-            const toVal = document.getElementById('toDateTimeInput').value;
+        function processAllData(results) {
+            appState.processed.production = [];
+            
+            results.forEach(res => {
+                if (!res.isSummary) {
+                    // ชีทรายละเอียด
+                    const parsed = parseCSV(res.csv, 0);
+                    parsed.data.forEach(item => {
+                        const start = parseSheetDateTime(item['เวลาเริ่ม']);
+                        const end = parseSheetDateTime(item['เวลาสิ้นสุด']);
+                        
+                        const waste = (parseFloat(item['แผ่นใหญ่เสีย']) || 0) * (parseFloat(item['T']) || 0) * (parseFloat(item['นน/แผ่น(กก)']) || 0);
 
-            if (!fromVal || !toVal) {
-                alert("กรุณาระบุช่วงเวลา");
-                return;
-            }
+                        appState.processed.production.push({
+                            machine: res.machine,
+                            startObj: start,
+                            endObj: end,
+                            shift: (item['กะ'] || 'A').toUpperCase().includes('เช้า') ? 'A' : 
+                                   (item['กะ'] || 'A').toUpperCase().includes('ดึก') ? 'B' : item['กะ'],
+                            weight: parseFloat((item['นน.ทั้งหมด(กก)'] || "0").replace(/,/g, '')) || 0,
+                            waste: waste,
+                            speed: parseFloat(item['AVG_Speed(M/min)']) || 0,
+                            stopCount: parseInt(item['จำนวนครั้งที่หยุด']) || 0,
+                            downtime: parseFloat(item['เวลาที่หยุด']) || 0,
+                            rawStart: item['เวลาเริ่ม'],
+                            rawEnd: item['เวลาสิ้นสุด']
+                        });
+                    });
+                } else {
+                    // ชีทสรุป (ใช้แถว 2 เป็นหัวตาราง - skipRows = 1)
+                    appState.raw[res.id] = parseCSV(res.csv, 1).data;
+                }
+            });
+        }
 
-            const limitFrom = new Date(fromVal);
-            const limitTo = new Date(toVal);
+        function parseSheetDateTime(str) {
+            if (!str) return null;
+            const p = str.split(' ');
+            if (!p[0]) return null;
+            const d = p[0].split('/');
+            const t = p[1] ? p[1].split(':') : [0,0];
+            return new Date(d[2], d[1]-1, d[0], t[0], t[1]);
+        }
 
-            // กรองข้อมูล: เวลาเริ่มต้อง >= ช่องเริ่ม และ เวลาสิ้นสุดต้อง <= ช่องสิ้นสุด
-            const filtered = dashboardData.filter(d => 
-                d.startTimeObj && d.endTimeObj && 
-                d.startTimeObj >= limitFrom && 
-                d.endTimeObj <= limitTo
+        function renderDashboard() {
+            const limitFrom = new Date(document.getElementById('fromDateTimeInput').value);
+            const limitTo = new Date(document.getElementById('toDateTimeInput').value);
+
+            // 1. Filter Production Data
+            const filteredProd = appState.processed.production.filter(d => 
+                d.startObj && d.endObj && d.startObj >= limitFrom && d.endObj <= limitTo
             );
 
-            document.getElementById('timeRangeDisplay').innerText = `Range: ${fromVal.replace('T',' ')} TO ${toVal.replace('T',' ')}`;
+            // 2. Filter Summary Data (Base on Date only)
+            const dateStrFrom = getDMy(limitFrom);
+            const dateStrTo = getDMy(limitTo);
 
-            const totalW = filtered.reduce((a, b) => a + b.weight, 0);
-            const totalWaste = filtered.reduce((a, b) => a + b.waste, 0);
-            const totalDown = Math.round(filtered.reduce((a, b) => a + b.downtime, 0) / 60);
-            const overallSpeed = filtered.length ? Math.round(filtered.reduce((a, b) => a + b.speed, 0) / filtered.length) : 0;
+            // Summary filtering (simple logic for ranges)
+            const filterSum = (id) => appState.raw[id]?.filter(row => {
+                const rowDate = parseDateOnly(row['วันที่']);
+                return rowDate >= limitFrom && rowDate <= limitTo;
+            }) || [];
 
-            document.getElementById('kpiWeight').innerText = formatNum(Math.round(totalW));
-            document.getElementById('kpiWaste').innerText = formatNum(Math.round(totalWaste));
-            document.getElementById('kpiSpeed').innerText = formatNum(overallSpeed);
-            document.getElementById('kpiDowntime').innerText = formatNum(totalDown);
+            const sumLoss = filterSum('loss');
+            const sumOp = filterSum('op_time');
+            const sumMeters = filterSum('meters');
+            const sumShort = filterSum('shortage');
 
-            const prepareChartData = (key, isAverage = false) => {
-                return MACHINES.map(m => {
-                    const valsA = filtered.filter(d => d.machine === m && d.shift === 'A').map(d => d[key]);
-                    const valsB = filtered.filter(d => d.machine === m && d.shift === 'B').map(d => d[key]);
-                    const sum = (arr) => arr.reduce((a, b) => a + b, 0);
-                    const avg = (arr) => arr.length ? sum(arr) / arr.length : 0;
-                    
-                    return isAverage ? [Math.round(avg(valsA)), Math.round(avg(valsB))] : [Math.round(sum(valsA)), Math.round(sum(valsB))];
-                });
-            };
+            // 3. Update KPIs
+            const totalW = filteredProd.reduce((a,b) => a + b.weight, 0);
+            const totalSCount = filteredProd.reduce((a,b) => a + b.stopCount, 0);
+            
+            // From summary sheets
+            const totalM = sumMeters.reduce((a,b) => a + (parseFloat(b['รวม2กะ']?.replace(/,/g,'')) || 0), 0);
+            const totalLoss = sumLoss.reduce((a,b) => a + (parseFloat(b['BHS 2กะ']) || 0) + (parseFloat(b['YUELI 2กะ']) || 0) + (parseFloat(b['ISOWA 2กะ']) || 0), 0);
 
-            const datasets = {
-                weight: prepareChartData('weight'),
-                waste: prepareChartData('waste'),
-                speed: prepareChartData('speed', true),
-                down: prepareChartData('downtime').map(v => [Math.round(v[0]/60), Math.round(v[1]/60)])
-            };
+            document.getElementById('kpiWeight').innerText = formatNum(totalW);
+            document.getElementById('kpiMeters').innerText = formatNum(totalM);
+            document.getElementById('kpiLoss').innerText = formatNum(totalLoss);
+            document.getElementById('kpiStopCount').innerText = formatNum(totalSCount);
 
-            const draw = (id, labelA, d1, labelB, d2, type = 'bar') => {
-                if (charts[id]) charts[id].destroy();
-                charts[id] = new Chart(document.getElementById(id), {
-                    type: type,
-                    data: {
-                        labels: MACHINES,
-                        datasets: [
-                            { label: labelA, data: d1, backgroundColor: '#4f46e5', borderRadius: 8, tension: 0.4 },
-                            { label: labelB, data: d2, backgroundColor: '#a5b4fc', borderRadius: 8, tension: 0.4 }
-                        ]
-                    },
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        layout: { padding: { top: 25 } },
-                        plugins: { 
-                            legend: { position: 'bottom' },
-                            datalabels: {
-                                anchor: 'end',
-                                align: 'top',
-                                offset: 2,
-                                font: { weight: 'bold', family: 'Sarabun', size: 10 },
-                                formatter: (value) => value > 0 ? formatNum(value) : '',
-                                color: (ctx) => ctx.dataset.backgroundColor
-                            }
-                        },
-                        scales: {
-                            y: { beginAtZero: true, ticks: { font: { size: 10 } } },
-                            x: { ticks: { font: { weight: 'bold', size: 11 } } }
-                        }
-                    }
-                });
-            };
-
-            draw('weightChart', 'กะ A', datasets.weight.map(v => v[0]), 'กะ B', datasets.weight.map(v => v[1]), 'bar');
-            draw('wasteChart', 'กะ A', datasets.waste.map(v => v[0]), 'กะ B', datasets.waste.map(v => v[1]), 'bar');
-            draw('speedChart', 'กะ A', datasets.speed.map(v => v[0]), 'กะ B', datasets.speed.map(v => v[1]), 'line');
-            draw('downtimeChart', 'กะ A', datasets.down.map(v => v[0]), 'กะ B', datasets.down.map(v => v[1]), 'bar');
-
-            const tbody = document.getElementById('dataTableBody');
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-8 py-10 text-center text-slate-400 font-bold italic">ไม่พบข้อมูลที่เริ่มและสิ้นสุดในช่วงที่เลือก</td></tr>';
+            if (appState.view === 'production') {
+                renderProductionView(filteredProd);
             } else {
-                filtered.sort((a,b) => b.startTimeObj - a.startTimeObj);
-                tbody.innerHTML = filtered.map(item => `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-8 py-4 font-bold text-slate-700 underline decoration-indigo-100 underline-offset-4">${item.machine}</td>
-                        <td class="px-8 py-4 text-center font-mono text-[10px] text-slate-400 leading-tight">
-                            ${item.displayStart} ถึง<br/>${item.displayEnd}
-                        </td>
-                        <td class="px-8 py-4 text-center">
-                            <span class="px-3 py-1 rounded-full text-[10px] font-black tracking-tighter shadow-sm ${item.shift === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">SH. ${item.shift}</span>
-                        </td>
-                        <td class="px-8 py-4 text-right font-mono font-bold text-slate-800">${formatNum(Math.round(item.weight))}</td>
-                        <td class="px-8 py-4 text-right font-mono text-slate-500">${Math.round(item.speed)}</td>
-                        <td class="px-8 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(Math.round(item.waste))}</td>
+                renderAnalyticsView(sumLoss, sumOp, sumMeters, sumShort);
+            }
+        }
+
+        function getDMy(date) { return `${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()}`; }
+        function parseDateOnly(str) {
+            if (!str) return new Date(0);
+            const p = str.split('/');
+            return new Date(p[2], p[1]-1, p[0]);
+        }
+
+        function renderProductionView(data) {
+            const tbody = document.getElementById('prodTableBody');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-20 text-center font-bold italic text-slate-300">No data found in selected range.</td></tr>';
+            } else {
+                data.sort((a,b) => b.startObj - a.startObj);
+                tbody.innerHTML = data.map(d => `
+                    <tr class="hover:bg-indigo-50/30 transition-colors text-slate-700">
+                        <td class="px-6 py-4 font-black">${d.machine}</td>
+                        <td class="px-6 py-4 text-center font-mono text-[10px] leading-tight text-slate-400">${d.rawStart}<br/>${d.rawEnd}</td>
+                        <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black ${d.shift==='A'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">SHIFT ${d.shift}</span></td>
+                        <td class="px-6 py-4 text-right font-mono font-bold">${formatNum(d.weight)}</td>
+                        <td class="px-6 py-4 text-right font-mono text-rose-500 font-bold">${formatNum(d.waste)}</td>
+                        <td class="px-6 py-4 text-right font-mono">${Math.round(d.speed)}</td>
                     </tr>
                 `).join('');
             }
+
+            // Charts for Page 1
+            const chartData = MACHINES.map(m => {
+                const sA = data.filter(d => d.machine === m && d.shift === 'A');
+                const sB = data.filter(d => d.machine === m && d.shift === 'B');
+                return {
+                    name: m,
+                    wA: sA.reduce((a,b)=>a+b.weight, 0), wB: sB.reduce((a,b)=>a+b.weight, 0),
+                    waA: sA.reduce((a,b)=>a+b.waste, 0), waB: sB.reduce((a,b)=>a+b.waste, 0)
+                };
+            });
+
+            updateChart('weightChart', chartData.map(d=>d.name), chartData.map(d=>d.wA), 'กะ A', chartData.map(d=>d.wB), 'กะ B', 'bar');
+            updateChart('wasteChart', chartData.map(d=>d.name), chartData.map(d=>d.waA), 'กะ A', chartData.map(d=>d.waB), 'กะ B', 'bar');
+        }
+
+        function renderAnalyticsView(loss, op, meters, shortage) {
+            // Aggregated values for 3 machines
+            const agg = (arr, prefix, suffixA, suffixB) => {
+                const a = arr.reduce((acc, row) => acc + (parseFloat(row[prefix + " " + suffixA]) || 0), 0);
+                const b = arr.reduce((acc, row) => acc + (parseFloat(row[prefix + " " + suffixB]) || 0), 0);
+                return [Math.round(a), Math.round(b)];
+            };
+
+            const lossData = MACHINES.map(m => agg(loss, m, 'เวลาสูญเสียกะ A', 'เวลาสูญเสียกะ B'));
+            const meterData = MACHINES.map(m => agg(meters, m, 'กะ A เดินงาน', 'กะ B เดินงาน'));
+            const opData = MACHINES.map(m => agg(op, m, 'เวลาเดินงานจริงกะ A', 'เวลาเดินงานจริงกะ B'));
+            const totalOpData = MACHINES.map(m => agg(op, m, 'เวลาเดินงานทั้งหมดกะ A', 'เวลาเดินงานทั้งหมดกะ B'));
+            
+            // Shortage is average %
+            const shortData = MACHINES.map(m => {
+                const rA = shortage.filter(row => row[m + " %กะ A ขาด"]).map(row => parseFloat(row[m + " %กะ A ขาด"]));
+                const rB = shortage.filter(row => row[m + " %กะ B ขาด"]).map(row => parseFloat(row[m + " %กะ B ขาด"]));
+                const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+                return [Math.round(avg(rA)), Math.round(avg(rB))];
+            });
+
+            updateChart('lossChart', MACHINES, lossData.map(v=>v[0]), 'กะ A (นาที)', lossData.map(v=>v[1]), 'กะ B (นาที)', 'bar');
+            updateChart('metersChart', MACHINES, meterData.map(v=>v[0]), 'กะ A (M)', meterData.map(v=>v[1]), 'กะ B (M)', 'bar');
+            updateChart('opTimeChart', MACHINES, opData.map(v=>v[0]+v[1]), 'เวลาเดินจริง', totalOpData.map(v=>v[0]+v[1]), 'เวลาทั้งหมด', 'bar');
+            updateChart('shortageChart', MACHINES, shortData.map(v=>v[0]), 'กะ A (%)', shortData.map(v=>v[1]), 'กะ B (%)', 'line');
+
+            // Machine Specific Summary Info
+            MACHINES.forEach(m => {
+                const lA = loss.reduce((acc, row) => acc + (parseFloat(row[m + " เวลาสูญเสียกะ A"]) || 0), 0);
+                const lB = loss.reduce((acc, row) => acc + (parseFloat(row[m + " เวลาสูญเสียกะ B"]) || 0), 0);
+                const mA = meters.reduce((acc, row) => acc + (parseFloat(row[m + " กะ A เดินงาน"]) || 0), 0);
+                const mB = meters.reduce((acc, row) => acc + (parseFloat(row[m + " กะ B เดินงาน"]) || 0), 0);
+                
+                document.getElementById(`sum-${m.toLowerCase()}-content`).innerHTML = `
+                    <div class="flex justify-between"><span>เวลาสูญเสียรวม:</span><span class="font-bold text-rose-600">${formatNum(lA + lB)} นาที</span></div>
+                    <div class="flex justify-between"><span>กะ A:</span><span>${formatNum(lA)} นาที</span></div>
+                    <div class="flex justify-between"><span>กะ B:</span><span>${formatNum(lB)} นาที</span></div>
+                    <div class="pt-2 border-t flex justify-between"><span>รวมเมตรที่ผลิต:</span><span class="font-bold text-indigo-600">${formatNum(mA + mB)} M</span></div>
+                `;
+            });
+        }
+
+        function updateChart(id, labels, d1, label1, d2, label2, type) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: label1, data: d1, backgroundColor: '#4f46e5', borderColor: '#4f46e5', borderRadius: 8, tension: 0.3 },
+                        { label: label2, data: d2, backgroundColor: '#a5b4fc', borderColor: '#a5b4fc', borderRadius: 8, tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 30 } },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { weight: 'bold', size: 10 } } },
+                        datalabels: {
+                            anchor: 'end', align: 'top', font: { weight: 'bold', size: 10 },
+                            formatter: (v) => v > 0 ? formatNum(v) : '', color: '#475569'
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 9 } } },
+                        x: { grid: { display: false }, ticks: { font: { weight: 'bold', size: 11 } } }
+                    }
+                }
+            });
         }
 
         window.onload = () => {
@@ -353,8 +429,7 @@
             document.getElementById('fromDateTimeInput').value = `${todayStr}T08:00`;
             const tomorrow = new Date(now);
             tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-            document.getElementById('toDateTimeInput').value = `${tomorrowStr}T08:00`;
+            document.getElementById('toDateTimeInput').value = `${tomorrow.toISOString().split('T')[0]}T08:00`;
             fetchSheetData();
         };
     </script>
