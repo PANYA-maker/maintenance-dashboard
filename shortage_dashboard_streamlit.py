@@ -1,7 +1,7 @@
 # =====================================
 # Shortage Dashboard : EXECUTIVE VERSION (STABLE & ROBUST)
 # MODERN UI & COMPREHENSIVE DATA
-# UPDATED: Enhanced "Total" row styling in Repair Table
+# UPDATED: Changed PDW Scrap to Overweight (น้ำหนักของเกิน) & Added Detail Filter
 # =====================================
 
 import streamlit as st
@@ -99,6 +99,10 @@ with st.sidebar:
     shift_filter = st.multiselect("กะ (Shift)", sorted(df["กะ"].dropna().unique()))
     status_filter = st.multiselect("สถานะผลิต", sorted(df["สถานะผลิต"].dropna().unique()))
     customer_filter = st.multiselect("ชื่อลูกค้า", sorted(df["ชื่อลูกค้า"].dropna().unique()))
+    
+    # NEW: Detail Filter
+    detail_filter = st.multiselect("Detail (สาเหตุ)", sorted(df["Detail"].dropna().unique()))
+    
     stop_status_col = "สถานะ ORDER จอดหรือไม่จอด"
     stop_status_filter = st.multiselect("สถานะการจอดเครื่อง", sorted(df[stop_status_col].dropna().unique())) if stop_status_col in df.columns else []
     period = st.selectbox("มุมมองแนวโน้ม", ["รายสัปดาห์", "รายวัน", "รายเดือน", "รายปี"])
@@ -111,6 +115,7 @@ if mc_filter: fdf = fdf[fdf["MC"].isin(mc_filter)]
 if shift_filter: fdf = fdf[fdf["กะ"].isin(shift_filter)]
 if status_filter: fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
 if customer_filter: fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
+if detail_filter: fdf = fdf[fdf["Detail"].isin(detail_filter)]
 if stop_status_filter: fdf = fdf[fdf[stop_status_col].isin(stop_status_filter)]
 
 # ---------------- Header Analytics ----------------
@@ -119,7 +124,9 @@ order_total = len(fdf)
 short_qty = (fdf["สถานะผลิต"] == "ขาดจำนวน").sum()
 missing_meters = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "จำนวนเมตรขาดจำนวน"], errors="coerce").sum()
 missing_weight = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักงานขาดจำนวน"], errors="coerce").sum()
-pdw_scrap_val = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "น้ำหนักของเหลือ PDW"], errors="coerce").sum()
+
+# UPDATED: over_weight_val calculated from "น้ำหนักของเหลือ"
+over_weight_val = pd.to_numeric(fdf["น้ำหนักของเหลือ"], errors="coerce").sum()
 
 # ---------------- TOP NAVIGATION TABS ----------------
 tab1, tab2 = st.tabs(["📊 Executive Overview", "🛠️ Detailed Logs / Repair"])
@@ -149,7 +156,9 @@ with tab1:
     with m1: kpi_box("Missing Meters", f"{missing_meters:,.0f}", "หน่วย: เมตร")
     with m2: kpi_box("Missing Area", f"{missing_sqm:,.0f}", "หน่วย: ตารางเมตร")
     with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
-    with m4: kpi_box("PDW Scrap Weight", f"{pdw_scrap_val:,.0f}", "ของเหลือ PDW (kg)", "#b45309")
+    
+    # UPDATED: KPI Card for "น้ำหนักของเกิน"
+    with m4: kpi_box("น้ำหนักของเกิน", f"{over_weight_val:,.0f}", "หน่วย: กิโลกรัม", "#b45309")
 
     # Section 3: Machine Comparison Analysis
     st.markdown('<div class="section-header">📊 เปรียบเทียบสัดส่วนประสิทธิภาพแยกรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
@@ -251,7 +260,7 @@ with tab1:
                 st.write(f"**2. ความสูญเสียเชิงกายภาพ (Physical Loss Impact)**")
                 st.write(f"- ระดับความรุนแรง: **{intensity_label}**")
                 st.write(f"- เมตรที่ขาดสะสม: **{missing_meters:,.0f} เมตร**")
-                st.write(f"- ของเหลือ PDW สะสม: **{pdw_scrap_val:,.0f} กก.**")
+                st.write(f"- น้ำหนักของเกินสะสม: **{over_weight_val:,.0f} กก.**")
             with col_b:
                 st.write(f"**3. ประสิทธิภาพเครื่องจักร (Machine Performance)**")
                 st.write(f"- เครื่องที่ต้องจับตา: **{top_mc}** (Shortage Rate: {top_mc_pct:.1f}%)")
@@ -262,7 +271,7 @@ with tab1:
             **🚀 สรุปแผนปฏิบัติการแบบบูรณาการ (Integrated Action Plan)**
             1. **Prioritize MC {top_mc}:** เร่งตรวจสอบมาตรฐานการตั้งค่าเครื่องจักรและทีมงานที่ดูแลเครื่องนี้เป็นพิเศษ
             2. **Root Cause Mitigation:** มุ่งเป้าแก้ปัญหา **{top_causes.index[0] if not top_causes.empty else "N/A"}** โดยด่วนเพื่อลดปริมาณเมตรที่หายไป
-            3. **PDW Management:** จัดแผนเคลียร์ PDW Scrap **{pdw_scrap_val:,.0f} กก.** ออกจากระบบเพื่อลดต้นทุนจมและเพิ่มพื้นที่จัดเก็บ
+            3. **Inventory Management:** จัดแผนจัดการน้ำหนักของเกิน **{over_weight_val:,.0f} กก.** ออกจากระบบเพื่อลดต้นทุนจมและเพิ่มพื้นที่จัดเก็บ
             """)
     else:
         st.info("กรุณาเลือกช่วงเวลาที่มีข้อมูลเพื่อแสดงบทวิเคราะห์")
@@ -358,7 +367,7 @@ with tab2:
         cut_off_pct = (cut_off_qty / total_o * 100) if total_o > 0 else 0
         
         with st.container():
-            st.markdown(f"### 🛠️ บทสรุปการจัดการงานซ่อมและ PDW")
+            st.markdown(f"### 🛠️ บทสรุปการจัดการงานซ่อม")
             ra_col1, ra_col2 = st.columns(2)
             with ra_col1:
                 st.write("**1. สถานะงานซ่อมสะสม (Pending Repair Status)**")
@@ -369,16 +378,15 @@ with tab2:
                 st.write(f"- จำนวนงานที่ 'ตัดจบ' (ซ่อมไม่ได้/ไม่ซ่อม): **{cut_off_qty:,} ออเดอร์**")
                 st.write(f"- สัดส่วนการตัดจบเทียบงานขาด: **{cut_off_pct:.1f}%**")
             with ra_col2:
-                st.write("**3. การบริหารจัดการของเหลือ (PDW Management)**")
-                st.write(f"- น้ำหนักของเหลือ PDW สะสมปัจจุบัน: **{pdw_scrap_val:,.0f} กก.**")
-                pdw_status = "🔴 สูงเกินเกณฑ์" if pdw_scrap_val > 1500 else "🟡 เริ่มสะสม" if pdw_scrap_val > 500 else "🟢 ปกติ"
-                st.write(f"- การประเมินพื้นที่จัดเก็บ: **{pdw_status}**")
+                st.write("**3. การบริหารจัดการของเกิน (Inventory Management)**")
+                st.write(f"- น้ำหนักของเกินสะสมปัจจุบัน: **{over_weight_val:,.0f} กก.**")
+                inv_status = "🔴 สูงเกินเกณฑ์" if over_weight_val > 1500 else "🟡 เริ่มสะสม" if over_weight_val > 500 else "🟢 ปกติ"
+                st.write(f"- การประเมินพื้นที่จัดเก็บ: **{inv_status}**")
             st.markdown("---")
             st.success(f"""
             **🚀 แผนปฏิบัติการจัดการงานซ่อม (Repair Action Plan)**
             1. **Clear Pending {main_pending_type}:** เร่งรัดการตัดสินใจในกลุ่มที่มียอดค้างสูงสุด เพื่อลดปริมาณออเดอร์ที่ค้างในระบบ
-            2. **Reduce 'ตัดจบ' Rate:** ตรวจสอบงานในกลุ่มที่ถูกตัดจบว่าสามารถป้องกันได้จากหน้างานหรือไม่ เพื่อลด Loss ถาวร
-            3. **PDW Clearance Plan:** หากน้ำหนัก PDW สะสม ({pdw_scrap_val:,.0f} กก.) อยู่ในเกณฑ์สูง ให้จัดตารางผลิตงานพ่วงเพื่อระบาย Stock ทันที
+            2. **Inventory Clearance Plan:** จัดการน้ำหนักของเกิน ({over_weight_val:,.0f} กก.) ออกจากคลังเพื่อคืนพื้นที่จัดเก็บ
             """)
 
-st.caption("Shortage Intelligence Dashboard | Enhanced Total Row Styling | ข้อมูลครบถ้วน 100%")
+st.caption("Shortage Intelligence Dashboard | Added Detail Filter & Overweight KPI | ข้อมูลครบถ้วน 100%")
