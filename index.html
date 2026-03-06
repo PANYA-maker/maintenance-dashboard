@@ -228,23 +228,16 @@
         }
 
         function renderExecutiveAnalysis(stats) {
-            // ระบบนับคะแนนตามถ้วยรางวัล (ทอง=3, เงิน=2, ทองแดง=1)
-            // เงื่อนไข: ต้องมีข้อมูลการเดินงาน กะใดกะหนึ่ง ถึงจะนับคะแนน
             const activeStats = stats.filter(s => s.opa > 0 || s.opb > 0);
-            
-            // รีเซ็ตคะแนน
             stats.forEach(s => s.totalScore = 0);
 
             if (activeStats.length > 0) {
-                // 1. หมวดความเร็ว (ยิ่งมากยิ่งดี)
                 const speedRank = [...activeStats].sort((a,b) => b.spdTotal - a.spdTotal);
                 speedRank.forEach((s, i) => { if(i < 3) s.totalScore += (3 - i); });
 
-                // 2. หมวดสูญเสีย (ยิ่งน้อยยิ่งดี)
                 const lossRank = [...activeStats].sort((a,b) => a.pctLoss - b.pctLoss);
                 lossRank.forEach((s, i) => { if(i < 3) s.totalScore += (3 - i); });
 
-                // 3. หมวดขาดจำนวน (ยิ่งน้อยยิ่งดี)
                 const shortRank = [...activeStats].sort((a,b) => a.pctShort - b.pctShort);
                 shortRank.forEach((s, i) => { if(i < 3) s.totalScore += (3 - i); });
             }
@@ -339,9 +332,14 @@
         }
 
         function renderCharts(stats) {
-            updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', '#10b981', '#a7f3d0', false);
-            updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', '#f43f5e', '#fecdd3', true);
-            updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', '#6366f1', '#c7d2fe', true);
+            // แยกสีตามเครื่องจักร (BHS = ส้ม, YUELI = น้ำเงิน, ISOWA = เขียว)
+            // Index 0: BHS, Index 1: YUELI, Index 2: ISOWA
+            const colorsA = ['#f97316', '#2563eb', '#16a34a']; // กะ A (สีเข้ม)
+            const colorsB = ['#fdba74', '#93c5fd', '#86efac']; // กะ B (สีอ่อน)
+
+            updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false);
+            updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true);
+            updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true);
         }
 
         function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct) {
