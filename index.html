@@ -289,27 +289,64 @@
         function renderExecutiveAnalysis(stats) {
             const champ = [...stats].sort((a,b)=>b.totalScore - a.totalScore)[0];
             const container = document.getElementById('analysis-content');
+            
             container.innerHTML = `
                 <div class="lg:col-span-1 flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border-2 border-amber-200">
                     <div class="text-[10px] font-black uppercase text-amber-600 mb-2">Champion Performance</div>
                     <i data-lucide="trophy" class="w-16 h-16 trophy-1 mb-4"></i>
-                    <div class="text-3xl font-black text-slate-800">${champ.totalScore > 0 ? champ.name : 'N/A'}</div>
-                    <div class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black mt-2 uppercase">Score: ${champ.totalScore} Points</div>
+                    <div class="text-3xl font-black text-slate-800 tracking-tighter">${champ.totalScore > 0 ? champ.name : 'N/A'}</div>
+                    <div class="bg-amber-100 text-amber-700 px-4 py-1 rounded-full text-[11px] font-black mt-2 uppercase">Score: ${champ.totalScore} Points</div>
+                    <p class="text-[9px] text-slate-400 mt-4 font-bold uppercase italic tracking-tighter">คำนวณจากความเสถียร 3 ตาราง</p>
                 </div>
-                <div class="lg:col-span-3 space-y-6 py-2">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        ${stats.map(s => `
-                            <div class="space-y-2">
-                                <div class="font-black text-slate-700 flex items-center justify-between">
-                                    <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full ${s.totalScore > 0 ? 'bg-indigo-500' : 'bg-slate-300'}"></div> เครื่อง ${s.name}</div>
-                                    <span class="text-xs font-bold text-indigo-600">${s.totalScore} Pts</span>
+                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    ${stats.map(s => {
+                        const isActive = s.opa > 0 || s.opb > 0;
+                        return `
+                        <div class="bg-white/60 rounded-3xl border border-white p-4 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full ${isActive ? 'bg-indigo-500' : 'bg-slate-300'}"></div>
+                                    <span class="font-black text-slate-800">${s.name}</span>
                                 </div>
-                                <div class="text-[11px] leading-relaxed text-slate-600 italic">
-                                    ${(s.opa > 0 || s.opb > 0) ? `<b>จุดเด่น:</b> ${s.spdTotal > 105 ? 'สปีดเดินงานดีเยี่ยม' : (s.pctLoss < 8 ? 'คุมเวลาสูญเสียได้นิ่ง' : 'ประสิทธิภาพคงที่')}<br/><b>จุดปรับปรุง:</b> ${s.pctLoss > 12 ? 'ลดเวลาหยุดงานกะ ' + (s.pctA > s.pctB ? 'A':'B') : 'รักษามาตรฐานเดิม'}` : '<span class="text-slate-400">** ไม่มีการเดินงานในช่วงนี้ (0 คะแนน)</span>'}
+                                <span class="text-xs font-black px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg">${s.totalScore} Pts</span>
+                            </div>
+                            
+                            ${isActive ? `
+                            <div class="space-y-3">
+                                <!-- ภาพรวม -->
+                                <div class="space-y-1">
+                                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-slate-300 pl-2">ภาพรวมเครื่องจักร</p>
+                                    <div class="text-[10px] leading-snug">
+                                        <span class="text-emerald-600 font-bold">● จุดเด่น:</span> ${s.spdTotal > 110 ? 'สปีดเดินงานเฉลี่ยสูง' : (s.pctLoss < 8 ? 'คุม Loss ได้ดีมาก' : 'งานมีความต่อเนื่อง')}
+                                    </div>
+                                    <div class="text-[10px] leading-snug">
+                                        <span class="text-rose-500 font-bold">● ปรับปรุง:</span> ${s.pctLoss > 12 ? 'ลดเวลาสูญเสียส่วนเกิน' : (s.pctShort > 4 ? 'ลด % งานขาดจำนวน' : 'รักษาความเร็วให้เสถียร')}
+                                    </div>
+                                </div>
+                                <!-- กะ A -->
+                                <div class="space-y-1 bg-indigo-50/50 p-2 rounded-xl border border-indigo-100/50">
+                                    <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">กะ A Analysis</p>
+                                    <div class="text-[10px] leading-snug text-slate-700">
+                                        <span class="font-bold">✓ เด่น:</span> ${s.spdA > s.spdB ? 'สปีดสูงกว่ากะ B' : (s.pctA < s.pctB ? 'Loss ต่ำกว่ากะ B' : 'ผลิตได้ตามเป้าหมาย')}
+                                    </div>
+                                    <div class="text-[10px] leading-snug text-slate-700">
+                                        <span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctA > 10 ? 'ลดเวลาหยุดงานสะสม' : (s.shPctA > 3 ? 'ระวังจำนวนออเดอร์ขาด' : 'เพิ่มสปีดเฉลี่ยต่อชั่วโมง')}
+                                    </div>
+                                </div>
+                                <!-- กะ B -->
+                                <div class="space-y-1 bg-orange-50/50 p-2 rounded-xl border border-orange-100/50">
+                                    <p class="text-[9px] font-black text-orange-600 uppercase tracking-widest">กะ B Analysis</p>
+                                    <div class="text-[10px] leading-snug text-slate-700">
+                                        <span class="font-bold">✓ เด่น:</span> ${s.spdB > s.spdA ? 'สปีดเฉลี่ยชนะกะ A' : (s.pctB < s.pctA ? 'คุม Loss ได้ดีกว่ากะ A' : 'ความเสถียรในการผลิต')}
+                                    </div>
+                                    <div class="text-[10px] leading-snug text-slate-700">
+                                        <span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctB > 10 ? 'ตรวจเช็กเครื่องจักรระหวางกะ' : (s.shPctB > 3 ? 'เช็กจำนวนก่อนส่งมอบ' : 'รักษามาตรฐานความเร็ว')}
+                                    </div>
                                 </div>
                             </div>
-                        `).join('')}
-                    </div>
+                            ` : `<div class="py-10 text-center text-[10px] font-bold text-slate-400 italic">ไม่มีข้อมูลการเดินงาน<br/>ในช่วงเวลานี้</div>`}
+                        </div>`;
+                    }).join('')}
                 </div>`;
         }
 
@@ -387,7 +424,6 @@
                     let groupKey = "";
                     if (view === 'daily') groupKey = dParts.join('/');
                     else if (view === 'weekly') {
-                        // ปรับปรุง: แสดงผลเป็น Week X โดยคำนวณหมายเลขสัปดาห์
                         const d = new Date(date); d.setHours(0,0,0,0);
                         d.setDate(d.getDate() + 4 - (d.getDay() || 7));
                         const yearStart = new Date(d.getFullYear(), 0, 1);
