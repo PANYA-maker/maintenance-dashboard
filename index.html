@@ -127,7 +127,7 @@
                 <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
             </section>
 
-            <!-- SECTION 4: WASTE ANALYSIS -->
+            <!-- SECTION 4: WASTE ANALYSIS (FROM SHEET CON) -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">4. การวิเคราะห์ของเสีย (Waste Analysis)</h2></div>
                 <div id="waste-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
@@ -195,8 +195,7 @@
             {id:'op_time',name:'เวลาเดินงาน'},
             {id:'meter',name:'เมตร'},
             {id:'shortage',name:'ขาดจำนวน'},
-            {id:'con', name:'Con'},
-            {id:'waste', name:'Waste'}
+            {id:'con', name:'Con'}
         ];
 
         let appState = { 
@@ -271,7 +270,7 @@
             const stats = MACHINES.map(m => {
                 const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
                 const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
-                const conData = filter('con'), wasteData = filter('waste');
+                const conData = filter('con');
 
                 const la = getSum(l, `${m} กะ A`), lb = getSum(l, `${m} กะ B`);
                 const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
@@ -279,11 +278,9 @@
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
                 
-                // สำหรับ Waste breakdown รายเครื่อง
+                // สำหรับ Waste โดยใช้ชีท Con (Consumtion และ Waste ALL รายเครื่อง/กะ)
                 const ca = getSum(conData, `${m} Cons (ALL) กะ A`), cb = getSum(conData, `${m} Cons (ALL) กะ B`);
-                const waRawA = getSum(wasteData, `${m} Total กะ A`), waCentA = getSum(wasteData, `${m} CENTER(30101) กะ A`);
-                const waRawB = getSum(wasteData, `${m} Total กะ B`), waCentB = getSum(wasteData, `${m} CENTER(30101) กะ B`);
-                const wa = waRawA - waCentA, wb = waRawB - waCentB;
+                const wa = getSum(conData, `${m} WASTE (ALL) กะ A`), wb = getSum(conData, `${m} WASTE (ALL) กะ B`);
 
                 return {
                     name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
@@ -300,7 +297,7 @@
                 };
             });
 
-            // Point System calculation
+            // Point System
             const activeStats = stats.filter(s => s.opa > 0 || s.opb > 0);
             stats.forEach(s => s.totalScore = 0);
             if (activeStats.length > 0) {
@@ -310,7 +307,7 @@
             }
 
             renderExecutiveAnalysis(stats);
-            renderKPIs(stats, filter('con'), filter('waste'));
+            renderKPIs(stats, filter('con'));
             renderTables(stats);
             renderDashboardCharts(stats);
             
@@ -345,7 +342,6 @@
                             
                             ${isActive ? `
                             <div class="space-y-3">
-                                <!-- ภาพรวม -->
                                 <div class="space-y-1">
                                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-slate-300 pl-2">ภาพรวมเครื่องจักร</p>
                                     <div class="text-[10px] leading-snug">
@@ -355,7 +351,6 @@
                                         <span class="text-rose-500 font-bold">● ปรับปรุง:</span> ${s.pctLoss > 12 ? 'ลดเวลาสูญเสียส่วนเกิน' : (s.pctShort > 4 ? 'ลด % งานขาดจำนวน' : 'รักษาความเร็วให้เสถียร')}
                                     </div>
                                 </div>
-                                <!-- กะ A -->
                                 <div class="space-y-1 bg-indigo-50/50 p-2 rounded-xl border border-indigo-100/50">
                                     <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">กะ A Analysis</p>
                                     <div class="text-[10px] leading-snug text-slate-700">
@@ -365,7 +360,6 @@
                                         <span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctA > 10 ? 'ลดเวลาหยุดงานสะสม' : (s.shPctA > 3 ? 'ระวังจำนวนออเดอร์ขาด' : 'เพิ่มสปีดเฉลี่ยต่อชั่วโมง')}
                                     </div>
                                 </div>
-                                <!-- กะ B -->
                                 <div class="space-y-1 bg-orange-50/50 p-2 rounded-xl border border-orange-100/50">
                                     <p class="text-[9px] font-black text-orange-600 uppercase tracking-widest">กะ B Analysis</p>
                                     <div class="text-[10px] leading-snug text-slate-700">
@@ -382,7 +376,7 @@
                 </div>`;
         }
 
-        function renderKPIs(stats, rawCon, rawWaste) {
+        function renderKPIs(stats, rawCon) {
             const sumStats = (key) => stats.reduce((acc, s) => acc + (parseFloat(s[key]) || 0), 0);
             const totalOp = sumStats('opa') + sumStats('opb'); 
             const totalMet = sumStats('ma') + sumStats('mb');
@@ -400,22 +394,15 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
-            // --- SECTION 4: WASTE KPI CALCULATION ---
-            // 1. Consumption: ผลรวม Cons (ALL) จากชีท Con
-            const totalCons = rawCon.reduce((acc, r) => acc + (parseFloat(r['Cons (ALL)']) || 0), 0);
-            
-            // 2. Waste Weight: ผลรวม Total - ผลรวม CENTER(30101) จากชีท Waste
-            const totalWasteRaw = rawWaste.reduce((acc, r) => acc + (parseFloat(r['Total']) || 0), 0);
-            const totalCenter = rawWaste.reduce((acc, r) => acc + (parseFloat(r['CENTER(30101)']) || 0), 0);
-            const netWaste = totalWasteRaw - totalCenter;
-
-            // 3. % Waste: (น้ำหนักของเสีย / Consumption) * 100
-            const pctWaste = totalCons > 0 ? (netWaste / totalCons) * 100 : 0;
+            // --- SECTION 4: WASTE KPI FROM SHEET CON ---
+            const totalConsAll = rawCon.reduce((acc, r) => acc + (parseFloat(r['Cons (ALL)']) || 0), 0);
+            const totalWasteAll = rawCon.reduce((acc, r) => acc + (parseFloat(r['WASTE (ALL)']) || 0), 0);
+            const wastePercentTotal = totalConsAll > 0 ? (totalWasteAll / totalConsAll) * 100 : 0;
 
             document.getElementById('waste-kpis').innerHTML = 
-                kpiBox('package', 'Consumtion', formatNum(totalCons), 'kg', 'indigo') + 
-                kpiBox('trash-2', 'น้ำหนักของเสีย', formatNum(netWaste), 'kg', 'rose') + 
-                kpiBox('percent', '% ของเสีย', pctWaste.toFixed(2), '%', 'amber');
+                kpiBox('package', 'Consumtion', formatNum(totalConsAll), 'kg', 'indigo') + 
+                kpiBox('trash-2', 'น้ำหนักของเสีย', formatNum(totalWasteAll), 'kg', 'rose') + 
+                kpiBox('percent', '% ของเสีย', wastePercentTotal.toFixed(2), '%', 'amber');
         }
 
         function renderTables(stats) {
