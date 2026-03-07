@@ -127,16 +127,18 @@
                 <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
             </section>
 
-            <!-- SECTION 4: WASTE ANALYSIS (FROM SHEET CON) -->
+            <!-- SECTION 4: WASTE ANALYSIS (NEW LOGIC) -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">4. การวิเคราะห์ของเสีย (Waste Analysis)</h2></div>
                 <div id="waste-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
                 <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-                    <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
+                    <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[800px]">
                         <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
-                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
-                        </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
-                            <th class="px-3 py-2 border-r">Cons (kg)</th><th class="px-3 py-2 border-r">Waste (kg)</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">Cons (kg)</th><th class="px-3 py-2 border-r">Waste (kg)</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">Cons (kg)</th><th class="px-3 py-2 border-r">Waste (kg)</th><th class="px-3 py-2 font-black">%</th>
+                            <th class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th>
+                            <th class="px-4 py-2 border-r">Cons (kg)</th>
+                            <th class="px-4 py-2 border-r">Waste (kg)</th>
+                            <th class="px-4 py-2 border-r">Target %</th>
+                            <th class="px-4 py-2 font-black">Actual %</th>
                         </tr></thead><tbody id="wasteTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
                     </table></div>
                 </div>
@@ -190,6 +192,7 @@
         Chart.register(ChartDataLabels);
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
+        const TARGETS = { 'BHS': 10.50, 'YUELI': 11.40, 'ISOWA': 13.00 };
         const ALL_SHEETS = [
             {id:'loss',name:'เวลาสูญเสีย'},
             {id:'op_time',name:'เวลาเดินงาน'},
@@ -205,7 +208,6 @@
         };
         let charts = {};
 
-        // Helper function: ล้างคอมมาและแปลงเป็นตัวเลข
         function cleanParse(v) {
             if (!v) return 0;
             return parseFloat(String(v).replace(/,/g, '')) || 0;
@@ -253,7 +255,6 @@
             else renderTrends();
         }
 
-        // --- DASHBOARD LOGIC (PAGE 1) ---
         function renderDashboard() {
             if (appState.isRendering) return;
             appState.isRendering = true;
@@ -284,20 +285,21 @@
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
                 
-                const ca = getSum(conData, `${m} Cons (ALL) กะ A`), cb = getSum(conData, `${m} Cons (ALL) กะ B`);
-                const wa = getSum(conData, `${m} WASTE (ALL) กะ A`), wb = getSum(conData, `${m} WASTE (ALL) กะ B`);
+                // Waste Calculation
+                const mCons = getSum(conData, `Cons (${m})`);
+                const mWaste = getSum(conData, `Waste (${m})`);
+                const mTarget = TARGETS[m];
+                const mActual = mCons > 0 ? (mWaste / mCons) * 100 : 0;
 
                 return {
                     name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
-                    ca, cb, wa, wb,
+                    wCons: mCons, wWaste: mWaste, wTarget: mTarget, wActual: mActual,
                     spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
                     pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
                     pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
-                    pctWaste: (ca+cb) > 0 ? (wa+wb)/(ca+cb)*100 : 0,
                     spdA: opa>0?ma/opa:0, spdB: opb>0?mb/opb:0,
                     pctA: opa>0?la/opa*100:0, pctB: opb>0?lb/opb*100:0,
                     shPctA: shaO>0?shaM/shaO*100:0, shPctB: shbO>0?shbM/shbO*100:0,
-                    wsPctA: ca>0?wa/ca*100:0, wsPctB: cb>0?wb/cb*100:0,
                     totalScore: 0
                 };
             });
@@ -345,36 +347,24 @@
                                 <span class="text-xs font-black px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg">${s.totalScore} Pts</span>
                             </div>
                             ${isActive ? `
-                            <div class="space-y-3">
+                            <div class="space-y-3 text-[10px]">
                                 <div class="space-y-1">
                                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-slate-300 pl-2">ภาพรวมเครื่องจักร</p>
-                                    <div class="text-[10px] leading-snug">
-                                        <span class="text-emerald-600 font-bold">● จุดเด่น:</span> ${s.spdTotal > 110 ? 'สปีดเดินงานเฉลี่ยสูง' : (s.pctLoss < 8 ? 'คุม Loss ได้ดีมาก' : 'งานมีความต่อเนื่อง')}
-                                    </div>
-                                    <div class="text-[10px] leading-snug">
-                                        <span class="text-rose-500 font-bold">● ปรับปรุง:</span> ${s.pctLoss > 12 ? 'ลดเวลาสูญเสียส่วนเกิน' : (s.pctShort > 4 ? 'ลด % งานขาดจำนวน' : 'รักษาความเร็วให้เสถียร')}
-                                    </div>
+                                    <div class="leading-snug"><span class="text-emerald-600 font-bold">● จุดเด่น:</span> ${s.spdTotal > 110 ? 'สปีดเดินงานเฉลี่ยสูง' : (s.pctLoss < 8 ? 'คุม Loss ได้ดีมาก' : 'งานมีความต่อเนื่อง')}</div>
+                                    <div class="leading-snug"><span class="text-rose-500 font-bold">● ปรับปรุง:</span> ${s.pctLoss > 12 ? 'ลดเวลาสูญเสียส่วนเกิน' : (s.pctShort > 4 ? 'ลด % งานขาดจำนวน' : 'รักษาความเร็วให้เสถียร')}</div>
                                 </div>
                                 <div class="space-y-1 bg-indigo-50/50 p-2 rounded-xl border border-indigo-100/50">
                                     <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">กะ A Analysis</p>
-                                    <div class="text-[10px] leading-snug text-slate-700">
-                                        <span class="font-bold">✓ เด่น:</span> ${s.spdA > s.spdB ? 'สปีดสูงกว่ากะ B' : (s.pctA < s.pctB ? 'Loss ต่ำกว่ากะ B' : 'ผลิตได้ตามเป้าหมาย')}
-                                    </div>
-                                    <div class="text-[10px] leading-snug text-slate-700">
-                                        <span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctA > 10 ? 'ลดเวลาหยุดงานสะสม' : (s.shPctA > 3 ? 'ระวังจำนวนออเดอร์ขาด' : 'เพิ่มสปีดเฉลี่ยต่อชั่วโมง')}
-                                    </div>
+                                    <div class="leading-snug text-slate-700"><span class="font-bold">✓ เด่น:</span> ${s.spdA > s.spdB ? 'สปีดสูงกว่ากะ B' : (s.pctA < s.pctB ? 'Loss ต่ำกว่ากะ B' : 'ผลิตตามเป้า')}</div>
+                                    <div class="leading-snug text-slate-700"><span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctA > 10 ? 'ลดเวลาหยุดงานสะสม' : 'เพิ่มสปีดเฉลี่ย'}</div>
                                 </div>
                                 <div class="space-y-1 bg-orange-50/50 p-2 rounded-xl border border-orange-100/50">
                                     <p class="text-[9px] font-black text-orange-600 uppercase tracking-widest">กะ B Analysis</p>
-                                    <div class="text-[10px] leading-snug text-slate-700">
-                                        <span class="font-bold">✓ เด่น:</span> ${s.spdB > s.spdA ? 'สปีดเฉลี่ยชนะกะ A' : (s.pctB < s.pctA ? 'คุม Loss ได้ดีกว่ากะ A' : 'ความเสถียรในการผลิต')}
-                                    </div>
-                                    <div class="text-[10px] leading-snug text-slate-700">
-                                        <span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctB > 10 ? 'ตรวจเช็กเครื่องจักรระหวางกะ' : (s.shPctB > 3 ? 'เช็กจำนวนก่อนส่งมอบ' : 'รักษามาตรฐานความเร็ว')}
-                                    </div>
+                                    <div class="leading-snug text-slate-700"><span class="font-bold">✓ เด่น:</span> ${s.spdB > s.spdA ? 'สปีดเฉลี่ยชนะกะ A' : 'ความเสถียรผลิต'}</div>
+                                    <div class="leading-snug text-slate-700"><span class="font-bold text-rose-500">✗ แก้:</span> ${s.pctB > 10 ? 'เช็กเครื่องจักรระหวางกะ' : 'รักษามาตรฐานความเร็ว'}</div>
                                 </div>
                             </div>
-                            ` : `<div class="py-10 text-center text-[10px] font-bold text-slate-400 italic">ไม่มีข้อมูลการเดินงาน<br/>ในช่วงเวลานี้</div>`}
+                            ` : `<div class="py-10 text-center text-[10px] font-bold text-slate-400 italic">ไม่มีข้อมูลการเดินงาน</div>`}
                         </div>`;
                     }).join('')}
                 </div>`;
@@ -398,7 +388,7 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
-            // --- SECTION 4: WASTE KPI (ล้างคอมมาและรวมยอด) ---
+            // SECTION 4 KPI FROM SHEET CON
             const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
             const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
             const wastePercentTotal = totalConsAll > 0 ? (totalWasteAll / totalConsAll) * 100 : 0;
@@ -411,14 +401,20 @@
 
         function renderTables(stats) {
             const getRanked = (list, type) => {
-                const active = list.filter(s => s.opa > 0 || s.opb > 0);
+                const active = list.filter(s => {
+                    if (type === 'waste') return s.wCons > 0;
+                    return s.opa > 0 || s.opb > 0;
+                });
+                
                 if (type === 'speed') active.sort((a,b) => b.spdTotal - a.spdTotal);
                 else if (type === 'loss') active.sort((a,b) => a.pctLoss - b.pctLoss);
                 else if (type === 'short') active.sort((a,b) => a.pctShort - b.pctShort);
-                else if (type === 'waste') active.sort((a,b) => a.pctWaste - b.pctWaste);
+                else if (type === 'waste') active.sort((a,b) => a.wActual - b.wActual);
+                
                 return list.map(s => {
+                    const isActive = (type === 'waste') ? s.wCons > 0 : (s.opa > 0 || s.opb > 0);
                     const rankIdx = active.findIndex(a => a.name === s.name);
-                    return { ...s, rank: (s.opa > 0 || s.opb > 0) ? rankIdx + 1 : 99 };
+                    return { ...s, rank: isActive ? rankIdx + 1 : 99 };
                 }).sort((a,b) => a.rank - b.rank);
             };
 
@@ -427,7 +423,18 @@
                 if(type==='perf') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400 font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold">${formatNum(s.ma+s.mb)}</td><td class="px-3 py-4 font-black bg-emerald-50">${s.spdTotal.toFixed(1)}</td></tr>`;
                 if(type==='loss') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.la)}</td><td class="px-3 py-4 font-black text-amber-600">${s.pctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black text-amber-600">${s.pctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50">${s.pctLoss.toFixed(1)}%</td></tr>`;
                 if(type==='short') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.shaO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.shaM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.shPctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.shbO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.shbM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.shPctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.shaO+s.shbO)}</td><td class="px-3 py-4 font-bold text-rose-700 font-mono">${formatNum(s.shaM+s.shbM)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline underline-offset-4">${s.pctShort.toFixed(1)}%</td></tr>`;
-                if(type==='waste') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.ca)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.wa)}</td><td class="px-3 py-4 font-black text-amber-600">${s.wsPctA.toFixed(2)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.cb)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.wb)}</td><td class="px-3 py-4 font-black text-amber-600">${s.wsPctB.toFixed(2)}%</td><td class="px-3 py-4 border-l font-bold font-mono">${formatNum(s.ca+s.cb)}</td><td class="px-3 py-4 font-bold text-rose-700 font-mono">${formatNum(s.wa+s.wb)}</td><td class="px-3 py-4 font-black bg-amber-50 underline underline-offset-4">${s.pctWaste.toFixed(2)}%</td></tr>`;
+                if(type==='waste') {
+                    const colorClass = s.wActual <= s.wTarget ? 'text-emerald-600' : 'text-rose-600';
+                    return `<tr>
+                        <td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm">
+                            <div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div>
+                        </td>
+                        <td class="px-4 py-4 font-mono font-bold">${formatNum(s.wCons)}</td>
+                        <td class="px-4 py-4 font-mono">${formatNum(s.wWaste)}</td>
+                        <td class="px-4 py-4 font-bold text-slate-400 italic">${s.wTarget.toFixed(2)}%</td>
+                        <td class="px-4 py-4 font-black ${colorClass} bg-amber-50/30 text-lg">${s.wActual.toFixed(2)}%</td>
+                    </tr>`;
+                }
             };
 
             document.getElementById('perfTableBody').innerHTML = getRanked(stats, 'speed').map(s=>row(s, 'perf')).join('');
@@ -442,7 +449,11 @@
             updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
-            updateChart('wasteChart', MACHINES, stats.map(s=>s.wsPctA), 'กะ A', stats.map(s=>s.wsPctB), 'กะ B', colorsA, colorsB, true, 'bar');
+            
+            // Waste Chart
+            const actuals = stats.map(s => s.wActual);
+            const targets = stats.map(s => s.wTarget);
+            updateChart('wasteChart', MACHINES, actuals, 'Actual %', targets, 'Target %', '#f59e0b', '#cbd5e1', true, 'bar');
         }
 
         function renderTrends() {
@@ -502,12 +513,7 @@
                 const tOp = g.opa + g.opb; const tMet = g.ma + g.mb;
                 const tLoss = g.la + g.lb; const tOrd = g.saO + g.sbO;
                 const tMiss = g.saM + g.sbM;
-                return {
-                    label: lbl,
-                    speed: tOp > 0 ? tMet/tOp : 0,
-                    lossP: tOp > 0 ? (tLoss/tOp)*100 : 0,
-                    shortP: tOrd > 0 ? (tMiss/tOrd)*100 : 0
-                };
+                return { label: lbl, speed: tOp > 0 ? tMet/tOp : 0, lossP: tOp > 0 ? (tLoss/tOp)*100 : 0, shortP: tOrd > 0 ? (tMiss/tOrd)*100 : 0 };
             });
 
             const machineColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
@@ -539,10 +545,8 @@
                         legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun' } } },
                         datalabels: { 
                             display: true,
-                            anchor: type === 'bar' ? 'end' : 'center', 
-                            align: type === 'bar' ? 'start' : 'top', 
-                            offset: type === 'bar' ? 4 : 8,
-                            color: type === 'bar' ? '#ffffff' : (Array.isArray(c1) ? '#1e293b' : c1),
+                            anchor: 'end', align: 'top', offset: 4,
+                            color: Array.isArray(c1) ? '#1e293b' : c1,
                             font: { weight: '900', size: 13, family: 'Sarabun' },
                             formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' 
                         }
