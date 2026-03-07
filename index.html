@@ -123,6 +123,22 @@
                 </div>
                 <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
             </section>
+
+            <!-- ส่วนที่ 4: การวิเคราะห์ของเสีย (Waste Analysis) -->
+            <section class="space-y-6">
+                <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">4. การวิเคราะห์ของเสีย (Waste Analysis)</h2></div>
+                <div id="waste-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+                <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto"><table class="w-full text-center border-collapse min-w-[1100px]">
+                        <thead><tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b">
+                            <th rowspan="2" class="px-6 py-4 text-left border-r table-sticky-col w-[250px]">อันดับ / เครื่องจักร</th><th colspan="3" class="px-4 py-2 border-r bg-indigo-50/30">กะ A</th><th colspan="3" class="px-4 py-2 border-r bg-orange-50/30">กะ B</th><th colspan="3" class="px-4 py-2 bg-slate-100">รวมทั้งหมด</th>
+                        </tr><tr class="bg-slate-50 text-[9px] font-bold border-b">
+                            <th class="px-3 py-2 border-r">Cons (kg)</th><th class="px-3 py-2 border-r">Waste (kg)</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">Cons (kg)</th><th class="px-3 py-2 border-r">Waste (kg)</th><th class="px-3 py-2 border-r font-black">%</th><th class="px-3 py-2 border-r">Cons (kg)</th><th class="px-3 py-2 border-r">Waste (kg)</th><th class="px-3 py-2 font-black">%</th>
+                        </tr></thead><tbody id="wasteTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table></div>
+                </div>
+                <div class="dashboard-card"><div class="chart-container"><canvas id="wasteChart"></canvas></div></div>
+            </section>
         </div>
 
         <!-- PAGE 2: TRENDS -->
@@ -175,7 +191,9 @@
             {id:'loss',name:'เวลาสูญเสีย'},
             {id:'op_time',name:'เวลาเดินงาน'},
             {id:'meter',name:'เมตร'},
-            {id:'shortage',name:'ขาดจำนวน'}
+            {id:'shortage',name:'ขาดจำนวน'},
+            {id:'station', name:'Waste Stasion'},
+            {id:'waste', name:'Waste'}
         ];
 
         let appState = { 
@@ -250,20 +268,29 @@
             const stats = MACHINES.map(m => {
                 const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
                 const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
+                const st = filter('station'), ws = filter('waste');
+
                 const la = getSum(l, `${m} กะ A`), lb = getSum(l, `${m} กะ B`);
                 const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
                 const ma = getSum(met, `${m} กะ A`), mb = getSum(met, `${m} กะ B`);
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`); const shbM = getSum(sh, `${m} กะ B ขาด`);
+                
+                // สำหรับ Waste Table
+                const consA = getSum(st, `${m} Cons กะ A`); const consB = getSum(st, `${m} Cons กะ B`);
+                const wasteA = getSum(ws, `${m} Waste กะ A`); const wasteB = getSum(ws, `${m} Waste กะ B`);
 
                 return {
                     name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
+                    consA, consB, wasteA, wasteB,
                     spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
                     pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
                     pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
+                    pctWaste: (consA+consB) > 0 ? (wasteA+wasteB)/(consA+consB)*100 : 0,
                     spdA: opa>0?ma/opa:0, spdB: opb>0?mb/opb:0,
                     pctA: opa>0?la/opa*100:0, pctB: opb>0?lb/opb*100:0,
                     shPctA: shaO>0?shaM/shaO*100:0, shPctB: shbO>0?shbM/shbO*100:0,
+                    wsPctA: consA>0?wasteA/consA*100:0, wsPctB: consB>0?wasteB/consB*100:0,
                     totalScore: 0
                 };
             });
@@ -278,7 +305,7 @@
             }
 
             renderExecutiveAnalysis(stats);
-            renderKPIs(stats);
+            renderKPIs(stats, filter('station'), filter('waste'));
             renderTables(stats);
             renderDashboardCharts(stats);
             
@@ -350,7 +377,7 @@
                 </div>`;
         }
 
-        function renderKPIs(stats) {
+        function renderKPIs(stats, stationData, wasteData) {
             const sum = (key) => stats.reduce((acc, s) => acc + s[key], 0);
             const totalOp = sum('opa') + sum('opb'); const totalMet = sum('ma') + sum('mb');
             const totalLoss = sum('la') + sum('lb'); const totalOrd = sum('shaO') + sum('shbO');
@@ -365,6 +392,18 @@
             document.getElementById('perf-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('layers','เมตรรวม',formatNum(totalMet),'เมตร','emerald') + kpiBox('gauge','สปีดเฉลี่ย',(totalMet/(totalOp||1)).toFixed(1),'m/min','indigo');
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
+            
+            // ข้อมูลสำหรับส่วนที่ 4 (Waste)
+            const totalConsAll = stationData.reduce((acc, r) => acc + (parseFloat(r['Cons (ALL)']) || 0), 0);
+            const totalWasteRaw = wasteData.reduce((acc, r) => acc + (parseFloat(r['Total']) || 0), 0);
+            const totalCenter = wasteData.reduce((acc, r) => acc + (parseFloat(r['CENTER(30101)']) || 0), 0);
+            const actualWaste = totalWasteRaw - totalCenter;
+            const wastePercent = totalConsAll > 0 ? (actualWaste / totalConsAll) * 100 : 0;
+
+            document.getElementById('waste-kpis').innerHTML = 
+                kpiBox('package', 'Consumption', formatNum(totalConsAll), 'kg', 'indigo') + 
+                kpiBox('trash-2', 'น้ำหนักของเสีย', formatNum(actualWaste), 'kg', 'rose') + 
+                kpiBox('percent', '% ของเสีย', wastePercent.toFixed(1), '%', 'amber');
         }
 
         function renderTables(stats) {
@@ -373,6 +412,7 @@
                 if (type === 'speed') active.sort((a,b) => b.spdTotal - a.spdTotal);
                 else if (type === 'loss') active.sort((a,b) => a.pctLoss - b.pctLoss);
                 else if (type === 'short') active.sort((a,b) => a.pctShort - b.pctShort);
+                else if (type === 'waste') active.sort((a,b) => a.pctWaste - b.pctWaste);
                 return list.map(s => {
                     const rankIdx = active.findIndex(a => a.name === s.name);
                     return { ...s, rank: (s.opa > 0 || s.opb > 0) ? rankIdx + 1 : 99 };
@@ -384,11 +424,13 @@
                 if(type==='perf') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400 font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold">${formatNum(s.ma+s.mb)}</td><td class="px-3 py-4 font-black bg-emerald-50">${s.spdTotal.toFixed(1)}</td></tr>`;
                 if(type==='loss') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.la)}</td><td class="px-3 py-4 font-black text-amber-600">${s.pctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black text-amber-600">${s.pctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50">${s.pctLoss.toFixed(1)}%</td></tr>`;
                 if(type==='short') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.shaO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.shaM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.shPctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.shbO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.shbM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.shPctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.shaO+s.shbO)}</td><td class="px-3 py-4 font-bold text-rose-700 font-mono">${formatNum(s.shaM+s.shbM)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline underline-offset-4">${s.pctShort.toFixed(1)}%</td></tr>`;
+                if(type==='waste') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.consA)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.wasteA)}</td><td class="px-3 py-4 font-black text-amber-600">${s.wsPctA.toFixed(1)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.consB)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.wasteB)}</td><td class="px-3 py-4 font-black text-amber-600">${s.wsPctB.toFixed(1)}%</td><td class="px-3 py-4 border-l font-bold font-mono">${formatNum(s.consA+s.consB)}</td><td class="px-3 py-4 font-bold text-rose-700 font-mono">${formatNum(s.wasteA+s.wasteB)}</td><td class="px-3 py-4 font-black bg-amber-50 underline underline-offset-4">${s.pctWaste.toFixed(1)}%</td></tr>`;
             };
 
             document.getElementById('perfTableBody').innerHTML = getRanked(stats, 'speed').map(s=>row(s, 'perf')).join('');
             document.getElementById('mgmtTableBody').innerHTML = getRanked(stats, 'loss').map(s=>row(s, 'loss')).join('');
             document.getElementById('shortTableBody').innerHTML = getRanked(stats, 'short').map(s=>row(s, 'short')).join('');
+            document.getElementById('wasteTableBody').innerHTML = getRanked(stats, 'waste').map(s=>row(s, 'waste')).join('');
         }
 
         function renderDashboardCharts(stats) {
@@ -397,6 +439,7 @@
             updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
+            updateChart('wasteChart', MACHINES, stats.map(s=>s.wsPctA), 'กะ A', stats.map(s=>s.wsPctB), 'กะ B', colorsA, colorsB, true, 'bar');
         }
 
         // --- TRENDS LOGIC (PAGE 2) ---
