@@ -205,6 +205,12 @@
         };
         let charts = {};
 
+        // Helper function: ล้างคอมมาและแปลงเป็นตัวเลข
+        function cleanParse(v) {
+            if (!v) return 0;
+            return parseFloat(String(v).replace(/,/g, '')) || 0;
+        }
+
         function formatNum(n) { return new Intl.NumberFormat('th-TH').format(Math.round(n || 0)); }
 
         async function fetchSheetData() {
@@ -268,7 +274,7 @@
             }) || [];
 
             const stats = MACHINES.map(m => {
-                const getSum = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
+                const getSum = (data, col) => data.reduce((acc, r) => acc + cleanParse(r[col]), 0);
                 const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage');
                 const conData = filter('con');
 
@@ -278,7 +284,6 @@
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
                 
-                // สำหรับ Waste โดยใช้ชีท Con (Consumtion และ Waste ALL รายเครื่อง/กะ)
                 const ca = getSum(conData, `${m} Cons (ALL) กะ A`), cb = getSum(conData, `${m} Cons (ALL) กะ B`);
                 const wa = getSum(conData, `${m} WASTE (ALL) กะ A`), wb = getSum(conData, `${m} WASTE (ALL) กะ B`);
 
@@ -339,7 +344,6 @@
                                 </div>
                                 <span class="text-xs font-black px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg">${s.totalScore} Pts</span>
                             </div>
-                            
                             ${isActive ? `
                             <div class="space-y-3">
                                 <div class="space-y-1">
@@ -394,9 +398,9 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
-            // --- SECTION 4: WASTE KPI FROM SHEET CON ---
-            const totalConsAll = rawCon.reduce((acc, r) => acc + (parseFloat(r['Cons (ALL)']) || 0), 0);
-            const totalWasteAll = rawCon.reduce((acc, r) => acc + (parseFloat(r['WASTE (ALL)']) || 0), 0);
+            // --- SECTION 4: WASTE KPI (ล้างคอมมาและรวมยอด) ---
+            const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
+            const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
             const wastePercentTotal = totalConsAll > 0 ? (totalWasteAll / totalConsAll) * 100 : 0;
 
             document.getElementById('waste-kpis').innerHTML = 
@@ -433,15 +437,14 @@
         }
 
         function renderDashboardCharts(stats) {
-            const colorsA = ['#f97316', '#2563eb', '#16a34a']; // กะ A (BHS, YUELI, ISOWA)
-            const colorsB = ['#fdba74', '#93c5fd', '#86efac']; // กะ B
+            const colorsA = ['#f97316', '#2563eb', '#16a34a'];
+            const colorsB = ['#fdba74', '#93c5fd', '#86efac'];
             updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('wasteChart', MACHINES, stats.map(s=>s.wsPctA), 'กะ A', stats.map(s=>s.wsPctB), 'กะ B', colorsA, colorsB, true, 'bar');
         }
 
-        // --- TRENDS LOGIC (PAGE 2) ---
         function renderTrends() {
             const fromVal = document.getElementById('mgmtFromDate').value;
             const toVal = document.getElementById('mgmtToDate').value;
@@ -449,7 +452,6 @@
             const view = document.getElementById('trendView').value;
             
             if (!fromVal || !toVal) return;
-
             const from = new Date(fromVal); from.setHours(0,0,0,0);
             const to = new Date(toVal); to.setHours(23,59,59,999);
 
@@ -476,16 +478,13 @@
                     else groupKey = date.toLocaleDateString('th-TH', {year:'numeric'});
 
                     if (!groups[groupKey]) groups[groupKey] = { labels: groupKey, opa:0, opb:0, ma:0, mb:0, la:0, lb:0, saO:0, sbO:0, saM:0, sbM:0 };
-                    
                     const g = groups[groupKey];
-                    const sum = (sheet, col) => parseFloat(r[col]) || 0;
-                    
-                    if (key === 'op_time') { g.opa += sum(null, `${machine} เวลาเดินงานทั้งหมดกะ A`); g.opb += sum(null, `${machine} เวลาเดินงานทั้งหมดกะ B`); }
-                    if (key === 'meter') { g.ma += sum(null, `${machine} กะ A`); g.mb += sum(null, `${machine} กะ B`); }
-                    if (key === 'loss') { g.la += sum(null, `${machine} กะ A`); g.lb += sum(null, `${machine} กะ B`); }
+                    if (key === 'op_time') { g.opa += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ A`]); g.opb += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ B`]); }
+                    if (key === 'meter') { g.ma += cleanParse(r[`${machine} กะ A`]); g.mb += cleanParse(r[`${machine} กะ B`]); }
+                    if (key === 'loss') { g.la += cleanParse(r[`${machine} กะ A`]); g.lb += cleanParse(r[`${machine} กะ B`]); }
                     if (key === 'shortage') { 
-                        g.saO += sum(null, `${machine} กะ A เดินงาน order`); g.sbO += sum(null, `${machine} กะ B เดินงาน order`);
-                        g.saM += sum(null, `${machine} กะ A ขาด`); g.sbM += sum(null, `${machine} กะ B ขาด`);
+                        g.saO += cleanParse(r[`${machine} กะ A เดินงาน order`]); g.sbO += cleanParse(r[`${machine} กะ B เดินงาน order`]);
+                        g.saM += cleanParse(r[`${machine} กะ A ขาด`]); g.sbM += cleanParse(r[`${machine} กะ B ขาด`]);
                     }
                 });
             });
@@ -494,9 +493,6 @@
                 if(view === 'daily') {
                     const d1 = a.split('/'); const d2 = b.split('/');
                     return new Date(d1[2]>2500?d1[2]-543:d1[2], d1[1]-1, d1[0]) - new Date(d2[2]>2500?d2[2]-543:d2[2], d2[1]-1, d2[0]);
-                }
-                if(view === 'weekly') {
-                    return parseInt(a.replace('Week ', '')) - parseInt(b.replace('Week ', ''));
                 }
                 return 0;
             });
@@ -515,19 +511,15 @@
             });
 
             const machineColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
-            
             updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, machineColor, null, false, 'line');
             updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, null, null, machineColor, null, true, 'line');
             updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, null, null, machineColor, null, true, 'line');
-            
             lucide.createIcons();
         }
 
-        // --- COMMON CHART HELPER ---
         function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct, type) {
             const ctx = document.getElementById(id); if(!ctx) return;
             if (charts[id]) charts[id].destroy();
-
             const datasets = [{
                 label: l1, data: d1, backgroundColor: c1, borderColor: c1,
                 borderRadius: type === 'bar' ? 8 : 0, borderWidth: type === 'line' ? 4 : 1,
@@ -538,7 +530,6 @@
                 borderRadius: type === 'bar' ? 8 : 0, borderWidth: type === 'line' ? 4 : 1,
                 fill: false, tension: 0.3
             });
-
             charts[id] = new Chart(ctx.getContext('2d'), {
                 type: type,
                 data: { labels, datasets },
