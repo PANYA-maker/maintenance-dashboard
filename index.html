@@ -127,7 +127,7 @@
                 <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
             </section>
 
-            <!-- SECTION 4: WASTE (NEW) -->
+            <!-- SECTION 4: WASTE (FIXED) -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">4. การวิเคราะห์ของเสีย (Waste Analysis)</h2></div>
                 <div id="waste-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
@@ -310,7 +310,7 @@
             }
 
             renderExecutiveAnalysis(stats);
-            renderKPIs(stats, filter('con'), filter('waste'));
+            renderKPIs(stats);
             renderTables(stats);
             renderDashboardCharts(stats);
             
@@ -382,8 +382,9 @@
                 </div>`;
         }
 
-        function renderKPIs(stats, conData, wasteData) {
-            const sumStats = (key) => stats.reduce((acc, s) => acc + s[key], 0);
+        function renderKPIs(stats) {
+            // คำนวณยอดรวมของ Section 1-3
+            const sumStats = (key) => stats.reduce((acc, s) => acc + (parseFloat(s[key]) || 0), 0);
             const totalOp = sumStats('opa') + sumStats('opb'); 
             const totalMet = sumStats('ma') + sumStats('mb');
             const totalLoss = sumStats('la') + sumStats('lb'); 
@@ -400,12 +401,9 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
-            // ส่วนคำนวณ Section 4 (Waste)
-            const sumCol = (data, col) => data.reduce((acc, r) => acc + (parseFloat(r[col]) || 0), 0);
-            const totalConsWeight = sumCol(conData, 'Cons (ALL)');
-            const totalWasteRaw = sumCol(wasteData, 'Total');
-            const totalCenterWeight = sumCol(wasteData, 'CENTER(30101)');
-            const totalWasteWeight = totalWasteRaw - totalCenterWeight;
+            // คำนวณยอดรวมของ Section 4 (Waste) โดยอิงจากการรวมยอดรายเครื่องจักรใน stats
+            const totalConsWeight = stats.reduce((acc, s) => acc + (s.ca + s.cb), 0);
+            const totalWasteWeight = stats.reduce((acc, s) => acc + (s.wa + s.wb), 0);
             const totalWastePercent = totalConsWeight > 0 ? (totalWasteWeight / totalConsWeight) * 100 : 0;
 
             document.getElementById('waste-kpis').innerHTML = 
