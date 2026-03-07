@@ -435,7 +435,12 @@
             updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
-            updateChart('wasteChart', MACHINES, stats.map(s=>s.wActual), 'Actual %', stats.map(s=>s.wTarget), 'Target %', '#f59e0b', '#cbd5e1', true, 'bar');
+            
+            // --- ปรับปรุง Waste Chart ตามคำสั่ง ---
+            const actuals = stats.map(s => s.wActual);
+            const targets = stats.map(s => s.wTarget);
+            const machineColors = ['#f97316', '#2563eb', '#16a34a']; // ส้ม, น้ำเงิน, เขียว
+            updateChart('wasteChart', MACHINES, actuals, 'Actual %', targets, 'Target %', machineColors, '#cbd5e1', true, 'bar');
         }
 
         // --- TRENDS (PAGE 2) ---
@@ -543,9 +548,30 @@
                         legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun' } } },
                         datalabels: { 
                             display: true, anchor: 'end', align: 'top', offset: 4,
-                            color: Array.isArray(c1) ? '#1e293b' : c1,
-                            font: { weight: '900', size: 13, family: 'Sarabun' },
-                            formatter: v => v>0 ? v.toFixed(1)+(isPct?'%':'') : '' 
+                            // ปรับเงื่อนไขสีของตัวเลขบนกราฟสำหรับ Waste Chart
+                            color: (context) => {
+                                if (id === 'wasteChart' && context.datasetIndex === 0) {
+                                    const actual = context.dataset.data[context.dataIndex];
+                                    const target = context.chart.data.datasets[1].data[context.dataIndex];
+                                    return (actual - target) > 0 ? '#ef4444' : '#10b981'; // + แดง, - เขียว
+                                }
+                                return Array.isArray(c1) ? (context.datasetIndex === 0 ? c1[context.dataIndex] : c2) : c1;
+                            },
+                            font: { weight: '900', size: 10, family: 'Sarabun' },
+                            // ปรับการแสดงผลตัวเลข (2 หลัก + Diff)
+                            formatter: (v, context) => {
+                                if (!v && v !== 0) return '';
+                                const precision = (id === 'wasteChart' || isPct) ? 2 : 1;
+                                let label = v.toFixed(precision) + (isPct ? '%' : '');
+                                
+                                if (id === 'wasteChart' && context.datasetIndex === 0) {
+                                    const target = context.chart.data.datasets[1].data[context.dataIndex];
+                                    const diff = v - target;
+                                    const sign = diff > 0 ? '+' : '';
+                                    label += ` (${sign}${diff.toFixed(2)})`;
+                                }
+                                return label;
+                            }
                         }
                     },
                     scales: { 
