@@ -127,7 +127,7 @@
                 <div class="dashboard-card"><div class="chart-container"><canvas id="shortChart"></canvas></div></div>
             </section>
 
-            <!-- SECTION 4: WASTE ANALYSIS (UPDATED) -->
+            <!-- SECTION 4: WASTE ANALYSIS -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">4. การวิเคราะห์ของเสีย (Waste Analysis)</h2></div>
                 <div id="waste-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
@@ -169,6 +169,26 @@
                     </div>
                 </div>
             </section>
+
+            <div class="grid grid-cols-1 gap-8">
+                <div class="dashboard-card">
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-emerald-500 decoration-4">📊 แนวโน้มความเร็วเฉลี่ย (Speed Trends)</h3>
+                    <div class="chart-container"><canvas id="trendSpeedChart"></canvas></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-rose-500 decoration-4">📉 แนวโน้มเวลาสูญเสีย (Loss % Trends)</h3>
+                    <div class="chart-container"><canvas id="trendLossChart"></canvas></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-indigo-500 decoration-4">📋 แนวโน้มงานขาดจำนวน (Shortage % Trends)</h3>
+                    <div class="chart-container"><canvas id="trendShortChart"></canvas></div>
+                </div>
+                <!-- NEW: WASTE TREND CHART -->
+                <div class="dashboard-card">
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4">🗑️ แนวโน้ม % ของเสีย (Waste % Trends)</h3>
+                    <div class="chart-container"><canvas id="trendWasteChart"></canvas></div>
+                </div>
+            </div>
         </div>
 
     </main>
@@ -178,7 +198,10 @@
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         const TARGETS = { 'BHS': 10.50, 'YUELI': 11.40, 'ISOWA': 13.00 };
-        // การดึงข้อมูลจากชีท Con เพื่อนำมาแมพคอลัมน์พิเศษ
+        
+        // แมพชื่อเครื่องเป็นคีย์ย่อตามชีท Con
+        const MACHINE_KEY_MAP = { 'BHS': 'BHS', 'YUELI': 'YUE', 'ISOWA': 'ISO' };
+        
         const MAPPING = {
             'BHS': { cons: 'Cons (BHS)', waste: 'Waste (BHS)' },
             'YUELI': { cons: 'Cons (YUE)', waste: 'Waste (YUE)' },
@@ -231,14 +254,18 @@
         function switchPage(page) {
             appState.currentPage = page;
             document.getElementById('page-overview').classList.toggle('hidden', page !== 'overview');
+            document.getElementById('page-trends').classList.toggle('hidden', page !== 'trends');
             document.getElementById('nav-overview').classList.toggle('active', page === 'overview');
+            document.getElementById('nav-trends').classList.toggle('active', page === 'trends');
             refreshCurrentPage();
         }
 
         function refreshCurrentPage() {
             if (appState.currentPage === 'overview') renderDashboard();
+            else renderTrends();
         }
 
+        // --- DASHBOARD (OVERVIEW) ---
         function renderDashboard() {
             if (appState.isRendering) return;
             appState.isRendering = true;
@@ -268,7 +295,7 @@
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
                 
-                // Waste Calculation จากชีท Con (คอลัมน์เฉพาะรายเครื่อง)
+                // Waste Calculation จากชีท Con
                 const mCons = getSum(conData, MAPPING[m].cons);
                 const mWaste = getSum(conData, MAPPING[m].waste);
                 const mTarget = TARGETS[m];
@@ -351,7 +378,6 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
-            // KPI 4: Waste จากชีท Con คอลัมน์ Cons (ALL) และ WASTE (ALL)
             const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
             const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
             const wastePercentTotal = totalConsAll > 0 ? (totalWasteAll / totalConsAll) * 100 : 0;
@@ -368,8 +394,7 @@
                 if (type === 'speed') active.sort((a,b) => b.spdTotal - a.spdTotal);
                 else if (type === 'loss') active.sort((a,b) => a.pctLoss - b.pctLoss);
                 else if (type === 'short') active.sort((a,b) => a.pctShort - b.pctShort);
-                else if (type === 'waste') active.sort((a,b) => a.wActual - b.wActual); // น้อยสุดอยู่อันดับ 1
-                
+                else if (type === 'waste') active.sort((a,b) => a.wActual - b.wActual);
                 return list.map(s => {
                     const isActive = (type === 'waste') ? s.wCons > 0 : (s.opa > 0 || s.opb > 0);
                     const rankIdx = active.findIndex(a => a.name === s.name);
@@ -406,9 +431,91 @@
             updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
-            
-            // Waste Chart
             updateChart('wasteChart', MACHINES, stats.map(s=>s.wActual), 'Actual %', stats.map(s=>s.wTarget), 'Target %', '#f59e0b', '#cbd5e1', true, 'bar');
+        }
+
+        // --- TRENDS (PAGE 2) ---
+        function renderTrends() {
+            const fromVal = document.getElementById('mgmtFromDate').value;
+            const toVal = document.getElementById('mgmtToDate').value;
+            const machine = document.getElementById('trendMachine').value;
+            const view = document.getElementById('trendView').value;
+            
+            if (!fromVal || !toVal) return;
+            const from = new Date(fromVal); from.setHours(0,0,0,0);
+            const to = new Date(toVal); to.setHours(23,59,59,999);
+
+            const groups = {};
+            // เพิ่ม 'con' เข้าไปใน keys เพื่อดึงข้อมูลของเสีย
+            const keys = ['loss', 'op_time', 'meter', 'shortage', 'con'];
+            
+            keys.forEach(key => {
+                appState.raw[key]?.forEach(r => {
+                    const dParts = r['วันที่']?.split('/') || [];
+                    if (dParts.length < 3) return;
+                    const date = new Date(dParts[2]>2500?dParts[2]-543:dParts[2], dParts[1]-1, dParts[0]);
+                    if (date < from || date > to) return;
+
+                    let groupKey = "";
+                    if (view === 'daily') groupKey = dParts.join('/');
+                    else if (view === 'weekly') {
+                        const d = new Date(date); d.setHours(0,0,0,0);
+                        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+                        const yearStart = new Date(d.getFullYear(), 0, 1);
+                        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+                        groupKey = `Week ${weekNo}`;
+                    }
+                    else if (view === 'monthly') groupKey = date.toLocaleDateString('th-TH', {month:'long', year:'numeric'});
+                    else groupKey = date.toLocaleDateString('th-TH', {year:'numeric'});
+
+                    if (!groups[groupKey]) groups[groupKey] = { labels: groupKey, opa:0, opb:0, ma:0, mb:0, la:0, lb:0, saO:0, sbO:0, saM:0, sbM:0, wCons:0, wWaste:0 };
+                    
+                    const g = groups[groupKey];
+                    if (key === 'op_time') { g.opa += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ A`]); g.opb += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ B`]); }
+                    if (key === 'meter') { g.ma += cleanParse(r[`${machine} กะ A`]); g.mb += cleanParse(r[`${machine} กะ B`]); }
+                    if (key === 'loss') { g.la += cleanParse(r[`${machine} กะ A`]); g.lb += cleanParse(r[`${machine} กะ B`]); }
+                    if (key === 'shortage') { 
+                        g.saO += cleanParse(r[`${machine} กะ A เดินงาน order`]); g.sbO += cleanParse(r[`${machine} กะ B เดินงาน order`]);
+                        g.saM += cleanParse(r[`${machine} กะ A ขาด`]); g.sbM += cleanParse(r[`${machine} กะ B ขาด`]);
+                    }
+                    if (key === 'con') {
+                        // ดึงข้อมูลรายเครื่องจาก MAPPING ที่ตั้งไว้
+                        g.wCons += cleanParse(r[MAPPING[machine].cons]);
+                        g.wWaste += cleanParse(r[MAPPING[machine].waste]);
+                    }
+                });
+            });
+
+            const sortedLabels = Object.keys(groups).sort((a,b) => {
+                if(view === 'daily') {
+                    const d1 = a.split('/'); const d2 = b.split('/');
+                    return new Date(d1[2]>2500?d1[2]-543:d1[2], d1[1]-1, d1[0]) - new Date(d2[2]>2500?d2[2]-543:d2[2], d2[1]-1, d2[0]);
+                }
+                return 0;
+            });
+
+            const trendData = sortedLabels.map(lbl => {
+                const g = groups[lbl];
+                const tOp = g.opa + g.opb; const tMet = g.ma + g.mb;
+                const tLoss = g.la + g.lb; const tOrd = g.saO + g.sbO;
+                const tMiss = g.saM + g.sbM;
+                return { 
+                    label: lbl, 
+                    speed: tOp > 0 ? tMet/tOp : 0, 
+                    lossP: tOp > 0 ? (tLoss/tOp)*100 : 0, 
+                    shortP: tOrd > 0 ? (tMiss/tOrd)*100 : 0,
+                    wasteP: g.wCons > 0 ? (g.wWaste/g.wCons)*100 : 0
+                };
+            });
+
+            const machineColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
+            
+            updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, machineColor, null, false, 'line');
+            updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, null, null, machineColor, null, true, 'line');
+            updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, null, null, machineColor, null, true, 'line');
+            updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, null, null, '#f59e0b', null, true, 'line');
+            
+            lucide.createIcons();
         }
 
         function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct, type) {
