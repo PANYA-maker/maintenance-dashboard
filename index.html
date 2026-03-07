@@ -183,7 +183,7 @@
                     <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-indigo-500 decoration-4">📋 แนวโน้มงานขาดจำนวน (Shortage % Trends)</h3>
                     <div class="chart-container"><canvas id="trendShortChart"></canvas></div>
                 </div>
-                <!-- NEW: WASTE TREND CHART -->
+                <!-- WASTE TREND CHART -->
                 <div class="dashboard-card">
                     <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4">🗑️ แนวโน้ม % ของเสีย (Waste % Trends)</h3>
                     <div class="chart-container"><canvas id="trendWasteChart"></canvas></div>
@@ -199,13 +199,10 @@
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         const TARGETS = { 'BHS': 10.50, 'YUELI': 11.40, 'ISOWA': 13.00 };
         
-        // แมพชื่อเครื่องเป็นคีย์ย่อตามชีท Con
-        const MACHINE_KEY_MAP = { 'BHS': 'BHS', 'YUELI': 'YUE', 'ISOWA': 'ISO' };
-        
         const MAPPING = {
-            'BHS': { cons: 'Cons (BHS)', waste: 'Waste (BHS)' },
-            'YUELI': { cons: 'Cons (YUE)', waste: 'Waste (YUE)' },
-            'ISOWA': { cons: 'Cons (ISO)', waste: 'Waste (ISO)' }
+            'BHS': { co: 'C-O (BHS)', cons: 'Cons (BHS)', waste: 'Waste (BHS)' },
+            'YUELI': { co: 'C-O (YUE)', cons: 'Cons (YUE)', waste: 'Waste (YUE)' },
+            'ISOWA': { co: 'C-O (ISO)', cons: 'Cons (ISO)', waste: 'Waste (ISO)' }
         };
 
         const ALL_SHEETS = [
@@ -295,15 +292,18 @@
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
                 
-                // Waste Calculation จากชีท Con
+                // --- Waste Calculation ปรับปรุงสูตรตามเงื่อนไขใหม่ ---
                 const mCons = getSum(conData, MAPPING[m].cons);
                 const mWaste = getSum(conData, MAPPING[m].waste);
+                const mCO = getSum(conData, MAPPING[m].co);
                 const mTarget = TARGETS[m];
-                const mActual = mCons > 0 ? (mWaste / mCons) * 100 : 0;
+                
+                // สูตรใหม่: ((C-O - Waste) + Waste) / Cons * 100
+                const mActual = mCons > 0 ? (((mCO - mWaste) + mWaste) / mCons) * 100 : 0;
 
                 return {
                     name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
-                    wCons: mCons, wWaste: mWaste, wTarget: mTarget, wActual: mActual,
+                    wCons: mCons, wWaste: mWaste, wCO: mCO, wTarget: mTarget, wActual: mActual,
                     spdTotal: (opa+opb) > 0 ? (ma+mb)/(opa+opb) : 0,
                     pctLoss: (opa+opb) > 0 ? (la+lb)/(opa+opb)*100 : 0,
                     pctShort: (shaO+shbO) > 0 ? (shaM+shbM)/(shaO+shbO)*100 : 0,
@@ -378,9 +378,13 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
+            // KPI 4 Waste Analysis ปรับสูตรการ์ดรวมด้วย
             const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
             const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
-            const wastePercentTotal = totalConsAll > 0 ? (totalWasteAll / totalConsAll) * 100 : 0;
+            const totalCOAll = rawCon.reduce((acc, r) => acc + cleanParse(r['C-O (ALL)']), 0);
+            
+            // สูตรใหม่สำหรับการ์ด: ((CO_ALL - Waste_ALL) + Waste_ALL) / Cons_ALL * 100
+            const wastePercentTotal = totalConsAll > 0 ? (((totalCOAll - totalWasteAll) + totalWasteAll) / totalConsAll) * 100 : 0;
 
             document.getElementById('waste-kpis').innerHTML = 
                 kpiBox('package', 'Consumtion', formatNum(totalConsAll), 'kg', 'indigo') + 
@@ -446,7 +450,6 @@
             const to = new Date(toVal); to.setHours(23,59,59,999);
 
             const groups = {};
-            // เพิ่ม 'con' เข้าไปใน keys เพื่อดึงข้อมูลของเสีย
             const keys = ['loss', 'op_time', 'meter', 'shortage', 'con'];
             
             keys.forEach(key => {
@@ -468,7 +471,7 @@
                     else if (view === 'monthly') groupKey = date.toLocaleDateString('th-TH', {month:'long', year:'numeric'});
                     else groupKey = date.toLocaleDateString('th-TH', {year:'numeric'});
 
-                    if (!groups[groupKey]) groups[groupKey] = { labels: groupKey, opa:0, opb:0, ma:0, mb:0, la:0, lb:0, saO:0, sbO:0, saM:0, sbM:0, wCons:0, wWaste:0 };
+                    if (!groups[groupKey]) groups[groupKey] = { labels: groupKey, opa:0, opb:0, ma:0, mb:0, la:0, lb:0, saO:0, sbO:0, saM:0, sbM:0, wCons:0, wWaste:0, wCO:0 };
                     
                     const g = groups[groupKey];
                     if (key === 'op_time') { g.opa += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ A`]); g.opb += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ B`]); }
@@ -479,9 +482,9 @@
                         g.saM += cleanParse(r[`${machine} กะ A ขาด`]); g.sbM += cleanParse(r[`${machine} กะ B ขาด`]);
                     }
                     if (key === 'con') {
-                        // ดึงข้อมูลรายเครื่องจาก MAPPING ที่ตั้งไว้
                         g.wCons += cleanParse(r[MAPPING[machine].cons]);
                         g.wWaste += cleanParse(r[MAPPING[machine].waste]);
+                        g.wCO += cleanParse(r[MAPPING[machine].co]);
                     }
                 });
             });
@@ -504,7 +507,7 @@
                     speed: tOp > 0 ? tMet/tOp : 0, 
                     lossP: tOp > 0 ? (tLoss/tOp)*100 : 0, 
                     shortP: tOrd > 0 ? (tMiss/tOrd)*100 : 0,
-                    wasteP: g.wCons > 0 ? (g.wWaste/g.wCons)*100 : 0
+                    wasteP: g.wCons > 0 ? (((g.wCO - g.wWaste) + g.wWaste) / g.wCons) * 100 : 0
                 };
             });
 
