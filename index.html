@@ -13,7 +13,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap');
         body { background-color: #f8fafc; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .chart-container { position: relative; height: 350px; width: 100%; }
+        .chart-container { position: relative; height: 380px; width: 100%; } /* เพิ่มความสูงเล็กน้อยกันล้น */
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
         .trophy-1 { color: #fbbf24; fill: #fef3c7; } 
@@ -172,20 +172,19 @@
 
             <div class="grid grid-cols-1 gap-8">
                 <div class="dashboard-card">
-                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-emerald-500 decoration-4">📊 แนวโน้มความเร็วเฉลี่ย (Speed Trends)</h3>
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-emerald-500 decoration-4 text-xl">📊 แนวโน้มความเร็วเฉลี่ย (Speed Trends)</h3>
                     <div class="chart-container"><canvas id="trendSpeedChart"></canvas></div>
                 </div>
                 <div class="dashboard-card">
-                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-rose-500 decoration-4">📉 แนวโน้มเวลาสูญเสีย (Loss % Trends)</h3>
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-rose-500 decoration-4 text-xl">📉 แนวโน้มเวลาสูญเสีย (Loss % Trends)</h3>
                     <div class="chart-container"><canvas id="trendLossChart"></canvas></div>
                 </div>
                 <div class="dashboard-card">
-                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-indigo-500 decoration-4">📋 แนวโน้มงานขาดจำนวน (Shortage % Trends)</h3>
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-indigo-500 decoration-4 text-xl">📋 แนวโน้มงานขาดจำนวน (Shortage % Trends)</h3>
                     <div class="chart-container"><canvas id="trendShortChart"></canvas></div>
                 </div>
-                <!-- WASTE TREND CHART -->
                 <div class="dashboard-card">
-                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4">🗑️ แนวโน้ม % ของเสีย (Waste % Trends)</h3>
+                    <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4 text-xl">🗑️ แนวโน้ม % ของเสีย (Waste % Trends)</h3>
                     <div class="chart-container"><canvas id="trendWasteChart"></canvas></div>
                 </div>
             </div>
@@ -198,6 +197,7 @@
         const SHEET_ID = '1PkoOBQxGMZqvOTWH9KQvSRyYL40ArK_3X0eeOjG80eY';
         const MACHINES = ['BHS', 'YUELI', 'ISOWA'];
         const TARGETS = { 'BHS': 10.50, 'YUELI': 11.40, 'ISOWA': 13.00 };
+        const GLOBAL_WASTE_TARGET = 11.16;
         
         const MAPPING = {
             'BHS': { co: 'C-O (BHS)', cons: 'Cons (BHS)', waste: 'Waste (BHS)' },
@@ -262,7 +262,6 @@
             else renderTrends();
         }
 
-        // --- DASHBOARD (OVERVIEW) ---
         function renderDashboard() {
             if (appState.isRendering) return;
             appState.isRendering = true;
@@ -292,13 +291,10 @@
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
                 const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
                 
-                // --- Waste Calculation ปรับปรุงสูตรตามเงื่อนไขใหม่ ---
                 const mCons = getSum(conData, MAPPING[m].cons);
                 const mWaste = getSum(conData, MAPPING[m].waste);
                 const mCO = getSum(conData, MAPPING[m].co);
                 const mTarget = TARGETS[m];
-                
-                // สูตรใหม่: ((C-O - Waste) + Waste) / Cons * 100
                 const mActual = mCons > 0 ? (((mCO - mWaste) + mWaste) / mCons) * 100 : 0;
 
                 return {
@@ -314,7 +310,6 @@
                 };
             });
 
-            // Point System
             const activeStats = stats.filter(s => s.opa > 0 || s.opb > 0);
             stats.forEach(s => s.totalScore = 0);
             if (activeStats.length > 0) {
@@ -378,18 +373,26 @@
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + kpiBox('percent','% สูญเสีย',(totalLoss/(totalOp||1)*100).toFixed(1),'%','amber');
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + kpiBox('percent','% งานขาด',(totalMiss/(totalOrd||1)*100).toFixed(1),'%','indigo');
             
-            // KPI 4 Waste Analysis ปรับสูตรการ์ดรวมด้วย
             const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
             const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
             const totalCOAll = rawCon.reduce((acc, r) => acc + cleanParse(r['C-O (ALL)']), 0);
             
-            // สูตรใหม่สำหรับการ์ด: ((CO_ALL - Waste_ALL) + Waste_ALL) / Cons_ALL * 100
             const wastePercentTotal = totalConsAll > 0 ? (((totalCOAll - totalWasteAll) + totalWasteAll) / totalConsAll) * 100 : 0;
+            const wasteColorClass = wastePercentTotal <= GLOBAL_WASTE_TARGET ? 'text-emerald-600' : 'text-rose-600';
 
             document.getElementById('waste-kpis').innerHTML = 
                 kpiBox('package', 'Consumtion', formatNum(totalConsAll), 'kg', 'indigo') + 
                 kpiBox('trash-2', 'น้ำหนักของเสีย', formatNum(totalWasteAll), 'kg', 'rose') + 
-                kpiBox('percent', '% ของเสีย', wastePercentTotal.toFixed(2), '%', 'amber');
+                `<div class="dashboard-card border-t-4 border-t-amber-500">
+                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="percent"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% ของเสีย</span></div>
+                    <div class="flex flex-col">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-black ${wasteColorClass}">${wastePercentTotal.toFixed(2)}</span>
+                            <span class="text-sm font-bold text-slate-400 italic">%</span>
+                        </div>
+                        <div class="text-[10px] font-black text-slate-400 uppercase mt-1">Target: ${GLOBAL_WASTE_TARGET}%</div>
+                    </div>
+                </div>`;
         }
 
         function renderTables(stats) {
@@ -436,14 +439,12 @@
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
             
-            // --- ปรับปรุง Waste Chart ตามคำสั่ง ---
             const actuals = stats.map(s => s.wActual);
             const targets = stats.map(s => s.wTarget);
-            const machineColors = ['#f97316', '#2563eb', '#16a34a']; // ส้ม, น้ำเงิน, เขียว
-            updateChart('wasteChart', MACHINES, actuals, 'Actual %', targets, 'Target %', machineColors, '#cbd5e1', true, 'bar');
+            const machineColors = ['#f97316', '#2563eb', '#16a34a'];
+            updateChart('wasteChart', MACHINES, actuals, 'Actual %', targets, 'Target %', machineColors, '#e2e8f0', true, 'bar');
         }
 
-        // --- TRENDS (PAGE 2) ---
         function renderTrends() {
             const fromVal = document.getElementById('mgmtFromDate').value;
             const toVal = document.getElementById('mgmtToDate').value;
@@ -545,20 +546,18 @@
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     plugins: { 
-                        legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun' } } },
+                        legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun', size: 12 } } },
                         datalabels: { 
-                            display: true, anchor: 'end', align: 'top', offset: 4,
-                            // ปรับเงื่อนไขสีของตัวเลขบนกราฟสำหรับ Waste Chart
+                            display: true, anchor: 'end', align: 'top', offset: 5,
                             color: (context) => {
                                 if (id === 'wasteChart' && context.datasetIndex === 0) {
                                     const actual = context.dataset.data[context.dataIndex];
                                     const target = context.chart.data.datasets[1].data[context.dataIndex];
-                                    return (actual - target) > 0 ? '#ef4444' : '#10b981'; // + แดง, - เขียว
+                                    return (actual - target) > 0 ? '#ef4444' : '#10b981';
                                 }
                                 return Array.isArray(c1) ? (context.datasetIndex === 0 ? c1[context.dataIndex] : c2) : c1;
                             },
-                            font: { weight: '900', size: 10, family: 'Sarabun' },
-                            // ปรับการแสดงผลตัวเลข (2 หลัก + Diff)
+                            font: { weight: '900', size: 14, family: 'Sarabun' }, // ขยายขนาดตัวเลขบนกราฟ
                             formatter: (v, context) => {
                                 if (!v && v !== 0) return '';
                                 const precision = (id === 'wasteChart' || isPct) ? 2 : 1;
@@ -575,8 +574,8 @@
                         }
                     },
                     scales: { 
-                        y: { beginAtZero: true, grid: { display: false }, ticks: { callback: v => v+(isPct?'%':'') }, grace: '15%' },
-                        x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
+                        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { weight: 'bold', size: 12 }, callback: v => v+(isPct?'%':'') }, grace: '20%' }, // เพิ่ม grace กันล้น
+                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 14 } } } // ขยายตัวอักษรแกน X
                     }
                 }
             });
