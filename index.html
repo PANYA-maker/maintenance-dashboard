@@ -183,6 +183,7 @@
                     <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-indigo-500 decoration-4 text-xl">📋 แนวโน้มงานขาดจำนวน (Shortage % Trends)</h3>
                     <div class="chart-container"><canvas id="trendShortChart"></canvas></div>
                 </div>
+                <!-- WASTE TREND CHART - UPDATED COLOR -->
                 <div class="dashboard-card">
                     <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4 text-xl">🗑️ แนวโน้ม % ของเสีย (Waste % Trends)</h3>
                     <div class="chart-container"><canvas id="trendWasteChart"></canvas></div>
@@ -585,7 +586,8 @@
             updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, machineColor, null, false, 'line');
             updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, null, null, machineColor, null, true, 'line');
             updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, null, null, machineColor, null, true, 'line');
-            updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, null, null, '#f59e0b', null, true, 'line');
+            // UPDATED: Use machineColor instead of amber
+            updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, null, null, machineColor, null, true, 'line');
             
             lucide.createIcons();
         }
