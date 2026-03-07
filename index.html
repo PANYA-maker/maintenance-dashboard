@@ -141,7 +141,7 @@
                         </select>
                         <select id="trendView" onchange="renderTrends()" class="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="daily">รายวัน</option>
-                            <option value="weekly">รายสัปดาห์ (อา-ส)</option>
+                            <option value="weekly">รายสัปดาห์</option>
                             <option value="monthly">รายเดือน</option>
                             <option value="yearly">รายปี</option>
                         </select>
@@ -254,7 +254,7 @@
                 const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
                 const ma = getSum(met, `${m} กะ A`), mb = getSum(met, `${m} กะ B`);
                 const shaO = getSum(sh, `${m} กะ A เดินงาน order`), shbO = getSum(sh, `${m} กะ B เดินงาน order`);
-                const shaM = getSum(sh, `${m} กะ A ขาด`), shbM = getSum(sh, `${m} กะ B ขาด`);
+                const shaM = getSum(sh, `${m} กะ A ขาด`); const shbM = getSum(sh, `${m} กะ B ขาด`);
 
                 return {
                     name: m, la, lb, opa, opb, ma, mb, shaO, shbO, shaM, shbM,
@@ -374,7 +374,6 @@
             const from = new Date(fromVal); from.setHours(0,0,0,0);
             const to = new Date(toVal); to.setHours(23,59,59,999);
 
-            // Grouping logic based on view
             const groups = {};
             const keys = ['loss', 'op_time', 'meter', 'shortage'];
             
@@ -388,9 +387,12 @@
                     let groupKey = "";
                     if (view === 'daily') groupKey = dParts.join('/');
                     else if (view === 'weekly') {
-                        // Start of week (Sunday)
-                        const sun = new Date(date); sun.setDate(date.getDate() - date.getDay());
-                        groupKey = `สัปดาห์ ${sun.toLocaleDateString('th-TH', {day:'numeric', month:'short'})}`;
+                        // ปรับปรุง: แสดงผลเป็น Week X โดยคำนวณหมายเลขสัปดาห์
+                        const d = new Date(date); d.setHours(0,0,0,0);
+                        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+                        const yearStart = new Date(d.getFullYear(), 0, 1);
+                        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+                        groupKey = `Week ${weekNo}`;
                     }
                     else if (view === 'monthly') groupKey = date.toLocaleDateString('th-TH', {month:'long', year:'numeric'});
                     else groupKey = date.toLocaleDateString('th-TH', {year:'numeric'});
@@ -415,7 +417,10 @@
                     const d1 = a.split('/'); const d2 = b.split('/');
                     return new Date(d1[2]>2500?d1[2]-543:d1[2], d1[1]-1, d1[0]) - new Date(d2[2]>2500?d2[2]-543:d2[2], d2[1]-1, d2[0]);
                 }
-                return 0; // Simple sort for other views
+                if(view === 'weekly') {
+                    return parseInt(a.replace('Week ', '')) - parseInt(b.replace('Week ', ''));
+                }
+                return 0;
             });
 
             const trendData = sortedLabels.map(lbl => {
