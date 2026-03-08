@@ -192,7 +192,7 @@
             </div>
         </div>
 
-        <!-- PAGE 3: WASTE DEEP DIVE (NEW SECTION) -->
+        <!-- PAGE 3: WASTE DEEP DIVE -->
         <div id="page-waste-details" class="hidden space-y-12">
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-600 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight italic">📊 เจาะลึกข้อมูล Waste รายหัวข้อ (Deep Dive)</h2></div>
@@ -265,7 +265,7 @@
             {id:'meter',name:'เมตร'},
             {id:'shortage',name:'ขาดจำนวน'},
             {id:'con', name:'Con'},
-            {id:'waste', name:'Waste'} // Added Waste sheet
+            {id:'waste', name:'Waste'}
         ];
 
         let appState = { raw: {}, isRendering: false, currentPage: 'overview' };
@@ -315,37 +315,36 @@
         }
 
         function refreshCurrentPage() {
-            if (appState.currentPage === 'overview') renderDashboard();
-            else if (appState.currentPage === 'trends') renderTrends();
-            else if (appState.currentPage === 'waste-details') renderWasteDetails();
+            const fVal = document.getElementById('mgmtFromDate').value;
+            const tVal = document.getElementById('mgmtToDate').value;
+            if (!fVal || !tVal) return;
+            const filter = { from: new Date(fVal + "T00:00:00"), to: new Date(tVal + "T23:59:59") };
+
+            if (appState.currentPage === 'overview') renderDashboard(filter);
+            else if (appState.currentPage === 'trends') renderTrends(filter);
+            else if (appState.currentPage === 'waste-details') renderWasteDetails(filter);
         }
 
-        function filterDataByDate(id, from, to) {
+        function filterDataByDate(id, filter) {
             return appState.raw[id]?.filter(r => {
-                const dParts = r['วันที่']?.split('/') || [];
+                const dateKey = Object.keys(r).find(k => k.trim() === 'วันที่');
+                if (!dateKey) return false;
+                const dParts = r[dateKey]?.split('/') || [];
                 if (dParts.length < 3) return false;
                 const year = parseInt(dParts[2]);
                 const dateObj = new Date(year > 2500 ? year - 543 : year, parseInt(dParts[1]) - 1, parseInt(dParts[0]));
-                return dateObj >= from && dateObj <= to;
+                return dateObj >= filter.from && dateObj <= filter.to;
             }) || [];
         }
 
-        function renderDashboard() {
+        function renderDashboard(filter) {
             if (appState.isRendering) return;
             appState.isRendering = true;
             
-            const fromVal = document.getElementById('mgmtFromDate').value;
-            const toVal = document.getElementById('mgmtToDate').value;
-            if (!fromVal || !toVal) { appState.isRendering = false; return; }
-
-            const from = new Date(fromVal); from.setHours(0,0,0,0);
-            const to = new Date(toVal); to.setHours(23,59,59,999);
-
-            const filter = (id) => filterDataByDate(id, from, to);
-
             const stats = MACHINES.map(m => {
                 const getSum = (data, col) => data.reduce((acc, r) => acc + cleanParse(r[col]), 0);
-                const l = filter('loss'), o = filter('op_time'), met = filter('meter'), sh = filter('shortage'), conData = filter('con');
+                const l = filterDataByDate('loss', filter), o = filterDataByDate('op_time', filter), 
+                      met = filterDataByDate('meter', filter), sh = filterDataByDate('shortage', filter), conData = filterDataByDate('con', filter);
 
                 const la = getSum(l, `${m} กะ A`), lb = getSum(l, `${m} กะ B`);
                 const opa = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ A`), opb = getSum(o, `${m} เวลาเดินงานทั้งหมดกะ B`);
@@ -382,7 +381,7 @@
             }
 
             renderExecutiveAnalysis(stats);
-            renderKPIs(stats, filter('con'));
+            renderKPIs(stats, filterDataByDate('con', filter));
             renderTables(stats);
             renderDashboardCharts(stats);
             
@@ -563,117 +562,108 @@
             updateChart('wasteChart', MACHINES, actuals, 'Actual %', targets, 'Target %', machineColors, '#e2e8f0', true, 'bar');
         }
 
-        function renderTrends() {
-            const fromVal = document.getElementById('mgmtFromDate').value;
-            const toVal = document.getElementById('mgmtToDate').value;
+        // --- FIXED RENDERTRENDS FUNCTION ---
+        function renderTrends(filter) {
             const machine = document.getElementById('trendMachine').value;
             const view = document.getElementById('trendView').value;
             
-            if (!fromVal || !toVal) return;
-            const from = new Date(fromVal); from.setHours(0,0,0,0);
-            const to = new Date(toVal); to.setHours(23,59,59,999);
-
+            // Aggregation logic
             const groups = {};
-            const keys = ['loss', 'op_time', 'meter', 'shortage', 'con'];
+            const sheetsToProcess = ['op_time', 'meter', 'loss', 'shortage', 'con'];
             
-            keys.forEach(key => {
-                appState.raw[key]?.forEach(r => {
-                    const dParts = r['วันที่']?.split('/') || [];
-                    if (dParts.length < 3) return;
-                    const date = new Date(dParts[2]>2500?dParts[2]-543:dParts[2], dParts[1]-1, dParts[0]);
-                    if (date < from || date > to) return;
-
-                    let groupKey = "";
-                    if (view === 'daily') groupKey = dParts.join('/');
-                    else if (view === 'weekly') {
-                        const d = new Date(date); d.setHours(0,0,0,0);
-                        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-                        const yearStart = new Date(d.getFullYear(), 0, 1);
-                        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-                        groupKey = `Week ${weekNo}`;
-                    }
-                    else if (view === 'monthly') groupKey = date.toLocaleDateString('th-TH', {month:'long', year:'numeric'});
-                    else groupKey = date.toLocaleDateString('th-TH', {year:'numeric'});
-
-                    if (!groups[groupKey]) groups[groupKey] = { labels: groupKey, opa:0, opb:0, ma:0, mb:0, la:0, lb:0, saO:0, sbO:0, saM:0, sbM:0, wCons:0, wWaste:0, wCO:0 };
+            sheetsToProcess.forEach(sheetId => {
+                const filtered = filterDataByDate(sheetId, filter);
+                filtered.forEach(row => {
+                    const dateStr = row['วันที่'];
+                    const dParts = dateStr.split('/');
+                    const dateObj = new Date(dParts[2]>2500?dParts[2]-543:dParts[2], dParts[1]-1, dParts[0]);
                     
-                    const g = groups[groupKey];
-                    if (key === 'op_time') { g.opa += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ A`]); g.opb += cleanParse(r[`${machine} เวลาเดินงานทั้งหมดกะ B`]); }
-                    if (key === 'meter') { g.ma += cleanParse(r[`${machine} กะ A`]); g.mb += cleanParse(r[`${machine} กะ B`]); }
-                    if (key === 'loss') { g.la += cleanParse(r[`${machine} กะ A`]); g.lb += cleanParse(r[`${machine} กะ B`]); }
-                    if (key === 'shortage') { 
-                        g.saO += cleanParse(r[`${machine} กะ A เดินงาน order`]); g.sbO += cleanParse(r[`${machine} กะ B เดินงาน order`]);
-                        g.saM += cleanParse(r[`${machine} กะ A ขาด`]); g.sbM += cleanParse(r[`${machine} กะ B ขาด`]);
+                    let key = "";
+                    if (view === 'daily') {
+                        key = dateStr;
+                    } else if (view === 'weekly') {
+                        const oneJan = new Date(dateObj.getFullYear(),0,1);
+                        const numberOfDays = Math.floor((dateObj - oneJan) / (24 * 60 * 60 * 1000));
+                        const weekNo = Math.ceil(( dateObj.getDay() + 1 + numberOfDays) / 7);
+                        key = `สัปดาห์ที่ ${weekNo} (${dateObj.getFullYear() + 543})`;
+                    } else if (view === 'monthly') {
+                        key = dateObj.toLocaleDateString('th-TH', { month: 'short', year: 'numeric' });
+                    } else {
+                        key = dateObj.getFullYear() + 543;
                     }
-                    if (key === 'con') {
-                        g.wCons += cleanParse(r[MAPPING[machine].cons]);
-                        g.wWaste += cleanParse(r[MAPPING[machine].waste]);
-                        g.wCO += cleanParse(r[MAPPING[machine].co]);
+
+                    if (!groups[key]) groups[key] = { 
+                        label: key, sortKey: dateObj.getTime(),
+                        opa:0, opb:0, ma:0, mb:0, la:0, lb:0, 
+                        saO:0, sbO:0, saM:0, sbM:0, 
+                        wCons:0, wWaste:0, wCO:0 
+                    };
+                    
+                    const g = groups[key];
+                    if (sheetId === 'op_time') { 
+                        g.opa += cleanParse(row[`${machine} เวลาเดินงานทั้งหมดกะ A`]); 
+                        g.opb += cleanParse(row[`${machine} เวลาเดินงานทั้งหมดกะ B`]); 
+                    }
+                    if (sheetId === 'meter') { 
+                        g.ma += cleanParse(row[`${machine} กะ A`]); 
+                        g.mb += cleanParse(row[`${machine} กะ B`]); 
+                    }
+                    if (sheetId === 'loss') { 
+                        g.la += cleanParse(row[`${machine} กะ A`]); 
+                        g.lb += cleanParse(row[`${machine} กะ B`]); 
+                    }
+                    if (sheetId === 'shortage') {
+                        g.saO += cleanParse(row[`${machine} กะ A เดินงาน order`]);
+                        g.sbO += cleanParse(row[`${machine} กะ B เดินงาน order`]);
+                        g.saM += cleanParse(row[`${machine} กะ A ขาด`]);
+                        g.sbM += cleanParse(row[`${machine} กะ B ขาด`]);
+                    }
+                    if (sheetId === 'con') {
+                        g.wCons += cleanParse(row[MAPPING[machine].cons]);
+                        g.wWaste += cleanParse(row[MAPPING[machine].waste]);
+                        g.wCO += cleanParse(row[MAPPING[machine].co]);
                     }
                 });
             });
 
-            const sortedLabels = Object.keys(groups).sort((a,b) => {
-                if(view === 'daily') {
-                    const d1 = a.split('/'); const d2 = b.split('/');
-                    return new Date(d1[2]>2500?d1[2]-543:d1[2], d1[1]-1, d1[0]) - new Date(d2[2]>2500?d2[2]-543:d2[2], d2[1]-1, d2[0]);
-                }
-                return 0;
-            });
-
-            const trendData = sortedLabels.map(lbl => {
-                const g = groups[lbl];
-                const tOp = g.opa + g.opb; const tMet = g.ma + g.mb;
-                const tLoss = g.la + g.lb; const tOrd = g.saO + g.sbO;
-                const tMiss = g.saM + g.sbM;
-                return { 
-                    label: lbl, 
-                    speed: tOp > 0 ? tMet/tOp : 0, 
-                    lossP: tOp > 0 ? (tLoss/tOp)*100 : 0, 
-                    shortP: tOrd > 0 ? (tMiss/tOrd)*100 : 0,
-                    wasteP: g.wCons > 0 ? (((g.wCO - g.wWaste) + g.wWaste) / g.wCons) * 100 : 0
-                };
-            });
-
-            const machineColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
+            // Sort chronically
+            const sorted = Object.values(groups).sort((a, b) => a.sortKey - b.sortKey);
+            const labels = sorted.map(g => g.label);
             
-            updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, machineColor, null, false, 'line');
-            updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, Array(sortedLabels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', machineColor, '#94a3b8', true, 'line');
-            updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, Array(sortedLabels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.80%)', machineColor, '#94a3b8', true, 'line');
-            const machineWasteTarget = TARGETS[machine];
-            updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, Array(sortedLabels.length).fill(machineWasteTarget), `Target ${machine} (${machineWasteTarget}%)`, machineColor, '#f43f5e', true, 'line');
+            // Prepare Data for 4 Charts
+            const speedData = sorted.map(g => (g.opa+g.opb) > 0 ? (g.ma+g.mb)/(g.opa+g.opb) : 0);
+            const lossData = sorted.map(g => (g.opa+g.opb) > 0 ? ((g.la+g.lb)/(g.opa+g.opb))*100 : 0);
+            const shortData = sorted.map(g => (g.saO+g.sbO) > 0 ? ((g.saM+g.sbM)/(g.saO+g.sbO))*100 : 0);
+            const wasteData = sorted.map(g => g.wCons > 0 ? (((g.wCO-g.wWaste)+g.wWaste)/g.wCons)*100 : 0);
+
+            const mColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
+            
+            // Render 4 Charts
+            updateChart('trendSpeedChart', labels, speedData, `Speed ${machine}`, null, null, mColor, null, false, 'line');
+            updateChart('trendLossChart', labels, lossData, `% Loss ${machine}`, Array(labels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', mColor, '#94a3b8', true, 'line');
+            updateChart('trendShortChart', labels, shortData, `% งานขาด ${machine}`, Array(labels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.8%)', mColor, '#94a3b8', true, 'line');
+            updateChart('trendWasteChart', labels, wasteData, `% Waste ${machine}`, Array(labels.length).fill(TARGETS[machine]), `Target (${TARGETS[machine]}%)`, mColor, '#f43f5e', true, 'line');
             
             lucide.createIcons();
         }
 
-        // --- WASTE DEEP DIVE RENDERER (NEW) ---
-        function renderWasteDetails() {
-            const fromVal = document.getElementById('mgmtFromDate').value;
-            const toVal = document.getElementById('mgmtToDate').value;
-            if (!fromVal || !toVal) return;
-            const from = new Date(fromVal); from.setHours(0,0,0,0);
-            const to = new Date(toVal); to.setHours(23,59,59,999);
-
-            const conData = filterDataByDate('con', from, to);
-            const wasteRaw = filterDataByDate('waste', from, to);
-            
+        function renderWasteDetails(filter) {
+            const wasteData = filterDataByDate('waste', filter);
+            const conData = filterDataByDate('con', filter);
             const totalConsAll = conData.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
 
-            // Mapping columns and matching descriptions
+            const headers = wasteData.length > 0 ? Object.keys(wasteData[0]) : [];
+            const descKey = headers.find(h => h.trim() === 'Description' || h.trim() === 'รายการ');
+            const valCols = WASTE_SUM_COLS.map(c => headers.find(h => h.trim() === c)).filter(Boolean);
+
             const results = WASTE_DEEP_CONFIG.map(cfg => {
                 let totalKg = 0;
                 const matchKeys = cfg.matchKeys || [cfg.label];
                 
-                wasteRaw.forEach(row => {
-                    const rowDesc = (Object.values(row)[1] || "").toString().trim(); // Assume Description is 2nd col
-                    // Try to find Description key if index 1 is not correct
-                    const descKey = Object.keys(row).find(k => k.trim() === 'Description' || k.trim() === 'รายการ');
-                    const actualDesc = (row[descKey] || "").toString().trim();
-
-                    if (matchKeys.includes(actualDesc)) {
-                        WASTE_SUM_COLS.forEach(col => {
-                            totalKg += cleanParse(row[col]);
-                        });
+                wasteData.forEach(row => {
+                    const rowDesc = (row[descKey] || "").toString().trim();
+                    if (matchKeys.includes(rowDesc)) {
+                        valCols.forEach(col => { totalKg += cleanParse(row[col]); });
                     }
                 });
 
@@ -683,7 +673,6 @@
 
             const totalActualPD = results.reduce((acc, r) => acc + r.actual, 0);
 
-            // Render KPIs for Deep Dive Page
             document.getElementById('waste-deep-kpis').innerHTML = `
                 <div class="dashboard-card border-t-4 border-t-amber-500">
                     <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="trash-2"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Waste PD Actual</span></div>
@@ -695,7 +684,6 @@
                     <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${formatNum(totalConsAll)}</span><span class="text-sm font-bold text-slate-400 italic">kg</span></div>
                 </div>`;
 
-            // Render Table
             document.getElementById('wasteDeepTableBody').innerHTML = results.map(r => `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-6 py-4 text-left font-black text-slate-700">${r.label}</td>
@@ -704,7 +692,6 @@
                     <td class="px-4 py-4 font-black ${r.diff > 0 ? 'text-rose-600' : 'text-emerald-600'}">${r.diff > 0 ? '+' : ''}${r.diff.toFixed(2)}%</td>
                 </tr>`).join('');
 
-            // Render Chart
             updateChart('wasteDeepChart', results.map(r=>r.label), results.map(r=>r.actual), 'Actual %', results.map(r=>r.target), 'Target %', '#4f46e5', '#e2e8f0', true, 'horizontalBar');
             lucide.createIcons();
         }
@@ -765,7 +752,7 @@
                     },
                     scales: { 
                         y: { beginAtZero: true, grid: { display: false }, ticks: { font: { weight: 'bold', size: 12 }, callback: v => isHoriz ? v : v+(isPct?'%':'') }, grace: isHoriz ? '10%' : '20%' }, 
-                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 14 }, callback: v => isHoriz ? (v+(isPct?'%':'')) : v } } 
+                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 12 }, callback: v => isHoriz ? (v+(isPct?'%':'')) : v } } 
                     }
                 }
             });
