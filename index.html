@@ -81,6 +81,7 @@
                 </div>
             </section>
             
+            <!-- SECTION 1-4 RENDERED BY JS -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
                 <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
@@ -176,14 +177,13 @@
             </div>
         </div>
 
-        <!-- PAGE 3: WASTE DEEP DIVE (NEW) -->
+        <!-- PAGE 3: WASTE DEEP DIVE -->
         <div id="page-waste-details" class="hidden space-y-12">
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-600 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight italic">📊 เจาะลึกข้อมูล Waste รายหัวข้อ</h2></div>
                 <div id="waste-deep-kpis" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <!-- Table Section -->
                     <div class="lg:col-span-7 bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
                         <div class="overflow-x-auto">
                             <table class="w-full text-center border-collapse">
@@ -199,10 +199,9 @@
                             </table>
                         </div>
                     </div>
-                    <!-- Chart Section -->
                     <div class="lg:col-span-5 space-y-6">
                         <div class="dashboard-card">
-                            <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4">📈 เปรียบเทียบ % ของเสียรายหมวด</h3>
+                            <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4 text-xl">📈 เปรียบเทียบ % ของเสียรายหมวด</h3>
                             <div class="chart-container-tall"><canvas id="wasteDeepChart"></canvas></div>
                         </div>
                     </div>
@@ -233,8 +232,9 @@
             { label: 'ของเหลือ', target: 1.01 },
             { label: 'Conveyor', target: 0.03 },
             { label: 'Reject QC', target: 0.09 },
-            { label: 'QC TEST / เศษทดสอบ', target: 0.07, keys: ['QC TEST', 'เศษจากการ Test'] }
+            { label: 'QC TEST / เศษทดสอบ', target: 0.07, keys: ['QC TEST', 'QC TEST CANTER', 'เศษจากการ Test'] }
         ];
+        
         const WASTE_COLUMNS = ['MKT(20102)', '30103', '30104', '30105', '46100', '50200', 'BHS(41000)', 'ISOWA(40100)', 'YUELI(42000)'];
 
         const MAPPING = {
@@ -249,7 +249,7 @@
             {id:'meter',name:'เมตร'},
             {id:'shortage',name:'ขาดจำนวน'},
             {id:'con', name:'Con'},
-            {id:'waste', name:'Waste'} // Added Waste Sheet
+            {id:'waste', name:'Waste'}
         ];
 
         let appState = { raw: {}, isRendering: false, currentPage: 'overview' };
@@ -292,7 +292,6 @@
             document.getElementById('page-overview').classList.toggle('hidden', page !== 'overview');
             document.getElementById('page-trends').classList.toggle('hidden', page !== 'trends');
             document.getElementById('page-waste-details').classList.toggle('hidden', page !== 'waste-details');
-            
             document.getElementById('nav-overview').classList.toggle('active', page === 'overview');
             document.getElementById('nav-trends').classList.toggle('active', page === 'trends');
             document.getElementById('nav-waste-details').classList.toggle('active', page === 'waste-details');
@@ -324,7 +323,6 @@
             }) || [];
         }
 
-        // --- DASHBOARD (OVERVIEW) ---
         function renderDashboard() {
             if (appState.isRendering) return;
             appState.isRendering = true;
@@ -361,7 +359,6 @@
                 };
             });
 
-            // Point System
             const activeStats = stats.filter(s => s.opa > 0 || s.opb > 0);
             if (activeStats.length > 0) {
                 [...activeStats].sort((a,b)=>b.spdTotal-a.spdTotal).forEach((s,i)=>{if(i<3)s.totalScore+=(3-i)});
@@ -374,19 +371,17 @@
             renderKPIs(stats, filterDataByDate('con', filter));
             renderTables(stats);
             renderDashboardCharts(stats);
-            
             appState.isRendering = false;
             lucide.createIcons();
         }
 
-        // --- NEW: WASTE DEEP DIVE LOGIC ---
+        // --- WASTE DEEP DIVE ---
         function renderWasteDetails() {
             const filter = getDateFilter();
             if (!filter) return;
 
             const wasteRaw = filterDataByDate('waste', filter);
             const conRaw = filterDataByDate('con', filter);
-            
             const totalConsAll = conRaw.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
 
             const calculatedWaste = WASTE_DEEP_CONFIG.map(cfg => {
@@ -394,9 +389,24 @@
                 const searchLabels = cfg.keys ? cfg.keys : [cfg.label];
 
                 searchLabels.forEach(label => {
-                    const row = wasteRaw.find(r => r['Description'] === label);
+                    // ปรับปรุงการค้นหาให้ยืดหยุ่นมากขึ้น (Trim และ Case-Insensitive)
+                    const row = wasteRaw.find(r => {
+                        return Object.values(r).some(val => 
+                            val && val.toString().trim().toLowerCase() === label.trim().toLowerCase()
+                        );
+                    });
+
                     if (row) {
-                        WASTE_COLUMNS.forEach(col => { sumValue += cleanParse(row[col]); });
+                        // ปรับปรุงการดึงค่าคอลัมน์ให้รองรับการสะกดที่ผิดพลาดเล็กน้อย
+                        Object.keys(row).forEach(header => {
+                            const cleanHeader = header.replace(/\s/g, '').toUpperCase();
+                            const isTargetCol = WASTE_COLUMNS.some(target => 
+                                target.replace(/\s/g, '').toUpperCase() === cleanHeader
+                            );
+                            if (isTargetCol) {
+                                sumValue += cleanParse(row[header]);
+                            }
+                        });
                     }
                 });
 
@@ -433,11 +443,10 @@
 
             // Render Chart
             updateChart('wasteDeepChart', calculatedWaste.map(c => c.label), calculatedWaste.map(c => c.actual), 'Actual %', calculatedWaste.map(c => c.target), 'Target %', '#4f46e5', '#e2e8f0', true, 'horizontalBar');
-
             lucide.createIcons();
         }
 
-        // --- Standard Renderers (Unchanged logic) ---
+        // --- Standard Renderers (Executive & KPIs) ---
         function renderExecutiveAnalysis(stats) {
             const champ = [...stats].sort((a,b)=>b.totalScore - a.totalScore)[0];
             const container = document.getElementById('analysis-content');
@@ -459,8 +468,8 @@
                             </div>
                             ${isActive ? `
                             <div class="space-y-2">
-                                <p class="text-[10px] leading-snug"><span class="text-emerald-600 font-bold">✓ จุดเด่น:</span> ${s.spdTotal > 115 ? 'สปีดเดินงานเฉลี่ยสูง' : (s.pctLoss < 5 ? 'คุม Loss ได้ดี' : (s.wActual < 11 ? 'ของเสียน้อยกว่าเป้า' : 'รักษามาตรฐานได้ดี'))}</p>
-                                <p class="text-[10px] leading-snug"><span class="text-rose-500 font-bold">✗ ปรับปรุง:</span> ${s.pctLoss > 6.25 ? 'ลดเวลาสูญเสีย' : (s.pctShort > 18.8 ? 'ลดงานขาดจำนวน' : (s.wActual > 11.16 ? 'คุมของเสีย' : 'เพิ่มความเร็ว'))}</p>
+                                <p class="text-[10px] leading-snug font-bold"><span class="text-emerald-600">✓ จุดเด่น:</span> ${s.spdTotal > 115 ? 'สปีดเดินงานเฉลี่ยสูง' : (s.pctLoss < 5 ? 'คุม Loss ได้ดี' : (s.wActual < 11 ? 'ของเสียน้อยกว่าเป้า' : 'รักษามาตรฐานได้ดี'))}</p>
+                                <p class="text-[10px] leading-snug font-bold"><span class="text-rose-500">✗ ปรับปรุง:</span> ${s.pctLoss > 6.25 ? 'ลดเวลาสูญเสีย' : (s.pctShort > 18.8 ? 'ลดงานขาดจำนวน' : (s.wActual > 11.16 ? 'คุมของเสีย' : 'เพิ่มความเร็ว'))}</p>
                             </div>` : `<div class="py-6 text-center text-[10px] text-slate-400 italic font-bold uppercase">No Data Recorded</div>`}
                         </div>`;
                     }).join('')}
@@ -482,33 +491,29 @@
                 </div>`;
 
             document.getElementById('perf-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('layers','เมตรรวม',formatNum(totalMet),'เมตร','emerald') + kpiBox('gauge','สปีดเฉลี่ย',(totalMet/(totalOp||1)).toFixed(1),'m/min','indigo');
-            
             const actLoss = (totalLoss/(totalOp||1)*100);
-            const lossColor = actLoss <= GLOBAL_LOSS_TARGET ? 'text-emerald-600' : 'text-rose-600';
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + 
                 `<div class="dashboard-card border-t-4 border-t-amber-500">
                     <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="percent"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% สูญเสีย</span></div>
-                    <div class="flex flex-col"><div class="flex items-baseline gap-2"><span class="text-3xl font-black ${lossColor}">${actLoss.toFixed(2)}</span><span class="text-sm font-bold text-slate-400 italic">%</span></div><div class="text-[10px] font-black text-slate-400 mt-1 uppercase">Target: ${GLOBAL_LOSS_TARGET}%</div></div>
+                    <div class="flex flex-col"><div class="flex items-baseline gap-2"><span class="text-3xl font-black ${actLoss <= GLOBAL_LOSS_TARGET ? 'text-emerald-600' : 'text-rose-600'}">${actLoss.toFixed(2)}</span><span class="text-sm font-bold text-slate-400 italic">%</span></div><div class="text-[10px] font-black text-slate-400 mt-1 uppercase">Target: ${GLOBAL_LOSS_TARGET}%</div></div>
                 </div>`;
 
             const actShort = (totalMiss/(totalOrd||1)*100);
-            const shortColor = actShort <= GLOBAL_SHORTAGE_TARGET ? 'text-emerald-600' : 'text-rose-600';
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + 
                 `<div class="dashboard-card border-t-4 border-t-indigo-500">
                     <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i data-lucide="percent"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% งานขาด</span></div>
-                    <div class="flex flex-col"><div class="flex items-baseline gap-2"><span class="text-3xl font-black ${shortColor}">${actShort.toFixed(2)}</span><span class="text-sm font-bold text-slate-400 italic">%</span></div><div class="text-[10px] font-black text-slate-400 mt-1 uppercase">Target: ${GLOBAL_SHORTAGE_TARGET}%</div></div>
+                    <div class="flex flex-col"><div class="flex items-baseline gap-2"><span class="text-3xl font-black ${actShort <= GLOBAL_SHORTAGE_TARGET ? 'text-emerald-600' : 'text-rose-600'}">${actShort.toFixed(2)}</span><span class="text-sm font-bold text-slate-400 italic">%</span></div><div class="text-[10px] font-black text-slate-400 mt-1 uppercase">Target: ${GLOBAL_SHORTAGE_TARGET}%</div></div>
                 </div>`;
             
             const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
             const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
             const totalCOAll = rawCon.reduce((acc, r) => acc + cleanParse(r['C-O (ALL)']), 0);
             const wastePctTotal = totalConsAll > 0 ? (((totalCOAll - totalWasteAll) + totalWasteAll) / totalConsAll) * 100 : 0;
-            const wasteColor = wastePctTotal <= GLOBAL_WASTE_TARGET ? 'text-emerald-600' : 'text-rose-600';
 
             document.getElementById('waste-kpis').innerHTML = kpiBox('package', 'Consumtion', formatNum(totalConsAll), 'kg', 'indigo') + kpiBox('trash-2', 'น้ำหนักของเสีย', formatNum(totalWasteAll), 'kg', 'rose') + 
                 `<div class="dashboard-card border-t-4 border-t-amber-500">
                     <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="percent"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">% ของเสีย</span></div>
-                    <div class="flex flex-col"><div class="flex items-baseline gap-2"><span class="text-3xl font-black ${wasteColor}">${wastePctTotal.toFixed(2)}</span><span class="text-sm font-bold text-slate-400 italic">%</span></div><div class="text-[10px] font-black text-slate-400 mt-1 uppercase">Target: ${GLOBAL_WASTE_TARGET}%</div></div>
+                    <div class="flex flex-col"><div class="flex items-baseline gap-2"><span class="text-3xl font-black ${wastePctTotal <= GLOBAL_WASTE_TARGET ? 'text-emerald-600' : 'text-rose-600'}">${wastePctTotal.toFixed(2)}</span><span class="text-sm font-bold text-slate-400 italic">%</span></div><div class="text-[10px] font-black text-slate-400 mt-1 uppercase">Target: ${GLOBAL_WASTE_TARGET}%</div></div>
                 </div>`;
         }
 
@@ -528,10 +533,10 @@
 
             const row = (s, type) => {
                 const trophy = s.rank <= 3 ? `<i data-lucide="trophy" class="w-5 h-5 trophy-${s.rank}"></i>` : '';
-                if(type==='perf') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400 font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold">${formatNum(s.ma+s.mb)}</td><td class="px-3 py-4 font-black bg-emerald-50">${s.spdTotal.toFixed(1)}</td></tr>`;
-                if(type==='loss') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.la)}</td><td class="px-3 py-4 font-black text-amber-600">${s.pctA.toFixed(2)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black text-amber-600">${s.pctB.toFixed(2)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-rose-600">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50">${s.pctLoss.toFixed(2)}%</td></tr>`;
-                if(type==='short') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono">${formatNum(s.shaO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.shaM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.shPctA.toFixed(2)}%</td><td class="px-3 py-4 border-l font-mono">${formatNum(s.shbO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono">${formatNum(s.shbM)}</td><td class="px-3 py-4 font-black text-indigo-600">${s.shPctB.toFixed(2)}%</td><td class="px-3 py-4 border-l font-bold">${formatNum(s.shaO+s.shbO)}</td><td class="px-3 py-4 font-bold text-rose-700 font-mono">${formatNum(s.shaM+s.shbM)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline underline-offset-4">${s.pctShort.toFixed(2)}%</td></tr>`;
-                if(type==='waste') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-4 py-4 font-mono font-bold">${formatNum(s.wCons)}</td><td class="px-4 py-4 font-mono">${formatNum(s.wWaste)}</td><td class="px-4 py-4 font-bold text-slate-400 italic">${s.wTarget.toFixed(2)}%</td><td class="px-4 py-4 font-black ${s.wActual <= s.wTarget ? 'text-emerald-600' : 'text-rose-600'} bg-amber-50/30 text-lg">${s.wActual.toFixed(2)}%</td></tr>`;
+                if(type==='perf') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 text-slate-400 font-mono text-sm">${formatNum(s.opa)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold text-sm">${formatNum(s.ma)}</td><td class="px-3 py-4 font-black text-sm">${s.spdA.toFixed(1)}</td><td class="px-3 py-4 border-l text-slate-400 font-mono text-sm">${formatNum(s.opb)}</td><td class="px-3 py-4 text-emerald-600 font-mono font-bold text-sm">${formatNum(s.mb)}</td><td class="px-3 py-4 font-black text-sm">${s.spdB.toFixed(1)}</td><td class="px-3 py-4 border-l font-bold text-sm">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-sm">${formatNum(s.ma+s.mb)}</td><td class="px-3 py-4 font-black bg-emerald-50 text-sm">${s.spdTotal.toFixed(1)}</td></tr>`;
+                if(type==='loss') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r text-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono text-sm">${formatNum(s.opa)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold text-sm">${formatNum(s.la)}</td><td class="px-3 py-4 font-black text-amber-600 text-sm">${s.pctA.toFixed(2)}%</td><td class="px-3 py-4 border-l font-mono text-sm">${formatNum(s.opb)}</td><td class="px-3 py-4 text-rose-500 font-mono font-bold text-sm">${formatNum(s.lb)}</td><td class="px-3 py-4 font-black text-amber-600 text-sm">${s.pctB.toFixed(2)}%</td><td class="px-3 py-4 border-l font-bold text-sm">${formatNum(s.opa+s.opb)}</td><td class="px-3 py-4 font-bold text-rose-600 text-sm">${formatNum(s.la+s.lb)}</td><td class="px-3 py-4 font-black bg-rose-50 text-sm">${s.pctLoss.toFixed(2)}%</td></tr>`;
+                if(type==='short') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm text-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-3 py-4 font-mono text-sm">${formatNum(s.shaO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono text-sm">${formatNum(s.shaM)}</td><td class="px-3 py-4 font-black text-indigo-600 text-sm">${s.shPctA.toFixed(2)}%</td><td class="px-3 py-4 border-l font-mono text-sm">${formatNum(s.shbO)}</td><td class="px-3 py-4 text-rose-500 font-bold font-mono text-sm">${formatNum(s.shbM)}</td><td class="px-3 py-4 font-black text-indigo-600 text-sm">${s.shPctB.toFixed(2)}%</td><td class="px-3 py-4 border-l font-bold text-sm">${formatNum(s.shaO+s.shbO)}</td><td class="px-3 py-4 font-bold text-rose-700 font-mono text-sm">${formatNum(s.shaM+s.shbM)}</td><td class="px-3 py-4 font-black bg-indigo-50 underline underline-offset-4 text-sm">${s.pctShort.toFixed(2)}%</td></tr>`;
+                if(type==='waste') return `<tr><td class="px-6 py-4 table-sticky-col text-left font-black border-r shadow-sm text-sm"><div class="flex items-center gap-3">${trophy}<span>${s.name}</span></div></td><td class="px-4 py-4 font-mono font-bold text-sm">${formatNum(s.wCons)}</td><td class="px-4 py-4 font-mono text-sm">${formatNum(s.wWaste)}</td><td class="px-4 py-4 font-bold text-slate-400 italic text-sm">${s.wTarget.toFixed(2)}%</td><td class="px-4 py-4 font-black ${s.wActual <= s.wTarget ? 'text-emerald-600' : 'text-rose-600'} bg-amber-50/30 text-lg">${s.wActual.toFixed(2)}%</td></tr>`;
             };
 
             document.getElementById('perfTableBody').innerHTML = getRanked(stats, 'speed').map(s=>row(s, 'perf')).join('');
@@ -541,12 +546,12 @@
         }
 
         function renderDashboardCharts(stats) {
-            const colorsA = ['#f97316', '#2563eb', '#16a34a'];
-            const colorsB = ['#fdba74', '#93c5fd', '#86efac'];
-            updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
-            updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
-            updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
-            updateChart('wasteChart', MACHINES, stats.map(s=>s.wActual), 'Actual %', stats.map(s=>s.wTarget), 'Target %', colorsA, '#e2e8f0', true, 'bar');
+            const cA = ['#f97316', '#2563eb', '#16a34a'];
+            const cB = ['#fdba74', '#93c5fd', '#86efac'];
+            updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', cA, cB, false, 'bar');
+            updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', cA, cB, true, 'bar');
+            updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', cA, cB, true, 'bar');
+            updateChart('wasteChart', MACHINES, stats.map(s=>s.wActual), 'Actual %', stats.map(s=>s.wTarget), 'Target %', cA, '#e2e8f0', true, 'bar');
         }
 
         function renderTrends() {
@@ -582,30 +587,29 @@
             updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, Array(sortedLabels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', mColor, '#94a3b8', true, 'line');
             updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, Array(sortedLabels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.80%)', mColor, '#94a3b8', true, 'line');
             updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, Array(sortedLabels.length).fill(TARGETS[machine]), `Target (${TARGETS[machine]}%)`, mColor, '#f43f5e', true, 'line');
-            lucide.createIcons();
         }
 
         function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct, type) {
             const ctx = document.getElementById(id); if(!ctx) return;
             if (charts[id]) charts[id].destroy();
-            const isHorizontal = type === 'horizontalBar';
-            const chartType = isHorizontal ? 'bar' : type;
-            const datasets = [{ label: l1, data: d1, backgroundColor: c1, borderColor: c1, borderRadius: 8, borderWidth: chartType === 'line' ? 4 : 1, fill: false, tension: 0.3 }];
+            const isHoriz = type === 'horizontalBar';
+            const ct = isHoriz ? 'bar' : type;
+            const datasets = [{ label: l1, data: d1, backgroundColor: c1, borderColor: c1, borderRadius: 8, borderWidth: ct === 'line' ? 4 : 1, fill: false, tension: 0.3 }];
             if (d2) {
                 const isT = (id.startsWith('trend') || id === 'wasteDeepChart') && l2?.toLowerCase().includes('target');
                 datasets.push({ label: l2, data: d2, backgroundColor: c2, borderColor: c2, borderRadius: 8, borderWidth: isT ? 2 : 4, borderDash: isT ? [5, 5] : [], fill: false, tension: isT ? 0 : 0.3, pointRadius: isT ? 0 : 3 });
             }
             charts[id] = new Chart(ctx.getContext('2d'), {
-                type: chartType,
+                type: ct,
                 data: { labels, datasets },
                 options: {
-                    indexAxis: isHorizontal ? 'y' : 'x',
+                    indexAxis: isHoriz ? 'y' : 'x',
                     responsive: true, maintainAspectRatio: false,
                     plugins: { 
                         legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun', size: 11 } } },
                         datalabels: { 
                             display: (context) => !(id.startsWith('trend') && context.datasetIndex === 1),
-                            anchor: 'end', align: isHorizontal ? 'right' : 'top', offset: 5,
+                            anchor: 'end', align: isHoriz ? 'right' : 'top', offset: 5,
                             color: (context) => {
                                 if (id === 'wasteChart' && context.datasetIndex === 0) return (context.dataset.data[context.dataIndex] - context.chart.data.datasets[1].data[context.dataIndex]) > 0 ? '#ef4444' : '#10b981';
                                 if (id === 'lossChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > GLOBAL_LOSS_TARGET ? '#ef4444' : '#10b981';
@@ -613,19 +617,19 @@
                                 if (id === 'wasteDeepChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > context.chart.data.datasets[1].data[context.dataIndex] ? '#ef4444' : '#10b981';
                                 return Array.isArray(c1) ? c1[context.dataIndex] : c1;
                             },
-                            font: { weight: '900', size: 13, family: 'Sarabun' }, 
+                            font: { weight: '900', size: 14, family: 'Sarabun' }, 
                             formatter: (v, context) => {
                                 if (!v && v !== 0) return '';
-                                const prec = (id.includes('Waste') || id.includes('Loss') || id.includes('Short') || isPct) ? 2 : 1;
-                                let lb = v.toFixed(prec) + (isPct ? '%' : '');
+                                const pr = (id.includes('Waste') || id.includes('Loss') || id.includes('Short') || isPct) ? 2 : 1;
+                                let lb = v.toFixed(pr) + (isPct ? '%' : '');
                                 if (id === 'wasteChart' && context.datasetIndex === 0) { const diff = v - context.chart.data.datasets[1].data[context.dataIndex]; lb += ` (${diff > 0 ? '+' : ''}${diff.toFixed(2)})`; }
                                 return lb;
                             }
                         }
                     },
                     scales: { 
-                        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { weight: 'bold', size: 11 }, callback: v => isHorizontal ? v : v+(isPct?'%':'') }, grace: isHorizontal ? '10%' : '20%' }, 
-                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 12 }, callback: v => isHorizontal ? (v+(isPct?'%':'')) : v } } 
+                        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { weight: 'bold', size: 12 }, callback: v => isHoriz ? v : v+(isPct?'%':'') }, grace: isHoriz ? '10%' : '20%' }, 
+                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 14 }, callback: v => isHoriz ? (v+(isPct?'%':'')) : v } } 
                     }
                 }
             });
