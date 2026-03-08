@@ -66,7 +66,7 @@
 
     <main class="max-w-7xl mx-auto px-6 mt-8">
         
-        <!-- PAGE 1: OVERVIEW (คงเดิม 100%) -->
+        <!-- PAGE 1: OVERVIEW -->
         <div id="page-overview" class="space-y-12">
             <section id="executive-summary" class="dashboard-card analysis-gradient overflow-hidden">
                 <div class="flex items-center gap-3 mb-6">
@@ -78,7 +78,6 @@
                 </div>
             </section>
             
-            <!-- SECTION 1-4 -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
                 <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
@@ -142,7 +141,7 @@
             </section>
         </div>
 
-        <!-- PAGE 2: TRENDS (คงเดิม 100%) -->
+        <!-- PAGE 2: TRENDS -->
         <div id="page-trends" class="hidden space-y-12">
             <section class="dashboard-card bg-slate-800 text-white border-none">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -173,7 +172,7 @@
             </div>
         </div>
 
-        <!-- PAGE 3: WASTE DEEP DIVE (NEW UPDATED LOGIC) -->
+        <!-- PAGE 3: WASTE DEEP DIVE -->
         <div id="page-waste-details" class="hidden space-y-12">
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-600 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight italic">📊 เจาะลึกข้อมูล Waste รายหัวข้อ (Deep Dive)</h2></div>
@@ -231,10 +230,7 @@
             { label: 'QC TEST / เศษทดสอบ', target: 0.07, exactKeys: ['QC TEST', 'เศษจากการ Test'] }
         ];
         
-        // --- 9 COLUMNS TO SUM IN WASTE SHEET ---
-        const WASTE_COLUMNS = [
-            'MKT(20102)', '30103', '30104', '30105', '46100', '50200', 'BHS(41000)', 'ISOWA(40100)', 'YUELI(42000)'
-        ];
+        const WASTE_COLUMNS = ['MKT(20102)', '30103', '30104', '30105', '46100', '50200', 'BHS(41000)', 'ISOWA(40100)', 'YUELI(42000)'];
 
         const MAPPING = {
             'BHS': { co: 'C-O (BHS)', cons: 'Cons (BHS)', waste: 'Waste (BHS)' },
@@ -366,7 +362,7 @@
             lucide.createIcons();
         }
 
-        // --- WASTE DEEP DIVE (FINAL REFINED LOGIC) ---
+        // --- WASTE DEEP DIVE (ENHANCED MATCHING LOGIC) ---
         function renderWasteDetails() {
             const filter = getDateFilter();
             if (!filter) return;
@@ -376,28 +372,27 @@
             const totalConsAll = conRaw.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
 
             if (wasteRaw.length === 0) {
-                document.getElementById('wasteDeepTableBody').innerHTML = '<tr><td colspan="4" class="py-10 text-slate-400 italic font-bold">ไม่พบข้อมูลในชีท Waste</td></tr>';
+                document.getElementById('wasteDeepTableBody').innerHTML = '<tr><td colspan="4" class="py-10 text-slate-400 italic font-bold">ไม่พบข้อมูลในชีท Waste (โปรดเช็คหัวตาราง "วันที่")</td></tr>';
                 return;
             }
 
-            // Find dynamically the headers in the Waste sheet to ensure we use exact names
+            // Find dynamically the headers in the Waste sheet to ensure we use exact names and trim them
             const rawHeaders = Object.keys(wasteRaw[0]);
             const descKey = rawHeaders.find(h => h.trim() === 'Description' || h.trim() === 'รายการ');
             
-            // Map our 9 target columns to the actual keys in the row object (handle spaces)
+            // Map our 9 target columns to the actual keys in the row object (handle spaces and case)
             const resolvedValueCols = WASTE_COLUMNS.map(target => 
-                rawHeaders.find(h => h.trim() === target)
+                rawHeaders.find(h => h.trim().toUpperCase() === target.trim().toUpperCase())
             ).filter(Boolean);
 
             const results = WASTE_DEEP_CONFIG.map(cfg => {
                 let totalKg = 0;
-                // Exact matching terms
+                // Matching terms (Exact)
                 const termsToMatch = cfg.exactKeys ? cfg.exactKeys : [cfg.label];
 
                 wasteRaw.forEach(row => {
                     const rowDescription = (row[descKey] || "").toString().trim();
-                    // EXACT MATCH check
-                    const isExactMatch = termsToMatch.some(term => rowDescription === term);
+                    const isExactMatch = termsToMatch.some(term => rowDescription === term.trim());
 
                     if (isExactMatch) {
                         resolvedValueCols.forEach(col => {
@@ -430,8 +425,8 @@
                     <td class="px-6 py-4 text-left font-black text-slate-700">${c.label}</td>
                     <td class="px-4 py-4 text-slate-400 italic">${c.target.toFixed(2)}%</td>
                     <td class="px-4 py-4 text-indigo-600">${c.actual.toFixed(2)}%</td>
-                    <td class="px-4 py-4 ${c.diff > 0 ? 'text-rose-600' : 'text-emerald-600'}">
-                        <span class="px-2 py-0.5 rounded-lg bg-slate-100">${c.diff > 0 ? '+' : ''}${c.diff.toFixed(2)}%</span>
+                    <td class="px-4 py-4 ${c.diff > 0 ? 'text-rose-600' : 'text-emerald-600'} font-black">
+                        ${c.diff > 0 ? '+' : ''}${c.diff.toFixed(2)}%
                     </td>
                 </tr>
             `).join('');
