@@ -14,6 +14,7 @@
         body { background-color: #f8fafc; font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; }
         .dashboard-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
         .chart-container { position: relative; height: 380px; width: 100%; }
+        .chart-container-tall { position: relative; height: 550px; width: 100%; }
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         .table-sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #f1f5f9; }
         .trophy-1 { color: #fbbf24; fill: #fef3c7; } 
@@ -44,6 +45,7 @@
                         <div class="flex gap-4 mt-1">
                             <span id="nav-overview" onclick="switchPage('overview')" class="nav-link active text-[11px] font-bold uppercase tracking-widest">ภาพรวมรายวัน</span>
                             <span id="nav-trends" onclick="switchPage('trends')" class="nav-link text-[11px] font-bold uppercase tracking-widest">กราฟแนวโน้ม</span>
+                            <span id="nav-waste-details" onclick="switchPage('waste-details')" class="nav-link text-[11px] font-bold uppercase tracking-widest text-amber-600">เจาะลึก Waste</span>
                         </div>
                     </div>
                 </div>
@@ -155,12 +157,12 @@
                         <h2 class="text-lg font-black uppercase italic tracking-wider text-xl">Trend Analysis Settings</h2>
                     </div>
                     <div class="flex flex-wrap gap-3">
-                        <select id="trendMachine" onchange="renderTrends()" class="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <select id="trendMachine" onchange="refreshCurrentPage()" class="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="BHS">เครื่อง BHS</option>
                             <option value="YUELI">เครื่อง YUELI</option>
                             <option value="ISOWA">เครื่อง ISOWA</option>
                         </select>
-                        <select id="trendView" onchange="renderTrends()" class="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <select id="trendView" onchange="refreshCurrentPage()" class="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="daily">รายวัน</option>
                             <option value="weekly">รายสัปดาห์</option>
                             <option value="monthly">รายเดือน</option>
@@ -190,6 +192,39 @@
             </div>
         </div>
 
+        <!-- PAGE 3: WASTE DEEP DIVE (NEW SECTION) -->
+        <div id="page-waste-details" class="hidden space-y-12">
+            <section class="space-y-6">
+                <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-amber-600 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight italic">📊 เจาะลึกข้อมูล Waste รายหัวข้อ (Deep Dive)</h2></div>
+                
+                <div id="waste-deep-kpis" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-7 bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-center border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest border-b">
+                                        <th class="px-6 py-5 text-left">รายการของเสีย (Description)</th>
+                                        <th class="px-4 py-5">Target %</th>
+                                        <th class="px-4 py-5">Actual %</th>
+                                        <th class="px-4 py-5 font-black italic">Diff</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="wasteDeepTableBody" class="divide-y divide-slate-100 text-sm font-bold"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-5">
+                        <div class="dashboard-card h-full">
+                            <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 text-lg">📈 เปรียบเทียบ % ของเสียรายหมวด</h3>
+                            <div class="chart-container-tall"><canvas id="wasteDeepChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
     </main>
 
     <script>
@@ -201,6 +236,23 @@
         const GLOBAL_LOSS_TARGET = 6.25;
         const GLOBAL_SHORTAGE_TARGET = 18.80;
         
+        // --- WASTE DEEP DIVE CONFIG ---
+        const WASTE_DEEP_CONFIG = [
+            { label: 'เศษติดแกน-ผลิต', target: 0.15 },
+            { label: 'รอยต่อออร์เดอร์', target: 0.21 },
+            { label: 'Web', target: 0.14 },
+            { label: 'Def', target: 1.10 },
+            { label: 'NCP', target: 2.00 },
+            { label: 'สันนูนตรงสเปค', target: 0.15 },
+            { label: 'งานเหลือโอเอ็ม', target: 0.05 },
+            { label: 'ของเหลือ', target: 1.01 },
+            { label: 'Conveyor', target: 0.03 },
+            { label: 'Reject QC', target: 0.09 },
+            { label: 'QC TEST / เศษทดสอบ', target: 0.07, matchKeys: ['QC TEST', 'เศษจากการ Test'] }
+        ];
+
+        const WASTE_SUM_COLS = ['MKT(20102)', '30103', '30104', '30105', '46100', '50200', 'BHS(41000)', 'ISOWA(40100)', 'YUELI(42000)'];
+
         const MAPPING = {
             'BHS': { co: 'C-O (BHS)', cons: 'Cons (BHS)', waste: 'Waste (BHS)' },
             'YUELI': { co: 'C-O (YUE)', cons: 'Cons (YUE)', waste: 'Waste (YUE)' },
@@ -212,7 +264,8 @@
             {id:'op_time',name:'เวลาเดินงาน'},
             {id:'meter',name:'เมตร'},
             {id:'shortage',name:'ขาดจำนวน'},
-            {id:'con', name:'Con'}
+            {id:'con', name:'Con'},
+            {id:'waste', name:'Waste'} // Added Waste sheet
         ];
 
         let appState = { raw: {}, isRendering: false, currentPage: 'overview' };
@@ -254,14 +307,27 @@
             appState.currentPage = page;
             document.getElementById('page-overview').classList.toggle('hidden', page !== 'overview');
             document.getElementById('page-trends').classList.toggle('hidden', page !== 'trends');
+            document.getElementById('page-waste-details').classList.toggle('hidden', page !== 'waste-details');
             document.getElementById('nav-overview').classList.toggle('active', page === 'overview');
             document.getElementById('nav-trends').classList.toggle('active', page === 'trends');
+            document.getElementById('nav-waste-details').classList.toggle('active', page === 'waste-details');
             refreshCurrentPage();
         }
 
         function refreshCurrentPage() {
             if (appState.currentPage === 'overview') renderDashboard();
-            else renderTrends();
+            else if (appState.currentPage === 'trends') renderTrends();
+            else if (appState.currentPage === 'waste-details') renderWasteDetails();
+        }
+
+        function filterDataByDate(id, from, to) {
+            return appState.raw[id]?.filter(r => {
+                const dParts = r['วันที่']?.split('/') || [];
+                if (dParts.length < 3) return false;
+                const year = parseInt(dParts[2]);
+                const dateObj = new Date(year > 2500 ? year - 543 : year, parseInt(dParts[1]) - 1, parseInt(dParts[0]));
+                return dateObj >= from && dateObj <= to;
+            }) || [];
         }
 
         function renderDashboard() {
@@ -275,13 +341,7 @@
             const from = new Date(fromVal); from.setHours(0,0,0,0);
             const to = new Date(toVal); to.setHours(23,59,59,999);
 
-            const filter = (id) => appState.raw[id]?.filter(r => {
-                const dParts = r['วันที่']?.split('/') || [];
-                if (dParts.length < 3) return false;
-                const year = parseInt(dParts[2]);
-                const dateObj = new Date(year > 2500 ? year - 543 : year, parseInt(dParts[1]) - 1, parseInt(dParts[0]));
-                return dateObj >= from && dateObj <= to;
-            }) || [];
+            const filter = (id) => filterDataByDate(id, from, to);
 
             const stats = MACHINES.map(m => {
                 const getSum = (data, col) => data.reduce((acc, r) => acc + cleanParse(r[col]), 0);
@@ -577,67 +637,118 @@
 
             const machineColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
             
-            // Speed Trends - No Target
             updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, machineColor, null, false, 'line');
-            
-            // Loss Trends - Target 6.25%
             updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, Array(sortedLabels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', machineColor, '#94a3b8', true, 'line');
-            
-            // Shortage Trends - Target 18.80%
             updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, Array(sortedLabels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.80%)', machineColor, '#94a3b8', true, 'line');
-            
-            // Waste Trends - Machine Specific Target
             const machineWasteTarget = TARGETS[machine];
             updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, Array(sortedLabels.length).fill(machineWasteTarget), `Target ${machine} (${machineWasteTarget}%)`, machineColor, '#f43f5e', true, 'line');
             
             lucide.createIcons();
         }
 
+        // --- WASTE DEEP DIVE RENDERER (NEW) ---
+        function renderWasteDetails() {
+            const fromVal = document.getElementById('mgmtFromDate').value;
+            const toVal = document.getElementById('mgmtToDate').value;
+            if (!fromVal || !toVal) return;
+            const from = new Date(fromVal); from.setHours(0,0,0,0);
+            const to = new Date(toVal); to.setHours(23,59,59,999);
+
+            const conData = filterDataByDate('con', from, to);
+            const wasteRaw = filterDataByDate('waste', from, to);
+            
+            const totalConsAll = conData.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
+
+            // Mapping columns and matching descriptions
+            const results = WASTE_DEEP_CONFIG.map(cfg => {
+                let totalKg = 0;
+                const matchKeys = cfg.matchKeys || [cfg.label];
+                
+                wasteRaw.forEach(row => {
+                    const rowDesc = (Object.values(row)[1] || "").toString().trim(); // Assume Description is 2nd col
+                    // Try to find Description key if index 1 is not correct
+                    const descKey = Object.keys(row).find(k => k.trim() === 'Description' || k.trim() === 'รายการ');
+                    const actualDesc = (row[descKey] || "").toString().trim();
+
+                    if (matchKeys.includes(actualDesc)) {
+                        WASTE_SUM_COLS.forEach(col => {
+                            totalKg += cleanParse(row[col]);
+                        });
+                    }
+                });
+
+                const actualPct = totalConsAll > 0 ? (totalKg / totalConsAll) * 100 : 0;
+                return { label: cfg.label, target: cfg.target, actual: actualPct, diff: actualPct - cfg.target };
+            });
+
+            const totalActualPD = results.reduce((acc, r) => acc + r.actual, 0);
+
+            // Render KPIs for Deep Dive Page
+            document.getElementById('waste-deep-kpis').innerHTML = `
+                <div class="dashboard-card border-t-4 border-t-amber-500">
+                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i data-lucide="trash-2"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Waste PD Actual</span></div>
+                    <div class="flex items-baseline gap-2"><span class="text-4xl font-black ${totalActualPD > 5.0 ? 'text-rose-600' : 'text-emerald-600'}">${totalActualPD.toFixed(2)}%</span></div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase mt-2">Target PD: 5.00%</div>
+                </div>
+                <div class="dashboard-card border-t-4 border-t-indigo-500">
+                    <div class="flex items-center gap-3 mb-2"><div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i data-lucide="package"></i></div><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Consumption (ALL)</span></div>
+                    <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${formatNum(totalConsAll)}</span><span class="text-sm font-bold text-slate-400 italic">kg</span></div>
+                </div>`;
+
+            // Render Table
+            document.getElementById('wasteDeepTableBody').innerHTML = results.map(r => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 text-left font-black text-slate-700">${r.label}</td>
+                    <td class="px-4 py-4 text-slate-400 italic">${r.target.toFixed(2)}%</td>
+                    <td class="px-4 py-4 text-indigo-600">${r.actual.toFixed(2)}%</td>
+                    <td class="px-4 py-4 font-black ${r.diff > 0 ? 'text-rose-600' : 'text-emerald-600'}">${r.diff > 0 ? '+' : ''}${r.diff.toFixed(2)}%</td>
+                </tr>`).join('');
+
+            // Render Chart
+            updateChart('wasteDeepChart', results.map(r=>r.label), results.map(r=>r.actual), 'Actual %', results.map(r=>r.target), 'Target %', '#4f46e5', '#e2e8f0', true, 'horizontalBar');
+            lucide.createIcons();
+        }
+
         function updateChart(id, labels, d1, l1, d2, l2, c1, c2, isPct, type) {
             const ctx = document.getElementById(id); if(!ctx) return;
             if (charts[id]) charts[id].destroy();
+            const isHoriz = type === 'horizontalBar';
+            const finalType = isHoriz ? 'bar' : type;
+
             const datasets = [{
                 label: l1, data: d1, backgroundColor: c1, borderColor: c1,
-                borderRadius: type === 'bar' ? 8 : 0, borderWidth: type === 'line' ? 4 : 1,
+                borderRadius: finalType === 'bar' ? 8 : 0, borderWidth: finalType === 'line' ? 4 : 1,
                 fill: false, tension: 0.3
             }];
             if (d2) {
-                // If it's a trend chart (id starts with 'trend') and there's a target (d2)
-                const isTarget = id.startsWith('trend') && l2 && l2.toLowerCase().includes('target');
+                const isTargetLine = (id.startsWith('trend') || id === 'wasteDeepChart') && l2 && l2.toLowerCase().includes('target');
                 datasets.push({
-                    label: l2, data: d2, 
-                    backgroundColor: c2, borderColor: c2,
-                    borderRadius: type === 'bar' ? 8 : 0, 
-                    borderWidth: isTarget ? 2 : (type === 'line' ? 4 : 1),
-                    borderDash: isTarget ? [5, 5] : [], // Dashed line for trend targets
-                    fill: false, tension: isTarget ? 0 : 0.3,
-                    pointRadius: isTarget ? 0 : 3 // No points on target lines
+                    label: l2, data: d2, backgroundColor: c2, borderColor: c2,
+                    borderRadius: finalType === 'bar' ? 8 : 0, 
+                    borderWidth: isTargetLine ? 2 : (finalType === 'line' ? 4 : 1),
+                    borderDash: isTargetLine ? [5, 5] : [],
+                    fill: false, tension: isTargetLine ? 0 : 0.3,
+                    pointRadius: isTargetLine ? 0 : 3
                 });
             }
+
             charts[id] = new Chart(ctx.getContext('2d'), {
-                type: type,
+                type: finalType,
                 data: { labels, datasets },
                 options: {
+                    indexAxis: isHoriz ? 'y' : 'x',
                     responsive: true, maintainAspectRatio: false,
                     plugins: { 
                         legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun', size: 12 } } },
                         datalabels: { 
-                            display: (context) => {
-                                // Don't show labels on target lines in Trends page
-                                if (id.startsWith('trend') && context.datasetIndex === 1) return false;
-                                return true;
-                            },
-                            anchor: 'end', align: 'top', offset: 5,
+                            display: (context) => !(id.startsWith('trend') && context.datasetIndex === 1),
+                            anchor: 'end', align: isHoriz ? 'right' : 'top', offset: 5,
                             color: (context) => {
-                                if (id === 'wasteChart' && context.datasetIndex === 0) {
-                                    const actual = context.dataset.data[context.dataIndex];
-                                    const target = context.chart.data.datasets[1].data[context.dataIndex];
-                                    return (actual - target) > 0 ? '#ef4444' : '#10b981';
-                                }
+                                if (id === 'wasteChart' && context.datasetIndex === 0) return (context.dataset.data[context.dataIndex] - context.chart.data.datasets[1].data[context.dataIndex]) > 0 ? '#ef4444' : '#10b981';
                                 if (id === 'lossChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > GLOBAL_LOSS_TARGET ? '#ef4444' : '#10b981';
                                 if (id === 'shortChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > GLOBAL_SHORTAGE_TARGET ? '#ef4444' : '#10b981';
-                                if (id.startsWith('trend')) return Array.isArray(c1) ? c1[context.dataIndex] : c1;
-                                return Array.isArray(c1) ? (context.datasetIndex === 0 ? c1[context.dataIndex] : c2) : c1;
+                                if (id === 'wasteDeepChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > context.chart.data.datasets[1].data[context.dataIndex] ? '#ef4444' : '#10b981';
+                                return Array.isArray(c1) ? c1[context.dataIndex] : c1;
                             },
                             font: { weight: '900', size: 14, family: 'Sarabun' }, 
                             formatter: (v, context) => {
@@ -645,8 +756,7 @@
                                 const precision = (id.includes('Waste') || id.includes('Loss') || id.includes('Short') || isPct) ? 2 : 1;
                                 let label = v.toFixed(precision) + (isPct ? '%' : '');
                                 if (id === 'wasteChart' && context.datasetIndex === 0) {
-                                    const target = context.chart.data.datasets[1].data[context.dataIndex];
-                                    const diff = v - target;
+                                    const diff = v - context.chart.data.datasets[1].data[context.dataIndex];
                                     label += ` (${diff > 0 ? '+' : ''}${diff.toFixed(2)})`;
                                 }
                                 return label;
@@ -654,8 +764,8 @@
                         }
                     },
                     scales: { 
-                        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { weight: 'bold', size: 12 }, callback: v => v+(isPct?'%':'') }, grace: '20%' }, 
-                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 14 } } } 
+                        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { weight: 'bold', size: 12 }, callback: v => isHoriz ? v : v+(isPct?'%':'') }, grace: isHoriz ? '10%' : '20%' }, 
+                        x: { grid: { display: false }, ticks: { font: { weight: '900', size: 14 }, callback: v => isHoriz ? (v+(isPct?'%':'')) : v } } 
                     }
                 }
             });
