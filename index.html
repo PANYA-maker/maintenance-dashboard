@@ -81,7 +81,6 @@
                 </div>
             </section>
             
-            <!-- SECTION 1-4 RENDERED BY JS -->
             <section class="space-y-6">
                 <div class="flex items-center gap-3"><div class="h-8 w-1.5 bg-emerald-500 rounded-full"></div><h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">1. ประสิทธิภาพความเร็ว (Speed & Meter)</h2></div>
                 <div id="perf-kpis" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
@@ -220,7 +219,6 @@
         const GLOBAL_LOSS_TARGET = 6.25;
         const GLOBAL_SHORTAGE_TARGET = 18.80;
         
-        // Deep Dive Waste Targets
         const WASTE_DEEP_CONFIG = [
             { label: 'เศษติดแกน-ผลิต', target: 0.15 },
             { label: 'รอยต่อออร์เดอร์', target: 0.21 },
@@ -313,11 +311,17 @@
             return { from, to };
         }
 
+        // ปรับปรุงฟังก์ชันกรองวันที่ให้แข็งแรงขึ้น ( Robust Date Filtering )
         function filterDataByDate(id, filter) {
             return appState.raw[id]?.filter(r => {
-                const dParts = r['วันที่']?.split('/') || [];
+                // ค้นหาคอลัมน์วันที่โดยไม่สนช่องว่าง (Trim)
+                const dateKey = Object.keys(r).find(k => k.trim() === 'วันที่' || k.trim().toLowerCase() === 'date');
+                if (!dateKey) return false;
+                
+                const dParts = r[dateKey]?.split('/') || [];
                 if (dParts.length < 3) return false;
                 const year = parseInt(dParts[2]);
+                // รองรับทั้งปี พ.ศ. และ ค.ศ.
                 const dateObj = new Date(year > 2500 ? year - 543 : year, parseInt(dParts[1]) - 1, parseInt(dParts[0]));
                 return dateObj >= filter.from && dateObj <= filter.to;
             }) || [];
@@ -375,7 +379,7 @@
             lucide.createIcons();
         }
 
-        // --- WASTE DEEP DIVE ---
+        // --- WASTE DEEP DIVE ( FIXED LOGIC ) ---
         function renderWasteDetails() {
             const filter = getDateFilter();
             if (!filter) return;
@@ -384,33 +388,45 @@
             const conRaw = filterDataByDate('con', filter);
             const totalConsAll = conRaw.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
 
+            // ค้นหาคีย์คอลัมน์สำหรับ Description ( รายการ )
+            const descKey = wasteRaw.length > 0 ? 
+                Object.keys(wasteRaw[0]).find(k => k.trim() === 'Description' || k.trim() === 'รายการ') : 'Description';
+
             const calculatedWaste = WASTE_DEEP_CONFIG.map(cfg => {
-                let sumValue = 0;
+                let totalCategoryWeight = 0;
                 const searchLabels = cfg.keys ? cfg.keys : [cfg.label];
 
                 searchLabels.forEach(label => {
-                    // ปรับปรุงการค้นหาให้ยืดหยุ่นมากขึ้น (Trim และ Case-Insensitive)
-                    const row = wasteRaw.find(r => {
-                        return Object.values(r).some(val => 
-                            val && val.toString().trim().toLowerCase() === label.trim().toLowerCase()
-                        );
+                    // กรองทุกแถวที่ตรงกับรายการ (เพื่อรองรับการเลือกหลายวัน)
+                    const matchingRows = wasteRaw.filter(r => {
+                        const cellVal = (r[descKey] || "").toString().trim().toLowerCase();
+                        return cellVal === label.trim().toLowerCase();
                     });
 
-                    if (row) {
-                        // ปรับปรุงการดึงค่าคอลัมน์ให้รองรับการสะกดที่ผิดพลาดเล็กน้อย
+                    // ถ้าระบบหาจากคอลัมน์หลักไม่เจอ ให้ลองหาจากทุกคอลัมน์ในแถว (Fallback)
+                    if (matchingRows.length === 0) {
+                        wasteRaw.forEach(r => {
+                            const isMatch = Object.values(r).some(v => v?.toString().trim().toLowerCase() === label.trim().toLowerCase());
+                            if (isMatch) {
+                                sumRowWeights(r);
+                            }
+                        });
+                    } else {
+                        matchingRows.forEach(r => sumRowWeights(r));
+                    }
+
+                    function sumRowWeights(row) {
                         Object.keys(row).forEach(header => {
-                            const cleanHeader = header.replace(/\s/g, '').toUpperCase();
-                            const isTargetCol = WASTE_COLUMNS.some(target => 
-                                target.replace(/\s/g, '').toUpperCase() === cleanHeader
-                            );
-                            if (isTargetCol) {
-                                sumValue += cleanParse(row[header]);
+                            const hClean = header.replace(/\s/g, '').toUpperCase();
+                            const isTarget = WASTE_COLUMNS.some(target => target.replace(/\s/g, '').toUpperCase() === hClean);
+                            if (isTarget) {
+                                totalCategoryWeight += cleanParse(row[header]);
                             }
                         });
                     }
                 });
 
-                const actualPct = totalConsAll > 0 ? (sumValue / totalConsAll) * 100 : 0;
+                const actualPct = totalConsAll > 0 ? (totalCategoryWeight / totalConsAll) * 100 : 0;
                 return { ...cfg, actual: actualPct, diff: actualPct - cfg.target };
             });
 
@@ -446,7 +462,7 @@
             lucide.createIcons();
         }
 
-        // --- Standard Renderers (Executive & KPIs) ---
+        // --- Standard Renderers (Unchanged) ---
         function renderExecutiveAnalysis(stats) {
             const champ = [...stats].sort((a,b)=>b.totalScore - a.totalScore)[0];
             const container = document.getElementById('analysis-content');
@@ -468,9 +484,9 @@
                             </div>
                             ${isActive ? `
                             <div class="space-y-2">
-                                <p class="text-[10px] leading-snug font-bold"><span class="text-emerald-600">✓ จุดเด่น:</span> ${s.spdTotal > 115 ? 'สปีดเดินงานเฉลี่ยสูง' : (s.pctLoss < 5 ? 'คุม Loss ได้ดี' : (s.wActual < 11 ? 'ของเสียน้อยกว่าเป้า' : 'รักษามาตรฐานได้ดี'))}</p>
-                                <p class="text-[10px] leading-snug font-bold"><span class="text-rose-500">✗ ปรับปรุง:</span> ${s.pctLoss > 6.25 ? 'ลดเวลาสูญเสีย' : (s.pctShort > 18.8 ? 'ลดงานขาดจำนวน' : (s.wActual > 11.16 ? 'คุมของเสีย' : 'เพิ่มความเร็ว'))}</p>
-                            </div>` : `<div class="py-6 text-center text-[10px] text-slate-400 italic font-bold uppercase">No Data Recorded</div>`}
+                                <p class="text-[10px] leading-snug font-bold"><span class="text-emerald-600">✓ จุดเด่น:</span> ${s.spdTotal > 115 ? 'สปีดเฉลี่ยสูง' : (s.pctLoss < 5 ? 'คุม Loss ได้ดี' : (s.wActual < 11 ? 'ของเสียน้อย' : 'คงที่'))}</p>
+                                <p class="text-[10px] leading-snug font-bold"><span class="text-rose-500">✗ ปรับปรุง:</span> ${s.pctLoss > 6.25 ? 'ลดเวลาสูญเสีย' : (s.pctShort > 18.8 ? 'ลดงานขาด' : (s.wActual > 11.16 ? 'คุมของเสีย' : 'เพิ่มความเร็ว'))}</p>
+                            </div>` : `<div class="py-6 text-center text-[10px] text-slate-400 italic font-bold uppercase">No Data</div>`}
                         </div>`;
                     }).join('')}
                 </div>`;
@@ -583,9 +599,9 @@
             });
 
             const mColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
-            updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, mColor, null, false, 'line');
-            updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, Array(sortedLabels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', mColor, '#94a3b8', true, 'line');
-            updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, Array(sortedLabels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.80%)', mColor, '#94a3b8', true, 'line');
+            updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `สปีดเฉลี่ย ${machine}`, null, null, mColor, null, false, 'line');
+            updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% Loss ${machine}`, Array(sortedLabels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', mColor, '#94a3b8', true, 'line');
+            updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาด ${machine}`, Array(sortedLabels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.80%)', mColor, '#94a3b8', true, 'line');
             updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, Array(sortedLabels.length).fill(TARGETS[machine]), `Target (${TARGETS[machine]}%)`, mColor, '#f43f5e', true, 'line');
         }
 
