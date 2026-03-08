@@ -152,7 +152,7 @@
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div class="flex items-center gap-3">
                         <div class="p-2 bg-indigo-500 rounded-xl"><i data-lucide="trending-up"></i></div>
-                        <h2 class="text-lg font-black uppercase italic tracking-wider">Trend Analysis Settings</h2>
+                        <h2 class="text-lg font-black uppercase italic tracking-wider text-xl">Trend Analysis Settings</h2>
                     </div>
                     <div class="flex flex-wrap gap-3">
                         <select id="trendMachine" onchange="renderTrends()" class="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -183,7 +183,6 @@
                     <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-indigo-500 decoration-4 text-xl">📋 แนวโน้มงานขาดจำนวน (Shortage % Trends)</h3>
                     <div class="chart-container"><canvas id="trendShortChart"></canvas></div>
                 </div>
-                <!-- WASTE TREND CHART - UPDATED COLOR -->
                 <div class="dashboard-card">
                     <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2 underline underline-offset-8 decoration-amber-500 decoration-4 text-xl">🗑️ แนวโน้ม % ของเสีย (Waste % Trends)</h3>
                     <div class="chart-container"><canvas id="trendWasteChart"></canvas></div>
@@ -404,10 +403,8 @@
                     <div class="flex items-baseline gap-2"><span class="text-3xl font-black text-slate-800">${val}</span><span class="text-sm font-bold text-slate-400 italic">${unit}</span></div>
                 </div>`;
 
-            // Section 1 KPIs
             document.getElementById('perf-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('layers','เมตรรวม',formatNum(totalMet),'เมตร','emerald') + kpiBox('gauge','สปีดเฉลี่ย',(totalMet/(totalOp||1)).toFixed(1),'m/min','indigo');
             
-            // Section 2 KPIs (Loss) - Updated with Target and Color
             const actualLoss = (totalLoss/(totalOp||1)*100);
             const lossColorClass = actualLoss <= GLOBAL_LOSS_TARGET ? 'text-emerald-600' : 'text-rose-600';
             document.getElementById('loss-kpis').innerHTML = kpiBox('clock','เวลาเดินงาน',formatNum(totalOp),'นาที','blue') + kpiBox('clock-alert','เวลาสูญเสีย',formatNum(totalLoss),'นาที','rose') + 
@@ -422,7 +419,6 @@
                     </div>
                 </div>`;
 
-            // Section 3 KPIs (Shortage) - Updated with Target and Color
             const actualShort = (totalMiss/(totalOrd||1)*100);
             const shortColorClass = actualShort <= GLOBAL_SHORTAGE_TARGET ? 'text-emerald-600' : 'text-rose-600';
             document.getElementById('short-kpis').innerHTML = kpiBox('clipboard','ออเดอร์รวม',formatNum(totalOrd),'Order','blue') + kpiBox('alert-circle','ออเดอร์ขาด',formatNum(totalMiss),'Order','rose') + 
@@ -437,7 +433,6 @@
                     </div>
                 </div>`;
             
-            // Section 4 KPI Waste Analysis
             const totalConsAll = rawCon.reduce((acc, r) => acc + cleanParse(r['Cons (ALL)']), 0);
             const totalWasteAll = rawCon.reduce((acc, r) => acc + cleanParse(r['WASTE (ALL)']), 0);
             const totalCOAll = rawCon.reduce((acc, r) => acc + cleanParse(r['C-O (ALL)']), 0);
@@ -502,7 +497,6 @@
             updateChart('speedChart', MACHINES, stats.map(s=>s.spdA), 'กะ A', stats.map(s=>s.spdB), 'กะ B', colorsA, colorsB, false, 'bar');
             updateChart('lossChart', MACHINES, stats.map(s=>s.pctA), 'กะ A', stats.map(s=>s.pctB), 'กะ B', colorsA, colorsB, true, 'bar');
             updateChart('shortChart', MACHINES, stats.map(s=>s.shPctA), 'กะ A', stats.map(s=>s.shPctB), 'กะ B', colorsA, colorsB, true, 'bar');
-            
             const actuals = stats.map(s => s.wActual);
             const targets = stats.map(s => s.wTarget);
             const machineColors = ['#f97316', '#2563eb', '#16a34a'];
@@ -583,11 +577,18 @@
 
             const machineColor = machine === 'BHS' ? '#f97316' : (machine === 'YUELI' ? '#2563eb' : '#16a34a');
             
+            // Speed Trends - No Target
             updateChart('trendSpeedChart', sortedLabels, trendData.map(d=>d.speed), `ความเร็วเฉลี่ย ${machine}`, null, null, machineColor, null, false, 'line');
-            updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, null, null, machineColor, null, true, 'line');
-            updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, null, null, machineColor, null, true, 'line');
-            // UPDATED: Use machineColor instead of amber
-            updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, null, null, machineColor, null, true, 'line');
+            
+            // Loss Trends - Target 6.25%
+            updateChart('trendLossChart', sortedLabels, trendData.map(d=>d.lossP), `% เวลาสูญเสีย ${machine}`, Array(sortedLabels.length).fill(GLOBAL_LOSS_TARGET), 'Target (6.25%)', machineColor, '#94a3b8', true, 'line');
+            
+            // Shortage Trends - Target 18.80%
+            updateChart('trendShortChart', sortedLabels, trendData.map(d=>d.shortP), `% งานขาดจำนวน ${machine}`, Array(sortedLabels.length).fill(GLOBAL_SHORTAGE_TARGET), 'Target (18.80%)', machineColor, '#94a3b8', true, 'line');
+            
+            // Waste Trends - Machine Specific Target
+            const machineWasteTarget = TARGETS[machine];
+            updateChart('trendWasteChart', sortedLabels, trendData.map(d=>d.wasteP), `% ของเสีย ${machine}`, Array(sortedLabels.length).fill(machineWasteTarget), `Target ${machine} (${machineWasteTarget}%)`, machineColor, '#f43f5e', true, 'line');
             
             lucide.createIcons();
         }
@@ -600,11 +601,19 @@
                 borderRadius: type === 'bar' ? 8 : 0, borderWidth: type === 'line' ? 4 : 1,
                 fill: false, tension: 0.3
             }];
-            if (d2) datasets.push({
-                label: l2, data: d2, backgroundColor: c2, borderColor: c2,
-                borderRadius: type === 'bar' ? 8 : 0, borderWidth: type === 'line' ? 4 : 1,
-                fill: false, tension: 0.3
-            });
+            if (d2) {
+                // If it's a trend chart (id starts with 'trend') and there's a target (d2)
+                const isTarget = id.startsWith('trend') && l2 && l2.toLowerCase().includes('target');
+                datasets.push({
+                    label: l2, data: d2, 
+                    backgroundColor: c2, borderColor: c2,
+                    borderRadius: type === 'bar' ? 8 : 0, 
+                    borderWidth: isTarget ? 2 : (type === 'line' ? 4 : 1),
+                    borderDash: isTarget ? [5, 5] : [], // Dashed line for trend targets
+                    fill: false, tension: isTarget ? 0 : 0.3,
+                    pointRadius: isTarget ? 0 : 3 // No points on target lines
+                });
+            }
             charts[id] = new Chart(ctx.getContext('2d'), {
                 type: type,
                 data: { labels, datasets },
@@ -613,32 +622,32 @@
                     plugins: { 
                         legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'Sarabun', size: 12 } } },
                         datalabels: { 
-                            display: true, anchor: 'end', align: 'top', offset: 5,
+                            display: (context) => {
+                                // Don't show labels on target lines in Trends page
+                                if (id.startsWith('trend') && context.datasetIndex === 1) return false;
+                                return true;
+                            },
+                            anchor: 'end', align: 'top', offset: 5,
                             color: (context) => {
                                 if (id === 'wasteChart' && context.datasetIndex === 0) {
                                     const actual = context.dataset.data[context.dataIndex];
                                     const target = context.chart.data.datasets[1].data[context.dataIndex];
                                     return (actual - target) > 0 ? '#ef4444' : '#10b981';
                                 }
-                                if (id === 'lossChart' && context.datasetIndex === 0) {
-                                    return context.dataset.data[context.dataIndex] > GLOBAL_LOSS_TARGET ? '#ef4444' : '#10b981';
-                                }
-                                if (id === 'shortChart' && context.datasetIndex === 0) {
-                                    return context.dataset.data[context.dataIndex] > GLOBAL_SHORTAGE_TARGET ? '#ef4444' : '#10b981';
-                                }
+                                if (id === 'lossChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > GLOBAL_LOSS_TARGET ? '#ef4444' : '#10b981';
+                                if (id === 'shortChart' && context.datasetIndex === 0) return context.dataset.data[context.dataIndex] > GLOBAL_SHORTAGE_TARGET ? '#ef4444' : '#10b981';
+                                if (id.startsWith('trend')) return Array.isArray(c1) ? c1[context.dataIndex] : c1;
                                 return Array.isArray(c1) ? (context.datasetIndex === 0 ? c1[context.dataIndex] : c2) : c1;
                             },
                             font: { weight: '900', size: 14, family: 'Sarabun' }, 
                             formatter: (v, context) => {
                                 if (!v && v !== 0) return '';
-                                const precision = (id === 'wasteChart' || id === 'lossChart' || id === 'shortChart' || isPct) ? 2 : 1;
+                                const precision = (id.includes('Waste') || id.includes('Loss') || id.includes('Short') || isPct) ? 2 : 1;
                                 let label = v.toFixed(precision) + (isPct ? '%' : '');
-                                
                                 if (id === 'wasteChart' && context.datasetIndex === 0) {
                                     const target = context.chart.data.datasets[1].data[context.dataIndex];
                                     const diff = v - target;
-                                    const sign = diff > 0 ? '+' : '';
-                                    label += ` (${sign}${diff.toFixed(2)})`;
+                                    label += ` (${diff > 0 ? '+' : ''}${diff.toFixed(2)})`;
                                 }
                                 return label;
                             }
