@@ -321,6 +321,15 @@ with tab2:
 
         st.markdown(f"**สรุปสถานะงานซ่อม:** พบออเดอร์ขาดจำนวนที่ต้องจัดการทั้งหมด **{total_o:,}** ใบงาน | รวมน้ำหนักงานขาดจำนวน **{total_w:,.0f}** กก.")
         
+        # เพิ่มการ์ดสำหรับน้ำหนักของเหลือ PDW
+        st.markdown(f"""
+        <div class="kpi-wrapper" style="max-width: 350px; border-left: 4px solid #b45309; margin-top: 15px; margin-bottom: 20px;">
+            <div class="kpi-label">น้ำหนักของเหลือ PDW</div>
+            <div class="kpi-val" style="color: #b45309;">{pdw_scrap_val:,.0f}</div>
+            <div class="kpi-unit">หน่วย: กิโลกรัม</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         r_c1, r_c2 = st.columns([1.8, 1])
         with r_c1:
             st.markdown("**ตารางวิเคราะห์หมวดหมู่งานซ่อมเชิงลึก**")
