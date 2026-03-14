@@ -155,13 +155,20 @@ with tab1:
     # Section 2: Physical Loss Impact
     st.markdown('<div class="section-header">📏 ความสูญเสียเชิงกายภาพ (Physical Loss Impact)</div>', unsafe_allow_html=True)
     missing_sqm = pd.to_numeric(fdf.loc[fdf["สถานะผลิต"] == "ขาดจำนวน", "ตารางเมตรขาดจำนวน"], errors="coerce").sum()
+    
+    # คำนวณเปอร์เซ็นต์สำหรับน้ำหนัก (รองรับคอลัมน์ "น้ำหนักรวม" หรือใช้ "Output (Kgs.)" แทนหากหาไม่พบ)
+    total_weight_col = "น้ำหนักรวม" if "น้ำหนักรวม" in fdf.columns else "Output (Kgs.)"
+    total_weight_val = pd.to_numeric(fdf[total_weight_col], errors="coerce").sum() if total_weight_col in fdf.columns else 0
+    missing_weight_pct = (missing_weight / total_weight_val * 100) if total_weight_val > 0 else 0
+    over_weight_pct = (over_weight_val / total_weight_val * 100) if total_weight_val > 0 else 0
+
     m1, m2, m3, m4 = st.columns(4)
     with m1: kpi_box("Missing Meters", f"{missing_meters:,.0f}", "หน่วย: เมตร")
     with m2: kpi_box("Missing Area", f"{missing_sqm:,.0f}", "หน่วย: ตารางเมตร")
-    with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", "หน่วย: กิโลกรัม")
+    with m3: kpi_box("Missing Weight", f"{missing_weight:,.0f}", f"หน่วย: กิโลกรัม ({missing_weight_pct:.1f}%)")
     
     # UPDATED: KPI Card for "น้ำหนักของเกิน"
-    with m4: kpi_box("น้ำหนักของเกิน", f"{over_weight_val:,.0f}", "หน่วย: กิโลกรัม", "#b45309")
+    with m4: kpi_box("น้ำหนักของเกิน", f"{over_weight_val:,.0f}", f"หน่วย: กิโลกรัม ({over_weight_pct:.1f}%)", "#b45309")
 
     # Section 3: Machine Comparison Analysis
     st.markdown('<div class="section-header">📊 เปรียบเทียบสัดส่วนประสิทธิภาพแยกรายเครื่องจักร (Machine Performance)</div>', unsafe_allow_html=True)
