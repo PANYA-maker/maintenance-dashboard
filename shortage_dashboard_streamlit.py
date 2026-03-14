@@ -249,6 +249,53 @@ with tab1:
         fig_trend_chart.update_layout(xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': sum_trend_data['ช่วง'].unique()}, yaxis_range=[0, 115], plot_bgcolor='white', legend=dict(orientation="h", y=-0.2))
         st.plotly_chart(fig_trend_chart, use_container_width=True)
 
+        # ------------------------------------------------------------------
+        # NEW CHART: % Missing Weight vs % Overweight Trend
+        # ------------------------------------------------------------------
+        total_weight_col_trend = "น้ำหนักรวม" if "น้ำหนักรวม" in trend_df.columns else "Output (Kgs.)"
+        
+        # Prepare numeric columns safely
+        trend_df["_missing_w"] = pd.to_numeric(trend_df["น้ำหนักงานขาดจำนวน"], errors="coerce").fillna(0) if "น้ำหนักงานขาดจำนวน" in trend_df.columns else 0
+        trend_df["_over_w"] = pd.to_numeric(trend_df["น้ำหนักของเหลือ"], errors="coerce").fillna(0) if "น้ำหนักของเหลือ" in trend_df.columns else 0
+        trend_df["_total_w"] = pd.to_numeric(trend_df[total_weight_col_trend], errors="coerce").fillna(0) if total_weight_col_trend in trend_df.columns else 0
+        
+        # Aggregate data by period
+        weight_trend_data = trend_df.groupby(["ช่วง_dt", "ช่วง"]).agg(
+            sum_missing_w=("_missing_w", "sum"),
+            sum_over_w=("_over_w", "sum"),
+            sum_total_w=("_total_w", "sum")
+        ).reset_index()
+        
+        # Calculate percentages safely (avoid division by zero)
+        weight_trend_data["% Missing Weight"] = weight_trend_data.apply(
+            lambda x: (x["sum_missing_w"] / x["sum_total_w"] * 100) if x["sum_total_w"] > 0 else 0, axis=1
+        ).round(2)
+        weight_trend_data["% น้ำหนักของเกิน"] = weight_trend_data.apply(
+            lambda x: (x["sum_over_w"] / x["sum_total_w"] * 100) if x["sum_total_w"] > 0 else 0, axis=1
+        ).round(2)
+        
+        weight_trend_data = weight_trend_data.sort_values("ช่วง_dt")
+        
+        fig_weight_trend = px.line(
+            weight_trend_data, 
+            x="ช่วง", 
+            y=["% Missing Weight", "% น้ำหนักของเกิน"],
+            title=f"แนวโน้ม % ความสูญเสียเชิงกายภาพ (Missing vs Overweight) ({period}{title_suffix_str})",
+            markers=True,
+            labels={"value": "เปอร์เซ็นต์ (%)", "variable": "ประเภทความสูญเสีย", "ช่วง": "ช่วงเวลา"},
+            color_discrete_map={"% Missing Weight": "#ef4444", "% น้ำหนักของเกิน": "#b45309"}
+        )
+        fig_weight_trend.update_layout(
+            xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': weight_trend_data['ช่วง'].unique()},
+            plot_bgcolor='white', 
+            legend=dict(orientation="h", y=-0.2),
+            hovermode="x unified"
+        )
+        # Update line and marker styles for better visibility
+        fig_weight_trend.update_traces(line=dict(width=3), marker=dict(size=8))
+        
+        st.plotly_chart(fig_weight_trend, use_container_width=True)
+
     # Section 6: Strategic Analysis & Action Plan
     st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และแนวทางดำเนินงาน (Strategic Analysis & Action Plan)</div>', unsafe_allow_html=True)
     if not fdf.empty and order_total > 0:
