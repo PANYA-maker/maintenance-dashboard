@@ -197,8 +197,8 @@ with tab1:
     with col_left:
         top10_causes = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"].groupby("Detail").size().sort_values().tail(10).reset_index(name="จำนวน")
         if not top10_causes.empty:
-            top10_causes["%"] = (top10_causes["จำนวน"] / order_total * 100).round(1)
-            top10_causes["label_with_pct"] = "<b>" + top10_causes["จำนวน"].map('{:,}'.format) + "</b> (" + top10_causes["%"].astype(str) + "%)"
+            top10_causes["%"] = (top10_causes["จำนวน"] / order_total * 100)
+            top10_causes["label_with_pct"] = "<b>" + top10_causes["จำนวน"].map('{:,}'.format) + "</b> (" + top10_causes["%"].map('{:.2f}'.format) + "%)"
             fig_top10 = px.bar(top10_causes, x="จำนวน", y="Detail", orientation="h", title="TOP 10 สาเหตุงานขาดจำนวน", color="จำนวน", color_continuous_scale="Reds", text="label_with_pct")
             fig_top10.update_traces(textposition="outside", textfont=dict(size=13, color="#1e293b"), cliponaxis=False)
             fig_top10.update_layout(plot_bgcolor='white', margin=dict(t=50, b=0, r=80), xaxis=dict(showgrid=True, gridcolor='lightgrey'))
@@ -291,8 +291,14 @@ with tab1:
             legend=dict(orientation="h", y=-0.2),
             hovermode="x unified"
         )
-        # Update line and marker styles for better visibility
-        fig_weight_trend.update_traces(line=dict(width=3), marker=dict(size=8))
+        # Update line and marker styles for better visibility + Show Text Labels (2 decimals)
+        fig_weight_trend.update_traces(
+            mode="lines+markers+text",
+            texttemplate="%{y:.2f}%",
+            textposition="top center",
+            line=dict(width=3), 
+            marker=dict(size=8)
+        )
         
         st.plotly_chart(fig_weight_trend, use_container_width=True)
 
