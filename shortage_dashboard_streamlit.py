@@ -68,7 +68,7 @@ SHEET_ID = "1gW0lw9XS0JYST-P-ZrXoFq0k4n2ZlXu9hOf3A--JV9U"
 GID = "1799697899"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-@st.cache_data(ttl=300)
+@st.cache_data
 def load_data():
     try:
         df = pd.read_csv(CSV_URL)
@@ -79,7 +79,11 @@ def load_data():
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-df = load_data()
+if "cached_df" not in st.session_state:
+    st.session_state.cached_df = load_data()
+
+df = st.session_state.cached_df
+
 if df.empty:
     st.warning("⚠️ ไม่พบข้อมูลในระบบ")
     st.stop()
@@ -89,6 +93,8 @@ with st.sidebar:
     st.title("⚙️ แผงควบคุมตัวกรอง")
     if st.button("🔄 อัปเดตข้อมูลล่าสุด", use_container_width=True):
         st.cache_data.clear()
+        if "cached_df" in st.session_state:
+            del st.session_state["cached_df"]
         st.rerun()
     st.markdown("---")
     max_date = df["วันที่"].max()
