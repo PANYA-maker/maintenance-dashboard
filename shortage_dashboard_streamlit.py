@@ -103,6 +103,12 @@ with st.sidebar:
     # NEW: Detail Filter
     detail_filter = st.multiselect("Detail (สาเหตุ)", sorted(df["Detail"].dropna().unique()))
     
+    # NEW: 4 Additional Filters
+    flute_filter = st.multiselect("ลอน", sorted(df["ลอน"].astype(str).dropna().unique())) if "ลอน" in df.columns else []
+    group_short_filter = st.multiselect("Group ขาดจำนวน", sorted(df["Group ขาดจำนวน"].astype(str).dropna().unique())) if "Group ขาดจำนวน" in df.columns else []
+    order_type_filter = st.multiselect("ลักษณะ ORDER", sorted(df["ลักษณะ ORDER"].astype(str).dropna().unique())) if "ลักษณะ ORDER" in df.columns else []
+    cut_len_filter = st.multiselect("CutLenGroup", sorted(df["CutLenGroup"].astype(str).dropna().unique())) if "CutLenGroup" in df.columns else []
+    
     stop_status_col = "สถานะ ORDER จอดหรือไม่จอด"
     stop_status_filter = st.multiselect("สถานะการจอดเครื่อง", sorted(df[stop_status_col].dropna().unique())) if stop_status_col in df.columns else []
     period = st.selectbox("มุมมองแนวโน้ม", ["รายสัปดาห์", "รายวัน", "รายเดือน", "รายปี"])
@@ -116,6 +122,10 @@ if shift_filter: fdf = fdf[fdf["กะ"].isin(shift_filter)]
 if status_filter: fdf = fdf[fdf["สถานะผลิต"].isin(status_filter)]
 if customer_filter: fdf = fdf[fdf["ชื่อลูกค้า"].isin(customer_filter)]
 if detail_filter: fdf = fdf[fdf["Detail"].isin(detail_filter)]
+if flute_filter: fdf = fdf[fdf["ลอน"].astype(str).isin(flute_filter)]
+if group_short_filter: fdf = fdf[fdf["Group ขาดจำนวน"].astype(str).isin(group_short_filter)]
+if order_type_filter: fdf = fdf[fdf["ลักษณะ ORDER"].astype(str).isin(order_type_filter)]
+if cut_len_filter: fdf = fdf[fdf["CutLenGroup"].astype(str).isin(cut_len_filter)]
 if stop_status_filter: fdf = fdf[fdf[stop_status_col].isin(stop_status_filter)]
 
 # ---------------- Header Analytics ----------------
@@ -217,6 +227,44 @@ with tab1:
             fig_stop_pie.update_traces(textinfo="value+percent", textfont_size=12)
             fig_stop_pie.update_layout(margin=dict(t=80, b=20, l=10, r=10), showlegend=True, legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5), title=dict(y=0.9, x=0.5, xanchor='center'))
             st.plotly_chart(fig_stop_pie, use_container_width=True)
+
+    # ------------------------------------------------------------------
+    # NEW: 4 Additional Pie Charts (ลอน, Group ขาดจำนวน, ลักษณะ ORDER, CutLenGroup)
+    # ------------------------------------------------------------------
+    c_pie1, c_pie2, c_pie3, c_pie4 = st.columns(4)
+    short_pies_df = fdf[fdf["สถานะผลิต"] == "ขาดจำนวน"]
+    
+    with c_pie1:
+        if "ลอน" in short_pies_df.columns:
+            p_data1 = short_pies_df["ลอน"].astype(str).value_counts().reset_index(); p_data1.columns = ["ลอน", "จำนวน"]
+            f_pie1 = px.pie(p_data1, names="ลอน", values="จำนวน", hole=0.5, title="สัดส่วน ลอน")
+            f_pie1.update_traces(textinfo="percent+label", textfont_size=12)
+            f_pie1.update_layout(margin=dict(t=60, b=20, l=10, r=10), showlegend=False, title=dict(y=0.9, x=0.5, xanchor='center'))
+            st.plotly_chart(f_pie1, use_container_width=True)
+            
+    with c_pie2:
+        if "Group ขาดจำนวน" in short_pies_df.columns:
+            p_data2 = short_pies_df["Group ขาดจำนวน"].astype(str).value_counts().reset_index(); p_data2.columns = ["Group ขาดจำนวน", "จำนวน"]
+            f_pie2 = px.pie(p_data2, names="Group ขาดจำนวน", values="จำนวน", hole=0.5, title="Group ขาดจำนวน")
+            f_pie2.update_traces(textinfo="percent+label", textfont_size=12)
+            f_pie2.update_layout(margin=dict(t=60, b=20, l=10, r=10), showlegend=False, title=dict(y=0.9, x=0.5, xanchor='center'))
+            st.plotly_chart(f_pie2, use_container_width=True)
+            
+    with c_pie3:
+        if "ลักษณะ ORDER" in short_pies_df.columns:
+            p_data3 = short_pies_df["ลักษณะ ORDER"].astype(str).value_counts().reset_index(); p_data3.columns = ["ลักษณะ ORDER", "จำนวน"]
+            f_pie3 = px.pie(p_data3, names="ลักษณะ ORDER", values="จำนวน", hole=0.5, title="ลักษณะ ORDER")
+            f_pie3.update_traces(textinfo="percent+label", textfont_size=12)
+            f_pie3.update_layout(margin=dict(t=60, b=20, l=10, r=10), showlegend=False, title=dict(y=0.9, x=0.5, xanchor='center'))
+            st.plotly_chart(f_pie3, use_container_width=True)
+            
+    with c_pie4:
+        if "CutLenGroup" in short_pies_df.columns:
+            p_data4 = short_pies_df["CutLenGroup"].astype(str).value_counts().reset_index(); p_data4.columns = ["CutLenGroup", "จำนวน"]
+            f_pie4 = px.pie(p_data4, names="CutLenGroup", values="จำนวน", hole=0.5, title="CutLenGroup")
+            f_pie4.update_traces(textinfo="percent+label", textfont_size=12)
+            f_pie4.update_layout(margin=dict(t=60, b=20, l=10, r=10), showlegend=False, title=dict(y=0.9, x=0.5, xanchor='center'))
+            st.plotly_chart(f_pie4, use_container_width=True)
 
     # Section 5: Trend Analysis
     st.markdown('<div class="section-header">📈 แนวโน้มประสิทธิภาพตามช่วงเวลา</div>', unsafe_allow_html=True)
