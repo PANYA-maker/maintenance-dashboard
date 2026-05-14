@@ -356,6 +356,42 @@ with tab1:
         
         st.plotly_chart(fig_weight_trend, use_container_width=True)
 
+        # ------------------------------------------------------------------
+        # NEW CHART: Detail (Cause) Trend
+        # ------------------------------------------------------------------
+        detail_trend_df = trend_df[trend_df["สถานะผลิต"] == "ขาดจำนวน"].dropna(subset=["Detail"]).copy()
+        if not detail_trend_df.empty:
+            detail_group = detail_trend_df.groupby(["ช่วง_dt", "ช่วง", "Detail"]).size().reset_index(name="จำนวน")
+            total_orders_per_period = trend_df.groupby("ช่วง_dt").size().reset_index(name="total_orders")
+            detail_group = pd.merge(detail_group, total_orders_per_period, on="ช่วง_dt")
+            
+            # คำนวณเปอร์เซ็นต์ (อิงจากออเดอร์ทั้งหมดในช่วงเวลานั้น)
+            detail_group["%"] = (detail_group["จำนวน"] / detail_group["total_orders"] * 100).round(2)
+            detail_group["label_display"] = detail_group.apply(lambda x: f'{int(x["จำนวน"])} ({x["%"]:.2f}%)', axis=1)
+            detail_group = detail_group.sort_values(["ช่วง_dt", "จำนวน"], ascending=[True, False])
+            
+            # ตั้งชื่อกราฟตามสาเหตุที่เลือกในตัวกรอง
+            detail_title_text = ", ".join(detail_filter) if detail_filter else "ทุกสาเหตุ (ภาพรวม)"
+            
+            fig_detail_trend = px.line(
+                detail_group,
+                x="ช่วง",
+                y="จำนวน",
+                color="Detail",
+                title=f"แนวโน้มสาเหตุ (Detail): {detail_title_text} ({period}{title_suffix_str})",
+                markers=True,
+                text="label_display"
+            )
+            fig_detail_trend.update_traces(textposition="top center", line=dict(width=3), marker=dict(size=8))
+            fig_detail_trend.update_layout(
+                xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': detail_group['ช่วง'].unique()},
+                plot_bgcolor='white',
+                legend=dict(orientation="h", y=-0.2),
+                hovermode="x unified",
+                yaxis_title="จำนวนออเดอร์ (รายการ)"
+            )
+            st.plotly_chart(fig_detail_trend, use_container_width=True)
+
     # Section 6: Strategic Analysis & Action Plan
     st.markdown('<div class="section-header">💡 บทวิเคราะห์เชิงกลยุทธ์และแนวทางดำเนินงาน (Strategic Analysis & Action Plan)</div>', unsafe_allow_html=True)
     if not fdf.empty and order_total > 0:
