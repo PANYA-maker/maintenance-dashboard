@@ -362,7 +362,28 @@ with tab1:
         detail_trend_df = trend_df[trend_df["สถานะผลิต"] == "ขาดจำนวน"].dropna(subset=["Detail"]).copy()
         if not detail_trend_df.empty:
             detail_group = detail_trend_df.groupby(["ช่วง_dt", "ช่วง", "Detail"]).size().reset_index(name="จำนวน")
-            total_orders_per_period = trend_df.groupby("ช่วง_dt").size().reset_index(name="total_orders")
+            
+            # คำนวณยอดรวมออเดอร์ที่ไม่ถูกกรองด้วย Detail เพื่อหา % ที่แท้จริงเทียบกับออเดอร์ทั้งหมด
+            df_for_total = df.copy()
+            if len(date_range) == 2: df_for_total = df_for_total[(df_for_total["วันที่"] >= pd.to_datetime(date_range[0])) & (df_for_total["วันที่"] <= pd.to_datetime(date_range[1]))]
+            if mc_filter: df_for_total = df_for_total[df_for_total["MC"].isin(mc_filter)]
+            if shift_filter: df_for_total = df_for_total[df_for_total["กะ"].isin(shift_filter)]
+            if status_filter: df_for_total = df_for_total[df_for_total["สถานะผลิต"].isin(status_filter)]
+            if customer_filter: df_for_total = df_for_total[df_for_total["ชื่อลูกค้า"].isin(customer_filter)]
+            if flute_filter: df_for_total = df_for_total[df_for_total["ลอน"].astype(str).isin(flute_filter)]
+            if group_short_filter: df_for_total = df_for_total[df_for_total["Group ขาดจำนวน"].astype(str).isin(group_short_filter)]
+            if order_type_filter: df_for_total = df_for_total[df_for_total["ลักษณะ ORDER"].astype(str).isin(order_type_filter)]
+            if cut_len_filter: df_for_total = df_for_total[df_for_total["CutLenGroup"].astype(str).isin(cut_len_filter)]
+            if stop_status_filter: df_for_total = df_for_total[df_for_total[stop_status_col].isin(stop_status_filter)]
+            
+            df_for_total = df_for_total.dropna(subset=["วันที่"])
+            if period == "รายวัน": df_for_total["ช่วง_dt"] = df_for_total["วันที่"].dt.normalize()
+            elif period == "รายสัปดาห์": df_for_total["ช่วง_dt"] = df_for_total["วันที่"] - pd.to_timedelta((df_for_total["วันที่"].dt.weekday + 1) % 7, unit='D')
+            elif period == "รายเดือน": df_for_total["ช่วง_dt"] = df_for_total["วันที่"].dt.to_period("M").dt.to_timestamp()
+            else: df_for_total["ช่วง_dt"] = df_for_total["วันที่"].dt.to_period("Y").dt.to_timestamp()
+
+            total_orders_per_period = df_for_total.groupby("ช่วง_dt").size().reset_index(name="total_orders")
+            
             detail_group = pd.merge(detail_group, total_orders_per_period, on="ช่วง_dt")
             
             # คำนวณเปอร์เซ็นต์ (อิงจากออเดอร์ทั้งหมดในช่วงเวลานั้น)
