@@ -397,7 +397,7 @@ with tab1:
             fig_detail_trend = px.line(
                 detail_group,
                 x="ช่วง",
-                y="จำนวน",
+                y="%",
                 color="Detail",
                 title=f"แนวโน้มสาเหตุ (Detail): {detail_title_text} ({period}{title_suffix_str})",
                 markers=True,
@@ -409,7 +409,7 @@ with tab1:
                 plot_bgcolor='white',
                 legend=dict(orientation="h", y=-0.2),
                 hovermode="x unified",
-                yaxis_title="จำนวนออเดอร์ (รายการ)"
+                yaxis_title="สัดส่วนเปอร์เซ็นต์ (%)"
             )
             st.plotly_chart(fig_detail_trend, use_container_width=True)
 
